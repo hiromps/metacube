@@ -5,16 +5,9 @@ const nextConfig = {
     unoptimized: true
   },
 
-  // Enable optimizations
-  swcMinify: true,
-
-  // Standard Next.js build
+  // Standard Next.js build for Cloudflare Pages
   trailingSlash: true,
-
-  // Ensure compatibility
-  experimental: {
-    esmExternals: false
-  }
+  generateEtags: false
 };
 
 export default nextConfig;

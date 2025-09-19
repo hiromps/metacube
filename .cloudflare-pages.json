@@ -1,7 +1,7 @@
 {
   "build": {
     "command": "npm run build",
-    "destination": ".next/standalone",
+    "destination": ".next",
     "root": ".",
     "environment": {
       "NODE_VERSION": "18",
