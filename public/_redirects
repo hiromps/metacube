@@ -1,7 +1,4 @@
 # Cloudflare Pages redirects for Next.js App Router
 
-# Handle API routes
-/api/* /api/:splat 200
-
-# Handle all other routes with index.html (SPA fallback)
+# SPA fallback - handle all routes with index.html
 /* /index.html 200
