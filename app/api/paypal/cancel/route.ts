@@ -3,8 +3,10 @@ import { cancelSubscription } from '@/lib/paypal/client'
 import { supabaseAdmin } from '@/lib/supabase/client'
 
 export async function POST(request: NextRequest) {
+  let body: any = {}
+
   try {
-    const body = await request.json()
+    body = await request.json()
     const { subscription_id } = body
 
     if (!subscription_id) {

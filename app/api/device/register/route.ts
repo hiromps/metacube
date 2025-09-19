@@ -3,8 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase/client'
 import { isValidDeviceHash } from '@/lib/utils/crypto'
 
 export async function POST(request: NextRequest) {
+  let body: any = {}
+
   try {
-    const body = await request.json()
+    body = await request.json()
     const { device_hash, email, password } = body
 
     // Validate input

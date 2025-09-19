@@ -14,10 +14,18 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
+  let body: any = {}
+  let device_hash: string = ''
 
   try {
-    const body = await request.json()
-    const { device_hash } = body
+    // More robust JSON parsing for Cloudflare Pages
+    const text = await request.text()
+    if (!text || text.trim() === '') {
+      throw new Error('Empty request body')
+    }
+
+    body = JSON.parse(text)
+    device_hash = body?.device_hash || ''
 
     // Validate input
     if (!device_hash) {
@@ -115,21 +123,38 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Verification error:', error)
 
-    // Log error
-    await supabaseAdmin
-      .from('api_logs')
-      .insert({
-        device_hash: body?.device_hash || 'unknown',
-        endpoint: '/api/license/verify',
-        method: 'POST',
-        status_code: 500,
-        response_time_ms: Date.now() - startTime,
-        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
-      })
+    // Determine error type for better response
+    let errorMessage = 'Internal server error'
+    let statusCode = 500
+
+    if (error instanceof SyntaxError) {
+      errorMessage = 'Invalid JSON in request body'
+      statusCode = 400
+    } else if (error instanceof Error && error.message === 'Empty request body') {
+      errorMessage = 'Request body is required'
+      statusCode = 400
+    }
+
+    // Log error (with safe error handling for logging)
+    try {
+      await supabaseAdmin
+        .from('api_logs')
+        .insert({
+          device_hash: device_hash || body?.device_hash || 'unknown',
+          endpoint: '/api/license/verify',
+          method: 'POST',
+          status_code: statusCode,
+          response_time_ms: Date.now() - startTime,
+          ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+          error_message: error instanceof Error ? error.message : 'Unknown error'
+        })
+    } catch (logError) {
+      console.error('Failed to log error:', logError)
+    }
 
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { success: false, error: errorMessage },
+      { status: statusCode }
     )
   }
 }
