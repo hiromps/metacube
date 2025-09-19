@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cancelSubscription } from '@/lib/paypal/client'
 import { supabaseAdmin } from '@/lib/supabase/client'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   let body: any = {}
 

@@ -6,7 +6,15 @@ const nextConfig = {
   },
 
   // Enable SWC minification for production
-  swcMinify: true
+  swcMinify: true,
+
+  // Disable webpack cache to reduce bundle size
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.cache = false
+    }
+    return config
+  }
 };
 
 export default nextConfig;

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/client'
 import { isValidDeviceHash } from '@/lib/utils/crypto'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Cache for license verification (in-memory for MVP)
 const licenseCache = new Map<string, {
   is_valid: boolean

@@ -1,0 +1,57 @@
+# Cloudflare Pages ignore file
+# Exclude large files and unnecessary files from deployment
+
+# Node modules
+node_modules/
+
+# Git files
+.git/
+.gitignore
+
+# Development files
+.env*.local
+.env.example
+
+# Build cache (the problematic large files)
+.next/cache/
+.next/build-manifest.json
+.next/react-loadable-manifest.json
+.next/static/chunks/webpack*
+cache/
+
+# Documentation
+*.md
+docs/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+
+# Development tools
+.eslintrc*
+.prettierrc*
+.editorconfig

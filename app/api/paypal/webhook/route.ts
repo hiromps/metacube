@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/client'
 import { verifyWebhookSignature } from '@/lib/paypal/client'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // PayPal webhook event types we care about
 const RELEVANT_EVENTS = [
   'BILLING.SUBSCRIPTION.CREATED',
