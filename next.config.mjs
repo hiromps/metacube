@@ -5,7 +5,7 @@ const nextConfig = {
     unoptimized: true
   },
 
-  // Standard Next.js build for Cloudflare Pages
+  // Cloudflare Pages optimizations
   trailingSlash: true,
   generateEtags: false,
 
