@@ -1,7 +1,7 @@
 {
   "build": {
-    "command": "echo 'Using static files from public directory'",
-    "destination": "public",
+    "command": "echo 'Using static files from root directory'",
+    "destination": ".",
     "root": "."
   }
 }
