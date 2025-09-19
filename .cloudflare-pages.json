@@ -1,0 +1,27 @@
+{
+  "build": {
+    "command": "npm run build",
+    "destination": "out",
+    "root": ".",
+    "environment": {
+      "NODE_VERSION": "18",
+      "NPM_VERSION": "9"
+    }
+  },
+  "env": {
+    "production": {
+      "NODE_ENV": "production",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    },
+    "preview": {
+      "NODE_ENV": "preview",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "compatibility_flags": ["nodejs_compat"],
+  "functions": {
+    "api/**": {
+      "runtime": "nodejs18"
+    }
+  }
+}
