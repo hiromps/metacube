@@ -1,17 +1,7 @@
-import checkoutNodeJssdk from '@paypal/checkout-server-sdk'
-
-// PayPal configuration
-const environment = process.env.NODE_ENV === 'production'
-  ? new checkoutNodeJssdk.core.LiveEnvironment(
-      process.env.PAYPAL_CLIENT_ID!,
-      process.env.PAYPAL_CLIENT_SECRET!
-    )
-  : new checkoutNodeJssdk.core.SandboxEnvironment(
-      process.env.PAYPAL_CLIENT_ID!,
-      process.env.PAYPAL_CLIENT_SECRET!
-    )
-
-export const paypalClient = new checkoutNodeJssdk.core.PayPalHttpClient(environment)
+// PayPal configuration using Fetch API for Cloudflare Pages compatibility
+const PAYPAL_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://api.paypal.com'
+  : 'https://api.sandbox.paypal.com'
 
 // Subscription plans
 export const SUBSCRIPTION_PLANS = {
@@ -108,44 +98,64 @@ export function verifyWebhookSignature(
  * Cancel a PayPal subscription
  */
 export async function cancelSubscription(subscriptionId: string, reason: string = 'User requested cancellation') {
-  // REST API call to cancel subscription
-  const response = await fetch(`https://api.${process.env.NODE_ENV === 'production' ? '' : 'sandbox.'}paypal.com/v1/billing/subscriptions/${subscriptionId}/cancel`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${await getAccessToken()}`
-    },
-    body: JSON.stringify({
-      reason
+  try {
+    const accessToken = await getAccessToken()
+
+    const response = await fetch(`${PAYPAL_BASE_URL}/v1/billing/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        reason
+      })
     })
-  })
 
-  if (!response.ok) {
-    throw new Error(`Failed to cancel subscription: ${response.statusText}`)
+    if (!response.ok) {
+      const errorData = await response.text()
+      throw new Error(`Failed to cancel subscription: ${response.status} ${response.statusText} - ${errorData}`)
+    }
+
+    return true
+  } catch (error) {
+    console.error('PayPal cancellation error:', error)
+    throw error
   }
-
-  return true
 }
 
 /**
  * Get PayPal access token
  */
 async function getAccessToken(): Promise<string> {
-  const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64')
+  try {
+    const auth = btoa(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`)
 
-  const response = await fetch(`https://api.${process.env.NODE_ENV === 'production' ? '' : 'sandbox.'}paypal.com/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  })
+    const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: 'grant_type=client_credentials'
+    })
 
-  if (!response.ok) {
-    throw new Error('Failed to get PayPal access token')
+    if (!response.ok) {
+      const errorData = await response.text()
+      throw new Error(`Failed to get PayPal access token: ${response.status} ${response.statusText} - ${errorData}`)
+    }
+
+    const data = await response.json()
+
+    if (!data.access_token) {
+      throw new Error('PayPal access token not found in response')
+    }
+
+    return data.access_token
+  } catch (error) {
+    console.error('PayPal access token error:', error)
+    throw error
   }
-
-  const data = await response.json()
-  return data.access_token
 }
