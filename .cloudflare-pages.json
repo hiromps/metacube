@@ -1,11 +1,12 @@
 {
   "build": {
     "command": "npm run build",
-    "destination": ".next",
+    "destination": ".next/standalone",
     "root": ".",
     "environment": {
       "NODE_VERSION": "18",
-      "NPM_VERSION": "9"
+      "NPM_VERSION": "9",
+      "NEXT_TELEMETRY_DISABLED": "1"
     }
   },
   "env": {

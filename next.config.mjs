@@ -1,19 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Cloudflare Pages compatibility
+  // Cloudflare Pages configuration
   images: {
     unoptimized: true
   },
 
-  // Enable SWC minification for production
+  // Enable optimizations
   swcMinify: true,
 
-  // Disable webpack cache to reduce bundle size
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.cache = false
-    }
-    return config
+  // Standard Next.js build
+  trailingSlash: true,
+
+  // Ensure compatibility
+  experimental: {
+    esmExternals: false
   }
 };
 
