@@ -5,14 +5,9 @@ const nextConfig = {
     unoptimized: true
   },
 
-  // Enable static export
-  output: 'export',
-  distDir: 'out',
+  // Standard Next.js build for Cloudflare Pages
   trailingSlash: true,
   generateEtags: false,
-
-  // Disable features that don't work with static export
-  // API routes will be moved to separate Cloudflare Functions
 
   // Disable caching for Cloudflare Pages
   webpack: (config, { isServer }) => {

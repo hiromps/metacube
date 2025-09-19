@@ -1,7 +1,26 @@
 {
   "build": {
-    "command": "echo 'Using static files from root directory'",
-    "destination": ".",
-    "root": "."
-  }
+    "command": "npm run build",
+    "destination": ".next",
+    "root": ".",
+    "environment": {
+      "NODE_VERSION": "18",
+      "NPM_VERSION": "9",
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+    }
+  },
+  "env": {
+    "production": {
+      "NODE_ENV": "production",
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+    },
+    "preview": {
+      "NODE_ENV": "preview",
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+    }
+  },
+  "compatibility_flags": ["nodejs_compat"]
 }
