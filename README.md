@@ -1,36 +1,219 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SocialTouch License Management System
 
-## Getting Started
+iPhone 7/8デバイス専用のInstagramオートメーションツール用ライセンス管理システム
 
-First, run the development server:
+## 🚀 機能
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **デバイス認証**: iPhone 7/8デバイス専用ライセンス
+- **無料体験**: 3日間の無料トライアル
+- **サブスクリプション**: PayPal月額課金（¥2,980）
+- **AutoTouch統合**: Luaスクリプトでのライセンス検証
+- **リアルタイム管理**: Webhook自動更新
+- **ユーザーダッシュボード**: サブスクリプション管理
+
+## 🛠 技術スタック
+
+- **Frontend**: Next.js 14 (App Router)
+- **Database**: Supabase (PostgreSQL + Auth)
+- **Payment**: PayPal Subscriptions API
+- **Hosting**: Cloudflare Pages
+- **Automation**: AutoTouch (Lua)
+
+## 📁 プロジェクト構造
+
+```
+autolicense/
+├── app/                      # Next.js App Router
+│   ├── api/                  # API Routes
+│   │   ├── device/register/  # デバイス登録
+│   │   ├── license/verify/   # ライセンス検証
+│   │   └── paypal/          # PayPal関連API
+│   ├── dashboard/           # ユーザーダッシュボード
+│   ├── login/              # ログインページ
+│   └── register/           # 登録ページ
+├── components/             # Reactコンポーネント
+├── lib/                   # ユーティリティ
+│   ├── auth/             # 認証関連
+│   ├── paypal/           # PayPal統合
+│   └── supabase/         # Supabase設定
+├── lua/                  # AutoTouch Luaスクリプト
+└── supabase/            # データベーススキーマ
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 デプロイ
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Cloudflare Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+詳細な手順は [CLOUDFLARE_DEPLOY.md](./CLOUDFLARE_DEPLOY.md) を参照
 
-## Learn More
+```bash
+# 1. リポジトリをGitHubにプッシュ
+git push origin main
 
-To learn more about Next.js, take a look at the following resources:
+# 2. Cloudflare Pagesでプロジェクト作成
+# 3. 環境変数を設定
+# 4. 自動デプロイ開始
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 環境変数
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+本番環境用のテンプレートは [.env.production.example](./.env.production.example) を参照
 
-## Deploy on Vercel
+## 🔧 開発
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### セットアップ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+# 依存関係インストール
+npm install
+
+# 環境変数設定
+cp .env.local.example .env.local
+# .env.local を編集
+
+# 開発サーバー起動
+npm run dev
+```
+
+### データベース
+
+```bash
+# Supabaseマイグレーション
+npx supabase migration up
+
+# または直接実行
+npx supabase db reset
+```
+
+### PayPal設定
+
+```bash
+# サンドボックス環境でプラン作成
+node test-paypal-setup.js
+```
+
+## 📱 AutoTouch統合
+
+### Luaスクリプト使用例
+
+```lua
+-- SocialTouchメインスクリプト
+local auth = require("lua/main_v2")
+
+-- ライセンス認証
+if auth.authenticate() then
+    -- ツール実行
+    runInstagramAutomation()
+else
+    -- 認証失敗処理
+    showTrialExpiredDialog()
+end
+```
+
+## 🔒 セキュリティ
+
+- Row Level Security (RLS) 有効
+- PayPal Webhook署名検証
+- レート制限実装
+- HTTPS強制
+- セキュリティヘッダー設定
+
+## 📊 監視
+
+### Cloudflare Analytics
+- ページビュー
+- パフォーマンス指標
+- エラー率
+
+### Supabase Insights
+- データベース使用量
+- API呼び出し数
+- 認証ログ
+
+### PayPal Dashboard
+- トランザクション履歴
+- Webhook配信状況
+- 返金・チャージバック
+
+## 🧪 テスト
+
+```bash
+# 全体テスト
+npm test
+
+# PayPal統合テスト
+node test-paypal-payment.js
+
+# Webhookテスト
+node test-webhook.js
+```
+
+## 📝 API仕様
+
+### デバイス登録
+```
+POST /api/device/register
+Content-Type: application/json
+
+{
+  "device_hash": "16文字のhex",
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+### ライセンス検証
+```
+POST /api/license/verify
+Content-Type: application/json
+
+{
+  "device_hash": "16文字のhex"
+}
+```
+
+## 🔄 ワークフロー
+
+### ユーザー登録フロー
+1. デバイスハッシュ生成
+2. ユーザー登録（3日間体験版付与）
+3. PayPal決済（月額サブスクリプション）
+4. Webhook処理（サブスクリプション有効化）
+
+### ライセンス検証フロー
+1. AutoTouchからAPI呼び出し
+2. デバイスハッシュ照合
+3. ライセンス状態確認
+4. 結果返却（24時間キャッシュ）
+
+## 🆘 トラブルシューティング
+
+### よくある問題
+
+#### ビルドエラー
+```bash
+npm run build  # ローカルテスト
+npm install --legacy-peer-deps  # 依存関係修正
+```
+
+#### 認証エラー
+- Supabase RLS設定確認
+- 環境変数設定確認
+
+#### PayPal接続エラー
+- Webhook URL確認（HTTPS必須）
+- 本番/サンドボックス設定確認
+
+## 📞 サポート
+
+- **開発者**: support@socialtouch.app
+- **ドキュメント**: [CLOUDFLARE_DEPLOY.md](./CLOUDFLARE_DEPLOY.md)
+- **課金サポート**: PayPal決済履歴から問い合わせ
+
+## 📄 ライセンス
+
+Private - SocialTouch Project
+
+---
+
+**注意**: このシステムはiPhone 7/8デバイス専用です。他のデバイスでは動作しません。
