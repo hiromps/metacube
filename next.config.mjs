@@ -7,7 +7,14 @@ const nextConfig = {
 
   // Standard Next.js build for Cloudflare Pages
   trailingSlash: true,
-  generateEtags: false
+  generateEtags: false,
+
+  // Disable caching for Cloudflare Pages
+  webpack: (config, { isServer }) => {
+    // Disable webpack cache for smaller build size
+    config.cache = false
+    return config
+  }
 };
 
 export default nextConfig;

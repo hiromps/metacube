@@ -17,6 +17,8 @@ node_modules/
 .next/build-manifest.json
 .next/react-loadable-manifest.json
 .next/static/chunks/webpack*
+.next/cache/webpack/
+*.pack
 cache/
 
 # Documentation
