@@ -6,12 +6,12 @@
 
 **Build command:**
 ```bash
-npm run cf:build
+npm run build
 ```
 
 **Build output directory:**
 ```
-.vercel/output/static
+.next
 ```
 
 **Root directory (optional):**
@@ -50,12 +50,12 @@ JWT_SECRET=your_jwt_secret_key
 
 ### 注意事項
 
-1. `npm run cf:build` コマンドで以下が実行されます：
-   - 内部的に `next build` でNext.jsアプリをビルド
-   - Cloudflare Pages用に最適化された形式に変換
-   - `.vercel/output/static` に出力
+1. `npm run build` コマンドで標準のNext.jsビルドが実行されます
+   - `next build` でNext.jsアプリをビルド
+   - `.next` ディレクトリに出力
+   - APIルートも自動的に含まれます
 
-2. 出力ディレクトリ `.vercel/output/static` にAPIルートも含まれます
+2. Cloudflare PagesがNext.jsを自動認識して適切にデプロイ
 
 3. 初回デプロイ後、カスタムドメインを設定する場合は `NEXT_PUBLIC_APP_URL` を更新してください
 
@@ -79,8 +79,8 @@ JWT_SECRET=your_jwt_secret_key
 
 ```bash
 # 1. ビルド
-npm run cf:build
+npm run build
 
 # 2. デプロイ
-npx wrangler pages deploy .vercel/output/static --project-name socialtouch-license
+npx wrangler pages deploy .next --project-name socialtouch-license
 ```
