@@ -355,37 +355,135 @@ local function copyToClipboard(text)
     end
 end
 
--- デバイスハッシュ取得
-local function getDeviceHash()
-    local deviceId = nil
+-- iPhoneシリアル番号取得（確実な方法）
+local function getDeviceSerial()
+    local serialNumber = nil
 
-    -- Method 1: UDID取得
-    local handle = io.popen("ioreg -rd1 -c IOPlatformExpertDevice | grep -E '(UUID)'")
+    log("🔍 iPhoneシリアル番号を取得中...")
+
+    -- Method 1: IOPlatformSerialNumber (最も確実)
+    local handle = io.popen("ioreg -l | grep IOPlatformSerialNumber | head -1")
     if handle then
         local result = handle:read("*a")
         handle:close()
-        if result and result ~= "" then
-            deviceId = result:match('"([^"]+)"')
-        end
-    end
+        log(string.format("📡 ioreg結果: %s", result or "empty"))
 
-    -- Method 2: シリアル番号取得
-    if not deviceId then
-        handle = io.popen("ioreg -l | grep IOPlatformSerialNumber")
-        if handle then
-            local result = handle:read("*a")
-            handle:close()
-            if result and result ~= "" then
-                deviceId = result:match('"([^"]+)"')
+        if result and result ~= "" then
+            -- "IOPlatformSerialNumber" = "F2LXJ7XXHG7F" の形式から抽出
+            serialNumber = result:match('"([A-Z0-9]+)"')
+            if serialNumber and #serialNumber >= 8 then
+                log(string.format("✅ Method 1成功 - シリアル番号: %s", serialNumber))
+                return serialNumber
             end
         end
     end
 
-    -- Method 3: フォールバック - デバイス固有情報からハッシュ生成
+    -- Method 2: system_profiler (macOS/iOS用)
+    if not serialNumber then
+        handle = io.popen("system_profiler SPHardwareDataType 2>/dev/null | grep Serial")
+        if handle then
+            local result = handle:read("*a")
+            handle:close()
+            log(string.format("📡 system_profiler結果: %s", result or "empty"))
+
+            if result and result ~= "" then
+                serialNumber = result:match("Serial Number.-([A-Z0-9]+)")
+                if serialNumber and #serialNumber >= 8 then
+                    log(string.format("✅ Method 2成功 - シリアル番号: %s", serialNumber))
+                    return serialNumber
+                end
+            end
+        end
+    end
+
+    -- Method 3: sysctlコマンド
+    if not serialNumber then
+        handle = io.popen("sysctl hw.serialnumber 2>/dev/null")
+        if handle then
+            local result = handle:read("*a")
+            handle:close()
+            log(string.format("📡 sysctl結果: %s", result or "empty"))
+
+            if result and result ~= "" then
+                serialNumber = result:match("hw%.serialnumber: ([A-Z0-9]+)")
+                if serialNumber and #serialNumber >= 8 then
+                    log(string.format("✅ Method 3成功 - シリアル番号: %s", serialNumber))
+                    return serialNumber
+                end
+            end
+        end
+    end
+
+    -- Method 4: iOSデバイス情報ファイル直接読取
+    if not serialNumber then
+        local infoFile = io.open("/System/Library/CoreServices/SystemVersion.plist", "r")
+        if infoFile then
+            infoFile:close()
+            -- プロパティリストからシリアル番号を取得（試行）
+            handle = io.popen("grep -A1 -B1 -i serial /System/Library/CoreServices/SystemVersion.plist 2>/dev/null")
+            if handle then
+                local result = handle:read("*a")
+                handle:close()
+                log(string.format("📡 plist結果: %s", result or "empty"))
+
+                if result and result ~= "" then
+                    serialNumber = result:match("([A-Z0-9]{8,})")
+                    if serialNumber and #serialNumber >= 8 then
+                        log(string.format("✅ Method 4成功 - シリアル番号: %s", serialNumber))
+                        return serialNumber
+                    end
+                end
+            end
+        end
+    end
+
+    log("⚠️ 全ての方法でシリアル番号取得に失敗")
+    return nil
+end
+
+-- デバイスハッシュ取得（シリアル番号ベース）
+local function getDeviceHash()
+    local deviceId = nil
+
+    -- iPhoneシリアル番号を取得
+    local serialNumber = getDeviceSerial()
+
+    if serialNumber then
+        -- シリアル番号をそのまま使用（プレフィックス付き）
+        deviceId = string.format("IPHONE_%s", serialNumber)
+        log(string.format("✅ デバイスID確定: %s", deviceId))
+    else
+        -- フォールバック: UDIDを試す
+        log("🔄 フォールバック: UDIDを取得中...")
+        local handle = io.popen("ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID")
+        if handle then
+            local result = handle:read("*a")
+            handle:close()
+            if result and result ~= "" then
+                local uuid = result:match('"([A-F0-9-]+)"')
+                if uuid then
+                    deviceId = string.format("UUID_%s", uuid:gsub("-", ""):sub(1, 12))
+                    log(string.format("✅ フォールバック成功 - UUID: %s", deviceId))
+                end
+            end
+        end
+    end
+
+    -- 最終フォールバック: デバイス特性ベース
     if not deviceId then
+        log("🔄 最終フォールバック: デバイス特性ベース")
         local width, height = getScreenResolution()
-        local timestamp = os.time()
-        deviceId = string.format("AT_%d_%d_%d", width, height, timestamp % 1000000)
+        local osVersion = getOSVersion()
+
+        -- より安定したハッシュ生成
+        local deviceInfo = string.format("%d_%d_%s", width, height, osVersion or "iOS")
+        local hash = 0
+        for i = 1, #deviceInfo do
+            hash = (hash * 31 + string.byte(deviceInfo, i)) % 2147483647
+        end
+
+        deviceId = string.format("FALLBACK_%08X", hash)
+        log(string.format("✅ 最終フォールバック: %s", deviceId))
     end
 
     return deviceId or "DEMO-DEVICE-001"

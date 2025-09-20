@@ -75,6 +75,7 @@ async function handleLicenseVerify(request: Request) {
     // TODO: Implement Supabase integration here
     // For MVP, simulate license check with mock data
     const mockDevices: { [key: string]: any } = {
+      // 従来のテスト用デバイス
       'DEMO-DEVICE-001': {
         status: 'active',
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
@@ -86,6 +87,34 @@ async function handleLicenseVerify(request: Request) {
       'DEMO-DEVICE-003': {
         status: 'expired',
         expires_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() // Expired yesterday
+      },
+
+      // iPhone 7/8のシリアル番号サンプル（実際のパターンに基づく）
+      'IPHONE_F2LXJ7XXHG7F': {
+        status: 'active',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        device_model: 'iPhone 7',
+        registered_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      'IPHONE_FMRY2J9KHFLL': {
+        status: 'trial',
+        expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        device_model: 'iPhone 8',
+        registered_at: new Date().toISOString()
+      },
+      'IPHONE_D4HJMQLNHFM4': {
+        status: 'expired',
+        expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        device_model: 'iPhone 7 Plus',
+        registered_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      },
+
+      // UUIDベースのフォールバック用
+      'UUID_A1B2C3D4E5F6': {
+        status: 'trial',
+        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        device_model: 'iPhone Unknown',
+        registered_at: new Date().toISOString()
       }
     };
 

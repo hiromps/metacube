@@ -196,9 +196,13 @@
             <div class="input-group">
                 <label for="verify-device">デバイスハッシュ:</label>
                 <select id="verify-device" onchange="updateDeviceHash()">
-                    <option value="DEMO-DEVICE-001">DEMO-DEVICE-001 (アクティブ)</option>
-                    <option value="DEMO-DEVICE-002">DEMO-DEVICE-002 (体験版)</option>
-                    <option value="DEMO-DEVICE-003">DEMO-DEVICE-003 (期限切れ)</option>
+                    <option value="DEMO-DEVICE-001">DEMO-DEVICE-001 (アクティブ - レガシー)</option>
+                    <option value="DEMO-DEVICE-002">DEMO-DEVICE-002 (体験版 - レガシー)</option>
+                    <option value="DEMO-DEVICE-003">DEMO-DEVICE-003 (期限切れ - レガシー)</option>
+                    <option value="IPHONE_F2LXJ7XXHG7F">IPHONE_F2LXJ7XXHG7F (iPhone 7 - アクティブ)</option>
+                    <option value="IPHONE_FMRY2J9KHFLL">IPHONE_FMRY2J9KHFLL (iPhone 8 - 体験版)</option>
+                    <option value="IPHONE_D4HJMQLNHFM4">IPHONE_D4HJMQLNHFM4 (iPhone 7 Plus - 期限切れ)</option>
+                    <option value="UUID_A1B2C3D4E5F6">UUID_A1B2C3D4E5F6 (フォールバック - 体験版)</option>
                     <option value="UNKNOWN-DEVICE">UNKNOWN-DEVICE (未登録)</option>
                     <option value="custom">カスタム入力...</option>
                 </select>
@@ -232,9 +236,15 @@
         <!-- Demo Device Info -->
         <div class="demo-devices">
             <strong>📌 テスト用デバイス:</strong>
+            <strong>レガシー:</strong><br>
             • DEMO-DEVICE-001: アクティブライセンス（30日間有効）<br>
             • DEMO-DEVICE-002: 体験版（3日間有効）<br>
             • DEMO-DEVICE-003: 期限切れライセンス<br>
+            <strong>iPhone シリアル番号ベース:</strong><br>
+            • IPHONE_F2LXJ7XXHG7F: iPhone 7 アクティブ<br>
+            • IPHONE_FMRY2J9KHFLL: iPhone 8 体験版<br>
+            • IPHONE_D4HJMQLNHFM4: iPhone 7 Plus 期限切れ<br>
+            • UUID_A1B2C3D4E5F6: フォールバック 体験版<br>
             • その他: 未登録として扱われます
         </div>
 
