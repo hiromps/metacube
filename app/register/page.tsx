@@ -2,7 +2,11 @@
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import PayPalButton from '@/components/PayPalButton'
+import { Button } from '@/app/components/ui/Button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/Card'
+import { Badge } from '@/app/components/ui/Badge'
 
 function RegisterForm() {
   const router = useRouter()
@@ -103,160 +107,258 @@ function RegisterForm() {
 
   if (step === 'payment' && registrationData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-          <h1 className="text-2xl font-bold mb-6 text-center">SocialTouch</h1>
-          <h2 className="text-lg mb-6 text-center text-gray-600">決済情報の入力</h2>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-dark relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 -left-4 w-96 h-96 bg-matrix rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-2000"></div>
+        </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          <div className="mb-6 p-4 bg-gray-50 rounded">
-            <p className="text-sm text-gray-600 mb-2">登録情報</p>
-            <p className="text-sm font-medium">{email}</p>
-            <p className="text-xs text-gray-500 mt-1">デバイス: {deviceHash}</p>
+        <div className="relative z-10 w-full max-w-md px-4">
+          <div className="text-center mb-8">
+            <Link href="/">
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-matrix bg-clip-text text-transparent inline-block">
+                MetaCube
+              </h1>
+            </Link>
+            <Badge variant="glass" size="md">
+              セキュア決済
+            </Badge>
           </div>
 
-          <PayPalButton
-            deviceHash={deviceHash}
-            email={email}
-            onSuccess={handlePaymentSuccess}
-            onError={handlePaymentError}
-            onCancel={handlePaymentCancel}
-          />
+          <Card variant="glass" className="backdrop-blur-xl bg-white/5">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-white">決済情報の入力</CardTitle>
+              <CardDescription>
+                PayPalで安全にお支払い
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div className="mb-4 p-4 bg-error/10 border border-error/30 text-error rounded-lg animate-slide-down">
+                  {error}
+                </div>
+              )}
 
-          <button
-            onClick={() => setStep('form')}
-            className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700"
-          >
-            戻る
-          </button>
+              <div className="mb-6 p-4 bg-white/5 rounded-lg border border-white/10">
+                <p className="text-sm text-gray-400 mb-2">登録情報</p>
+                <p className="text-white font-medium">{email}</p>
+                <p className="text-xs text-gray-500 mt-1">デバイス: {deviceHash}</p>
+              </div>
+
+              <PayPalButton
+                deviceHash={deviceHash}
+                email={email}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+                onCancel={handlePaymentCancel}
+              />
+
+              <Button
+                onClick={() => setStep('form')}
+                variant="outline"
+                size="md"
+                fullWidth
+                className="mt-4 border-white/20 text-gray-300 hover:bg-white/10"
+              >
+                戻る
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">SocialTouch</h1>
-        <h2 className="text-lg mb-6 text-center text-gray-600">デバイス登録</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-dark relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
+        <div className="absolute bottom-20 right-20 w-72 h-72 bg-matrix rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-4000"></div>
+      </div>
 
-        {urlError && (
-          <div className="mb-4 p-3 bg-yellow-100 text-yellow-700 rounded">
-            {urlError === 'cancelled' && '決済がキャンセルされました'}
-            {urlError === 'missing_device' && 'デバイス情報が見つかりません'}
-            {urlError === 'device_not_found' && 'デバイスが登録されていません'}
-            {urlError === 'processing_failed' && '処理に失敗しました'}
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister}>
-          <div className="mb-4">
-            <label htmlFor="deviceHash" className="block text-sm font-medium text-gray-700 mb-2">
-              デバイスID
-            </label>
-            <input
-              type="text"
-              id="deviceHash"
-              value={deviceHash}
-              onChange={(e) => setDeviceHash(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="例: DEMO-DEVICE-001"
-              required
-              disabled={loading}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              AutoTouchのmain.luaで表示されるデバイスID
-            </p>
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="email@example.com"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              パスワード
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="6文字以上"
-              minLength={6}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div className="mb-6">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-              パスワード（確認）
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="パスワードを再入力"
-              minLength={6}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-            disabled={loading}
-          >
-            {loading ? '処理中...' : '次へ（決済情報入力）'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            既にアカウントをお持ちですか？{' '}
-            <a href="/login" className="text-blue-500 hover:underline">
-              ログイン
-            </a>
-          </p>
+      <div className="relative z-10 w-full max-w-md px-4">
+        <div className="text-center mb-8">
+          <Link href="/">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-matrix bg-clip-text text-transparent inline-block">
+              MetaCube
+            </h1>
+          </Link>
+          <Badge variant="glass" size="md">
+            3日間無料トライアル
+          </Badge>
         </div>
 
-        <div className="mt-6 p-4 bg-gray-50 rounded">
-          <h3 className="text-sm font-semibold mb-2">料金プラン</h3>
-          <ul className="text-xs text-gray-600 space-y-1">
-            <li>• 月額2,980円（税込）</li>
-            <li>• 3日間の無料体験付き</li>
-            <li>• いつでも解約可能</li>
-            <li>• iPhone 7/8専用</li>
-          </ul>
-        </div>
+        <Card variant="glass" className="backdrop-blur-xl bg-white/5">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl text-white">アカウント作成</CardTitle>
+            <CardDescription>
+              今すぐ始めて、Instagram成長を加速させましょう
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {urlError && (
+              <div className="mb-4 p-4 bg-warning/10 border border-warning/30 text-warning rounded-lg animate-slide-down">
+                {urlError === 'cancelled' && '決済がキャンセルされました'}
+                {urlError === 'missing_device' && 'デバイス情報が見つかりません'}
+                {urlError === 'device_not_found' && 'デバイスが登録されていません'}
+                {urlError === 'processing_failed' && '処理に失敗しました'}
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4 p-4 bg-error/10 border border-error/30 text-error rounded-lg animate-slide-down">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <label htmlFor="deviceHash" className="block text-sm font-medium text-gray-300 mb-2">
+                  デバイスID
+                </label>
+                <input
+                  type="text"
+                  id="deviceHash"
+                  value={deviceHash}
+                  onChange={(e) => setDeviceHash(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
+                  placeholder="例: DEMO-DEVICE-001"
+                  required
+                  disabled={loading}
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  AutoTouchのmain.luaで表示されるデバイスID
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  メールアドレス
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
+                  placeholder="email@example.com"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  パスワード
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
+                  placeholder="6文字以上"
+                  minLength={6}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                  パスワード（確認）
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
+                  placeholder="パスワードを再入力"
+                  minLength={6}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="flex items-start mt-4">
+                <input
+                  id="terms"
+                  name="terms"
+                  type="checkbox"
+                  required
+                  className="w-4 h-4 bg-white/10 border-white/20 rounded text-matrix focus:ring-matrix focus:ring-offset-0 mt-1"
+                />
+                <label htmlFor="terms" className="ml-2 block text-sm text-gray-300">
+                  <a href="#" className="text-matrix hover:text-matrix-light">利用規約</a>と
+                  <a href="#" className="text-matrix hover:text-matrix-light">プライバシーポリシー</a>に同意します
+                </label>
+              </div>
+
+              <Button
+                type="submit"
+                variant="glow"
+                size="lg"
+                fullWidth
+                loading={loading}
+              >
+                {loading ? '処理中...' : '次へ（決済情報入力）'}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-400">
+                既にアカウントをお持ちですか？{' '}
+                <Link href="/login" className="text-matrix hover:text-matrix-light font-medium transition">
+                  ログイン
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pricing Info */}
+        <Card variant="glass" className="mt-6 backdrop-blur-xl bg-white/5">
+          <CardContent className="py-4">
+            <h3 className="text-sm font-semibold mb-3 text-white flex items-center">
+              <Badge variant="matrix" size="sm" className="mr-2">料金プラン</Badge>
+              今なら特別価格
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="space-y-2">
+                <div className="flex items-center text-gray-300">
+                  <svg className="w-4 h-4 text-matrix mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  月額¥2,980（税込）
+                </div>
+                <div className="flex items-center text-gray-300">
+                  <svg className="w-4 h-4 text-matrix mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  3日間無料体験
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center text-gray-300">
+                  <svg className="w-4 h-4 text-matrix mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  いつでも解約可能
+                </div>
+                <div className="flex items-center text-gray-300">
+                  <svg className="w-4 h-4 text-matrix mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  iPhone 7/8専用
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -265,8 +367,8 @@ function RegisterForm() {
 export default function RegisterPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-dark">
+        <div className="text-gray-400 animate-pulse">Loading...</div>
       </div>
     }>
       <RegisterForm />
