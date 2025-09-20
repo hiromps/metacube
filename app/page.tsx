@@ -238,7 +238,7 @@ export default function Home() {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Card
-                  className={`h-full relative ${plan.popular ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl' : 'bg-white shadow-lg border border-gray-100'}`}
+                  className={`h-full relative flex flex-col ${plan.popular ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl' : 'bg-white shadow-lg border border-gray-100'}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -254,7 +254,7 @@ export default function Home() {
                       <span className={`ml-2 ${plan.popular ? 'text-blue-100' : 'text-gray-500'}`}>/ {plan.duration}</span>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex-grow">
                     <ul className="space-y-3">
                       {plan.features.map((feature, i) => (
                         <li key={i} className={`flex items-center ${plan.popular ? 'text-white' : 'text-gray-700'}`}>
@@ -266,14 +266,14 @@ export default function Home() {
                       ))}
                     </ul>
                   </CardContent>
-                  <CardFooter>
+                  <CardFooter className="mt-auto">
                     <Link href="/register" className="w-full">
                       <Button
                         className={plan.popular ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-500 text-white hover:bg-blue-600'}
                         size="lg"
                         fullWidth
                       >
-                        {plan.name === 'トライアル' ? '無料で始める' : '今すぐ始める'}
+                        無料で始める
                       </Button>
                     </Link>
                   </CardFooter>
