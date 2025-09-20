@@ -28,15 +28,22 @@ export async function onRequest(context: any) {
 
 // License verification handler
 async function handleLicenseVerify(request: Request) {
-  if (request.method === 'GET') {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'License verification endpoint is running',
-        timestamp: new Date().toISOString()
-      }),
+      JSON.stringify({ error: 'Method not allowed' }),
       {
-        status: 200,
+        status: 405,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -45,29 +52,15 @@ async function handleLicenseVerify(request: Request) {
     );
   }
 
-  if (request.method === 'POST') {
-    try {
-      const body = await request.json();
+  try {
+    const body = await request.json();
+    const { device_hash } = body;
+
+    if (!device_hash) {
       return new Response(
         JSON.stringify({
-          success: true,
-          message: 'License verification received',
-          received_data: body,
-          timestamp: new Date().toISOString()
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    } catch (error) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid request body'
+          is_valid: false,
+          error: 'Device hash is required'
         }),
         {
           status: 400,
@@ -78,43 +71,96 @@ async function handleLicenseVerify(request: Request) {
         }
       );
     }
-  }
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+    // TODO: Implement Supabase integration here
+    // For MVP, simulate license check with mock data
+    const mockDevices: { [key: string]: any } = {
+      'DEMO-DEVICE-001': {
+        status: 'active',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      },
+      'DEMO-DEVICE-002': {
+        status: 'trial',
+        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days trial
+      },
+      'DEMO-DEVICE-003': {
+        status: 'expired',
+        expires_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() // Expired yesterday
       }
-    });
-  }
+    };
 
-  return new Response(
-    JSON.stringify({ error: 'Method not allowed' }),
-    {
-      status: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
+    const device = mockDevices[device_hash];
+
+    if (!device) {
+      return new Response(
+        JSON.stringify({
+          is_valid: false,
+          error: 'Device not registered',
+          registration_url: 'https://metacube-el5.pages.dev/register'
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
     }
-  );
+
+    const isExpired = new Date(device.expires_at) < new Date();
+    const isValid = device.status === 'active' || (device.status === 'trial' && !isExpired);
+
+    return new Response(
+      JSON.stringify({
+        is_valid: isValid,
+        status: device.status,
+        expires_at: device.expires_at,
+        message: isValid ? 'License is valid' : 'License has expired'
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        is_valid: false,
+        error: 'Invalid request'
+      }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
 }
 
 // Device registration handler
 async function handleDeviceRegister(request: Request) {
-  if (request.method === 'GET') {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Device registration endpoint is running',
-        methods: ['POST'],
-        timestamp: new Date().toISOString()
-      }),
+      JSON.stringify({ error: 'Method not allowed' }),
       {
-        status: 200,
+        status: 405,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -123,29 +169,16 @@ async function handleDeviceRegister(request: Request) {
     );
   }
 
-  if (request.method === 'POST') {
-    try {
-      const body = await request.json();
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Device registration received',
-          received_data: body,
-          timestamp: new Date().toISOString()
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    } catch (error) {
+  try {
+    const body = await request.json();
+    const { device_hash, email, password } = body;
+
+    // Validate required fields
+    if (!device_hash || !email || !password) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Invalid request body'
+          error: 'Device hash, email, and password are required'
         }),
         {
           status: 400,
@@ -156,29 +189,44 @@ async function handleDeviceRegister(request: Request) {
         }
       );
     }
-  }
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-    });
-  }
+    // TODO: Implement Supabase user creation and device registration
+    // For MVP, simulate registration with mock response
 
-  return new Response(
-    JSON.stringify({ error: 'Method not allowed' }),
-    {
-      status: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+    // Calculate trial end date (3 days from now)
+    const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Device registered successfully. Your 3-day trial has started.',
+        device_hash: device_hash,
+        trial_ends_at: trialEndsAt,
+        status: 'trial'
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
       }
-    }
-  );
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Registration failed. Please try again.'
+      }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
 }
 
 // PayPal success handler

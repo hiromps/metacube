@@ -1,6 +1,6 @@
 -- ==========================================
--- Instagram自動化ツール メインランチャー
--- スクリプト選択ダイアログ
+-- SocialTouch - Instagram自動化ツール
+-- ライセンス認証付きメインランチャー
 -- ==========================================
 
 -- Enable logging
@@ -14,11 +14,17 @@ local Config = {
     DEBUG = true,
 
     -- バージョン情報
-    VERSION = "1.0.0",
+    VERSION = "2.0.0",
+
+    -- API設定
+    API_BASE_URL = "https://metacube-el5.pages.dev/api",
+    CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/cache/license.dat",
+    CACHE_DURATION = 86400, -- 24 hours
 
     -- 除外するファイル名
     EXCLUDE_FILES = {
-        "main.lua"  -- 自分自身は除外
+        "main.lua",  -- 自分自身は除外
+        "license.lua"  -- ライセンスモジュールも除外
     }
 }
 
@@ -327,15 +333,244 @@ local function showConfirmation(scriptInfo)
 end
 
 -- ==========================================
+-- ライセンス認証関数
+-- ==========================================
+
+-- デバイスハッシュ取得
+local function getDeviceHash()
+    local deviceId = nil
+
+    -- Method 1: UDID取得
+    local handle = io.popen("ioreg -rd1 -c IOPlatformExpertDevice | grep -E '(UUID)'")
+    if handle then
+        local result = handle:read("*a")
+        handle:close()
+        if result and result ~= "" then
+            deviceId = result:match('"([^"]+)"')
+        end
+    end
+
+    -- Method 2: シリアル番号取得
+    if not deviceId then
+        handle = io.popen("ioreg -l | grep IOPlatformSerialNumber")
+        if handle then
+            local result = handle:read("*a")
+            handle:close()
+            if result and result ~= "" then
+                deviceId = result:match('"([^"]+)"')
+            end
+        end
+    end
+
+    -- Method 3: フォールバック - デバイス固有情報からハッシュ生成
+    if not deviceId then
+        local width, height = getScreenResolution()
+        local timestamp = os.time()
+        deviceId = string.format("AT_%d_%d_%d", width, height, timestamp % 1000000)
+    end
+
+    return deviceId or "DEMO-DEVICE-001"
+end
+
+-- キャッシュ読み込み
+local function loadLicenseCache()
+    local file = io.open(Config.CACHE_FILE, "r")
+    if not file then
+        return nil
+    end
+
+    local content = file:read("*all")
+    file:close()
+
+    if not content or content == "" then
+        return nil
+    end
+
+    -- キャッシュデータをパース
+    local cache = {}
+    for line in content:gmatch("[^\n]+") do
+        local key, value = line:match("([^:]+):(.+)")
+        if key and value then
+            cache[key] = value
+        end
+    end
+
+    -- キャッシュの有効期限チェック
+    local timestamp = tonumber(cache.timestamp)
+    if not timestamp or (os.time() - timestamp) > Config.CACHE_DURATION then
+        return nil
+    end
+
+    return cache
+end
+
+-- キャッシュ保存
+local function saveLicenseCache(data)
+    -- キャッシュディレクトリ作成
+    os.execute("mkdir -p /var/mobile/Library/AutoTouch/Scripts/cache/")
+
+    local file = io.open(Config.CACHE_FILE, "w")
+    if not file then
+        return false
+    end
+
+    file:write(string.format("is_valid:%s\n", tostring(data.is_valid)))
+    file:write(string.format("status:%s\n", data.status or "unknown"))
+    file:write(string.format("expires_at:%s\n", data.expires_at or ""))
+    file:write(string.format("timestamp:%d\n", os.time()))
+    file:close()
+
+    return true
+end
+
+-- HTTP POST リクエスト
+local function httpPost(url, data)
+    local jsonData = string.format('{"device_hash":"%s"}', data.device_hash)
+
+    local cmd = string.format(
+        'curl -X POST "%s" -H "Content-Type: application/json" -d \'%s\' --connect-timeout 10 --max-time 15 -s',
+        url, jsonData
+    )
+
+    local handle = io.popen(cmd)
+    if not handle then
+        return nil
+    end
+
+    local result = handle:read("*a")
+    handle:close()
+
+    if not result or result == "" then
+        return nil
+    end
+
+    -- 簡易JSONパース
+    local response = {}
+    response.is_valid = result:match('"is_valid":(%w+)')
+    response.status = result:match('"status":"([^"]+)"')
+    response.expires_at = result:match('"expires_at":"([^"]+)"')
+    response.error = result:match('"error":"([^"]+)"')
+    response.registration_url = result:match('"registration_url":"([^"]+)"')
+
+    if response.is_valid == "true" then
+        response.is_valid = true
+    elseif response.is_valid == "false" then
+        response.is_valid = false
+    end
+
+    return response
+end
+
+-- ライセンス検証
+local function verifyLicense(deviceHash)
+    local url = Config.API_BASE_URL .. "/license/verify"
+    local data = { device_hash = deviceHash }
+
+    local response = httpPost(url, data)
+
+    if not response then
+        return nil, "ネットワークエラー: ライセンスサーバーに接続できません"
+    end
+
+    if response.error then
+        return false, response
+    end
+
+    return response.is_valid, response
+end
+
+-- ライセンス認証エラー表示
+local function showLicenseError(message, deviceHash)
+    local errorMsg = string.format(
+        "❌ ライセンス認証エラー\n\n%s\n\nデバイスID: %s\n\n登録URL:\nhttps://metacube-el5.pages.dev/register",
+        message, deviceHash
+    )
+
+    alert(errorMsg)
+    log(errorMsg)
+    toast("❌ ライセンス認証に失敗しました", 3)
+end
+
+-- ライセンス認証メイン処理
+local function checkLicense()
+    log("🔐 ライセンス認証開始...")
+    toast("🔐 ライセンス確認中...", 2)
+
+    -- デバイスハッシュ取得
+    local deviceHash = getDeviceHash()
+    log(string.format("📱 デバイスID: %s", deviceHash))
+
+    -- キャッシュ確認
+    local cache = loadLicenseCache()
+    local isValid = false
+    local licenseData = nil
+
+    if cache and cache.is_valid == "true" then
+        isValid = true
+        licenseData = cache
+        log("✅ ライセンス確認完了（キャッシュ）")
+        toast("✅ ライセンス確認完了", 2)
+    else
+        -- サーバーで検証
+        local valid, data = verifyLicense(deviceHash)
+
+        if valid == nil then
+            -- ネットワークエラー、キャッシュがあれば使用
+            if cache then
+                isValid = cache.is_valid == "true"
+                licenseData = cache
+                log("⚠️ オフラインモード（キャッシュ使用）")
+                toast("⚠️ オフラインモード", 3)
+            else
+                showLicenseError("ネットワークエラー: サーバーに接続できません", deviceHash)
+                return false
+            end
+        elseif valid == false then
+            -- ライセンス無効
+            local message = data.error or "ライセンスが無効です"
+            showLicenseError(message, deviceHash)
+            return false
+        else
+            -- ライセンス有効
+            isValid = true
+            licenseData = data
+            saveLicenseCache(data)
+            log("✅ ライセンス認証成功")
+            toast("✅ ライセンス認証成功", 2)
+        end
+    end
+
+    -- ライセンス状態表示
+    if licenseData and licenseData.status == "trial" then
+        toast(string.format("📅 体験版 - 有効期限: %s",
+            licenseData.expires_at and licenseData.expires_at:match("(%d+%-%d+%-%d+)") or "不明"), 3)
+        log(string.format("📅 体験版モード - 有効期限: %s", licenseData.expires_at or "不明"))
+    elseif licenseData and licenseData.status == "active" then
+        toast("✨ プロ版ライセンス", 2)
+        log("✨ プロ版ライセンス有効")
+    end
+
+    return isValid
+end
+
+-- ==========================================
 -- メイン処理
 -- ==========================================
 local function main()
-    log("=== 🚀 Instagram自動化ツール メインランチャー ===")
+    log("=== 🚀 SocialTouch メインランチャー ===")
     log(string.format("バージョン: %s", Config.VERSION))
     log("==========================================")
 
     -- 初期トースト表示
-    toast("🚀 Instagram自動化ツール", 2)
+    toast("🚀 SocialTouch", 2)
+    usleep(1000000)  -- 1秒待機
+
+    -- ライセンス認証
+    if not checkLicense() then
+        log("❌ ライセンス認証に失敗したため終了します")
+        return
+    end
+
     usleep(1000000)  -- 1秒待機
 
     -- スクリプト選択ダイアログを表示
@@ -411,11 +646,13 @@ end
 -- スタートアップメッセージ
 -- ==========================================
 log("==========================================")
-log("    Instagram Automation Tool Launcher    ")
+log("          SocialTouch Launcher            ")
+log("     Instagram Automation Tool Suite      ")
 log("             Version " .. Config.VERSION)
 log("==========================================")
 log("")
 log("📱 起動中...")
+log("🔐 ライセンス認証システム有効")
 log("")
 
 -- メイン実行
