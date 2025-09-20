@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { signOut } from '@/lib/auth/client'
+import { Button } from '@/app/components/ui/Button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/Card'
+import { Badge } from '@/app/components/ui/Badge'
 
 interface DashboardData {
   email: string
@@ -223,241 +227,322 @@ export default function DashboardPage() {
     })
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: { [key: string]: { label: string; color: string } } = {
-      trial: { label: '体験版', color: 'bg-blue-100 text-blue-800' },
-      active: { label: '有効', color: 'bg-green-100 text-green-800' },
-      expired: { label: '期限切れ', color: 'bg-red-100 text-red-800' },
-      suspended: { label: '停止中', color: 'bg-yellow-100 text-yellow-800' },
-      pending: { label: '処理中', color: 'bg-gray-100 text-gray-800' },
-      cancelled: { label: '解約済み', color: 'bg-gray-100 text-gray-800' }
+  const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
+    const statusMap: { [key: string]: 'success' | 'warning' | 'error' | 'matrix' | 'glass' } = {
+      trial: 'matrix',
+      active: 'success',
+      expired: 'error',
+      suspended: 'warning',
+      pending: 'glass',
+      cancelled: 'glass'
     }
+    return statusMap[status] || 'glass'
+  }
 
-    const config = statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' }
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    )
+  const getStatusLabel = (status: string): string => {
+    const labelMap: { [key: string]: string } = {
+      trial: '体験版',
+      active: '有効',
+      expired: '期限切れ',
+      suspended: '停止中',
+      pending: '処理中',
+      cancelled: '解約済み'
+    }
+    return labelMap[status] || status
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-gray-500">読み込み中...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-dark">
+        <div className="text-gray-400 animate-pulse">読み込み中...</div>
       </div>
     )
   }
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <p className="text-red-600">{error || 'データが見つかりません'}</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="mt-4 text-blue-500 hover:underline"
-          >
-            ログインページへ
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-dark">
+        <Card variant="glass" className="max-w-md">
+          <CardContent className="text-center py-8">
+            <p className="text-error mb-4">{error || 'データが見つかりません'}</p>
+            <Link href="/login">
+              <Button variant="gradient" size="md">
+                ログインページへ
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">SocialTouch ダッシュボード</h1>
-            <button
+    <div className="min-h-screen bg-gradient-dark py-8">
+      {/* Navigation */}
+      <nav className="bg-dark/50 backdrop-blur-xl border-b border-dark-border mb-8">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <Link href="/">
+              <h1 className="text-2xl font-bold bg-gradient-matrix bg-clip-text text-transparent">
+                MetaCube
+              </h1>
+            </Link>
+            <Button
               onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700"
+              variant="glass"
+              size="md"
             >
               ログアウト
-            </button>
+            </Button>
           </div>
+        </div>
+      </nav>
 
-          {error && (
-            <div className="mb-6 p-3 bg-red-100 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          {/* Account Information */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">アカウント情報</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">メールアドレス</p>
-                <p className="font-medium">{data.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">デバイスハッシュ</p>
-                <p className="font-mono text-sm">{data.device_hash}</p>
-              </div>
-            </div>
+      <div className="container mx-auto px-4 max-w-6xl">
+        {error && (
+          <div className="mb-6 p-4 bg-error/10 border border-error/30 text-error rounded-lg animate-slide-down">
+            {error}
           </div>
+        )}
 
-          {/* License Status */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">ライセンス状態</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">ライセンス状態</p>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(data.device_status)}
-                  {data.license_valid ? (
-                    <span className="text-green-600">✓ 有効</span>
-                  ) : (
-                    <span className="text-red-600">✗ 無効</span>
-                  )}
-                </div>
+        {/* Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card variant="gradient" className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-matrix/20 rounded-full blur-3xl"></div>
+            <CardContent className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-300">ライセンス状態</p>
+                <Badge variant={getStatusVariant(data.device_status)} size="sm">
+                  {getStatusLabel(data.device_status)}
+                </Badge>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">有効期限</p>
-                <p className="font-medium">
-                  {data.device_status === 'trial'
-                    ? `体験版: ${formatDate(data.trial_ends_at)}`
-                    : formatDate(data.license_expires_at)}
-                </p>
+              <div className="text-2xl font-bold text-white">
+                {data.license_valid ? '✓ 有効' : '✗ 無効'}
               </div>
-              <div>
-                <p className="text-sm text-gray-600">認証回数</p>
-                <p className="font-medium">{data.verification_count || 0} 回</p>
-              </div>
-            </div>
-          </div>
+              <p className="text-sm text-gray-400 mt-1">
+                期限: {formatDate(data.device_status === 'trial' ? data.trial_ends_at : data.license_expires_at)}
+              </p>
+            </CardContent>
+          </Card>
 
-          {/* Subscription Information */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">サブスクリプション情報</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">契約状態</p>
-                <div>{data.subscription_status ? getStatusBadge(data.subscription_status) : '-'}</div>
+          <Card variant="glass">
+            <CardContent>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-300">サブスクリプション</p>
+                {data.subscription_status && (
+                  <Badge variant={getStatusVariant(data.subscription_status)} size="sm">
+                    {getStatusLabel(data.subscription_status)}
+                  </Badge>
+                )}
               </div>
-              <div>
-                <p className="text-sm text-gray-600">月額料金</p>
-                <p className="font-medium">¥{data.amount_jpy?.toLocaleString() || '2,980'}</p>
+              <div className="text-2xl font-bold text-white">
+                ¥{data.amount_jpy?.toLocaleString() || '2,980'}
+                <span className="text-sm font-normal text-gray-400">/月</span>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">次回請求日</p>
-                <p className="font-medium">{formatDate(data.next_billing_date)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">PayPal ID</p>
-                <p className="font-mono text-xs">{data.paypal_subscription_id || '-'}</p>
-              </div>
-            </div>
-          </div>
+              <p className="text-sm text-gray-400 mt-1">
+                次回請求: {formatDate(data.next_billing_date)}
+              </p>
+            </CardContent>
+          </Card>
 
-          {/* Device Management */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">デバイス管理</h2>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">現在のデバイス</p>
-                <p className="font-mono text-sm bg-white p-2 rounded border">{data.device_hash}</p>
+          <Card variant="glass">
+            <CardContent>
+              <p className="text-sm text-gray-300 mb-2">認証回数</p>
+              <div className="text-2xl font-bold text-white">
+                {data.verification_count || 0}
+                <span className="text-sm font-normal text-gray-400"> 回</span>
               </div>
+              <p className="text-sm text-gray-400 mt-1">
+                デバイス認証の累計
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-              {/* Device change form */}
-              {!showDeviceChangeForm ? (
+        {/* Account Information */}
+        <Card variant="glass" className="mb-6">
+          <CardHeader>
+            <CardTitle>アカウント情報</CardTitle>
+            <CardDescription>登録情報と契約状態</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    契約が有効な間は、別のデバイスに変更することができます。
+                  <p className="text-sm text-gray-400 mb-1">メールアドレス</p>
+                  <p className="text-white font-medium">{data.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">現在のデバイス</p>
+                  <p className="font-mono text-sm bg-dark-card p-2 rounded border border-dark-border text-matrix">
+                    {data.device_hash}
                   </p>
-                  {(data.license_valid && (data.device_status === 'active' || data.device_status === 'trial')) ? (
-                    <button
-                      onClick={() => setShowDeviceChangeForm(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                      デバイスを変更
-                    </button>
-                  ) : (
-                    <div className="text-sm text-gray-500">
-                      デバイス変更は契約有効期間中のみ利用できます
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      新しいデバイスハッシュ
-                    </label>
-                    <input
-                      type="text"
-                      value={newDeviceHash}
-                      onChange={(e) => setNewDeviceHash(e.target.value)}
-                      placeholder="新しいデバイスハッシュを入力"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={changingDevice}
-                    />
-                  </div>
-                  <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
-                    <p className="font-medium text-yellow-800">⚠️ 注意事項</p>
-                    <ul className="mt-2 space-y-1 text-yellow-700">
-                      <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
-                      <li>• 現在のデバイスでは利用できなくなります</li>
-                      <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
-                    </ul>
-                  </div>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleDeviceChange}
-                      disabled={changingDevice || !newDeviceHash.trim()}
-                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
-                    >
-                      {changingDevice ? '変更中...' : 'デバイス変更を実行'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowDeviceChangeForm(false)
-                        setNewDeviceHash('')
-                        setError('')
-                      }}
-                      disabled={changingDevice}
-                      className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 disabled:bg-gray-400"
-                    >
-                      キャンセル
-                    </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">PayPal サブスクリプションID</p>
+                  <p className="font-mono text-xs text-gray-300">
+                    {data.paypal_subscription_id || 'なし'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">契約プラン</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="matrix" size="md">
+                      スタンダード
+                    </Badge>
+                    <span className="text-white">月額 ¥{data.amount_jpy?.toLocaleString() || '2,980'}</span>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Actions */}
-          <div className="border-t pt-6">
-            <div className="flex justify-between items-center">
+        {/* Device Management */}
+        <Card variant="glass" className="mb-6">
+          <CardHeader>
+            <CardTitle>デバイス管理</CardTitle>
+            <CardDescription>登録デバイスの変更</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!showDeviceChangeForm ? (
               <div>
+                <p className="text-gray-300 mb-4">
+                  契約が有効な間は、別のデバイスに変更することができます。
+                  デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
+                </p>
+                {(data.license_valid && (data.device_status === 'active' || data.device_status === 'trial')) ? (
+                  <Button
+                    onClick={() => setShowDeviceChangeForm(true)}
+                    variant="gradient"
+                    size="md"
+                  >
+                    デバイスを変更
+                  </Button>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    デバイス変更は契約有効期間中のみ利用できます
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    新しいデバイスハッシュ
+                  </label>
+                  <input
+                    type="text"
+                    value={newDeviceHash}
+                    onChange={(e) => setNewDeviceHash(e.target.value)}
+                    placeholder="新しいデバイスハッシュを入力"
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
+                    disabled={changingDevice}
+                  />
+                </div>
+                <div className="bg-warning/10 border border-warning/30 p-4 rounded-lg">
+                  <p className="font-medium text-warning mb-2">⚠️ 注意事項</p>
+                  <ul className="space-y-1 text-sm text-gray-300">
+                    <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
+                    <li>• 現在のデバイスでは利用できなくなります</li>
+                    <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
+                  </ul>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleDeviceChange}
+                    disabled={changingDevice || !newDeviceHash.trim()}
+                    variant="glow"
+                    size="md"
+                    loading={changingDevice}
+                  >
+                    デバイス変更を実行
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowDeviceChangeForm(false)
+                      setNewDeviceHash('')
+                      setError('')
+                    }}
+                    disabled={changingDevice}
+                    variant="outline"
+                    size="md"
+                  >
+                    キャンセル
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle>アクション</CardTitle>
+            <CardDescription>契約の管理</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+              <div className="space-y-3">
                 {data.subscription_status === 'active' && (
-                  <button
+                  <Button
                     onClick={handleCancelSubscription}
                     disabled={cancelling}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:bg-gray-400"
+                    variant="outline"
+                    size="md"
+                    loading={cancelling}
+                    className="border-error text-error hover:bg-error hover:text-white"
                   >
-                    {cancelling ? '処理中...' : 'サブスクリプションを解約'}
-                  </button>
+                    サブスクリプションを解約
+                  </Button>
                 )}
                 {data.device_status === 'expired' && (
-                  <button
-                    onClick={() => router.push('/register')}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                  >
-                    再登録
-                  </button>
+                  <Link href="/register">
+                    <Button variant="gradient" size="md">
+                      再登録して利用を再開
+                    </Button>
+                  </Link>
                 )}
               </div>
-              <div className="text-sm text-gray-500">
-                <p>サポート: support@socialtouch.app</p>
+              <div className="text-sm text-gray-400">
+                <p className="mb-1">お困りの場合は</p>
+                <a href="mailto:support@metacube.app" className="text-matrix hover:text-matrix-light">
+                  support@metacube.app
+                </a>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Links */}
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Link href="/">
+            <Card variant="glass" hoverable className="text-center">
+              <CardContent className="py-6">
+                <div className="text-2xl mb-2">🏠</div>
+                <p className="text-white">ホーム</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('ヘルプセンターは準備中です') }}>
+            <Card variant="glass" hoverable className="text-center">
+              <CardContent className="py-6">
+                <div className="text-2xl mb-2">❓</div>
+                <p className="text-white">ヘルプセンター</p>
+              </CardContent>
+            </Card>
+          </a>
+          <a href="mailto:support@metacube.app">
+            <Card variant="glass" hoverable className="text-center">
+              <CardContent className="py-6">
+                <div className="text-2xl mb-2">📧</div>
+                <p className="text-white">サポート</p>
+              </CardContent>
+            </Card>
+          </a>
         </div>
       </div>
     </div>
