@@ -1,27 +1,17 @@
-import { setupDevPlatform } from '@cloudflare/next-on-pages/next-dev'
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Cloudflare Pages configuration
+  // Cloudflare Pages via Vercel build compatibility
   images: {
     unoptimized: true
   },
 
-  // Standard Next.js build for Cloudflare Pages
-  trailingSlash: true,
+  // Vercel-compatible configuration
   generateEtags: false,
 
-  // Disable caching for Cloudflare Pages
-  webpack: (config, { isServer }) => {
-    // Disable webpack cache for smaller build size
-    config.cache = false
-    return config
+  // Ensure API routes are handled properly
+  experimental: {
+    serverComponentsExternalPackages: ['@supabase/supabase-js']
   }
 };
-
-// Set up development platform
-if (process.env.NODE_ENV === 'development') {
-  await setupDevPlatform()
-}
 
 export default nextConfig;

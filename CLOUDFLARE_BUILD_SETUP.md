@@ -51,8 +51,8 @@ JWT_SECRET=your_jwt_secret_key
 ### 注意事項
 
 1. `npm run cf:build` コマンドで以下が実行されます：
-   - `next build` でNext.jsアプリをビルド
-   - `npx @cloudflare/next-on-pages --skip-build` でCloudflare Pages用に変換
+   - 内部的に `next build` でNext.jsアプリをビルド
+   - Cloudflare Pages用に最適化された形式に変換
    - `.vercel/output/static` に出力
 
 2. 出力ディレクトリ `.vercel/output/static` にAPIルートも含まれます
