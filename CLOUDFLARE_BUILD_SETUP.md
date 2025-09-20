@@ -6,7 +6,7 @@
 
 **Build command:**
 ```bash
-npm run build
+npx @cloudflare/next-on-pages
 ```
 
 **Build output directory:**
@@ -50,9 +50,10 @@ JWT_SECRET=your_jwt_secret_key
 
 ### 注意事項
 
-1. `npm run build` コマンドで以下が実行されます：
-   - `next build` - Next.jsアプリのビルド
-   - `npx @cloudflare/next-on-pages` - Cloudflare Pages用の変換
+1. `npx @cloudflare/next-on-pages` コマンドで以下が実行されます：
+   - 内部的に `next build` を実行
+   - Cloudflare Pages用の変換を実行
+   - `.vercel/output/static` に出力
 
 2. 出力ディレクトリ `.vercel/output/static` にAPIルートも含まれます
 
@@ -78,7 +79,7 @@ JWT_SECRET=your_jwt_secret_key
 
 ```bash
 # 1. ビルド
-npm run build
+npx @cloudflare/next-on-pages
 
 # 2. デプロイ
 npx wrangler pages deploy .vercel/output/static --project-name socialtouch-license
