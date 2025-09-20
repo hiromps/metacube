@@ -31,12 +31,27 @@ export async function onRequestPost(context) {
   }
 }
 
+export async function onRequestGet(context) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: 'Device registration endpoint is running',
+      methods: ['POST'],
+      timestamp: new Date().toISOString()
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  )
+}
+
 export async function onRequestOptions(context) {
   return new Response(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     }
   })
