@@ -1,5 +1,10 @@
+# API routes handled by Cloudflare Functions - no redirect
+/api/* /api/:splat 200
+
 # Static page routing for Next.js export
 /login /login/index.html 200
 /register /register/index.html 200
 /dashboard /dashboard/index.html 200
+
+# Default fallback for other routes
 /* /index.html 200
