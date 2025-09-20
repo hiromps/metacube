@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API連携テスト - MetaCube</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button {
+            padding: 8px 16px;
+            background: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover { background: #0051cc; }
+        h1 { color: #333; }
+        h2 { color: #666; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <h1>🔧 API連携テスト</h1>
+    <p>フロントエンドからCloudflare Functions APIへの接続をテストします。</p>
+
+    <!-- ライセンス検証API -->
+    <div class="test-section">
+        <h2>1. ライセンス検証API</h2>
+        <button onclick="testLicenseVerifyGET()">GET リクエスト</button>
+        <button onclick="testLicenseVerifyPOST()">POST リクエスト</button>
+        <div id="license-result" class="test-result"></div>
+    </div>
+
+    <!-- デバイス登録API -->
+    <div class="test-section">
+        <h2>2. デバイス登録API</h2>
+        <button onclick="testDeviceRegisterGET()">GET リクエスト</button>
+        <button onclick="testDeviceRegisterPOST()">POST リクエスト</button>
+        <div id="device-result" class="test-result"></div>
+    </div>
+
+    <!-- PayPal API群 -->
+    <div class="test-section">
+        <h2>3. PayPal API群</h2>
+        <button onclick="testPayPalSuccess()">Success エンドポイント</button>
+        <button onclick="testPayPalCancel()">Cancel エンドポイント</button>
+        <button onclick="testPayPalWebhook()">Webhook エンドポイント</button>
+        <div id="paypal-result" class="test-result"></div>
+    </div>
+
+    <!-- 全APIテスト -->
+    <div class="test-section">
+        <h2>4. 統合テスト</h2>
+        <button onclick="runAllTests()">全APIを順番にテスト</button>
+        <div id="all-result" class="test-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        async function makeRequest(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            if (body && method !== 'GET') {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(API_BASE + endpoint, options);
+                const data = await response.json();
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data,
+                    success: response.ok
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    statusText: 'Network Error',
+                    error: error.message,
+                    success: false
+                };
+            }
+        }
+
+        function displayResult(elementId, result, testName) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const status = result.success ? '✅ SUCCESS' : '❌ FAILED';
+            element.className = `test-result ${result.success ? 'success' : 'error'}`;
+            element.textContent = `[${timestamp}] ${testName}
+${status} - Status: ${result.status} ${result.statusText}
+Response: ${JSON.stringify(result.data || result.error, null, 2)}`;
+        }
+
+        // ライセンス検証API テスト
+        async function testLicenseVerifyGET() {
+            const result = await makeRequest('/license/verify');
+            displayResult('license-result', result, 'License Verify GET');
+        }
+
+        async function testLicenseVerifyPOST() {
+            const result = await makeRequest('/license/verify', 'POST', {
+                device_hash: 'test_device_' + Date.now()
+            });
+            displayResult('license-result', result, 'License Verify POST');
+        }
+
+        // デバイス登録API テスト
+        async function testDeviceRegisterGET() {
+            const result = await makeRequest('/device/register');
+            displayResult('device-result', result, 'Device Register GET');
+        }
+
+        async function testDeviceRegisterPOST() {
+            const result = await makeRequest('/device/register', 'POST', {
+                device_hash: 'test_device_' + Date.now(),
+                email: 'test@example.com',
+                password: 'test123'
+            });
+            displayResult('device-result', result, 'Device Register POST');
+        }
+
+        // PayPal API テスト
+        async function testPayPalSuccess() {
+            const result = await makeRequest('/paypal/success?subscription_id=test123&token=abc');
+            displayResult('paypal-result', result, 'PayPal Success Callback');
+        }
+
+        async function testPayPalCancel() {
+            const result = await makeRequest('/paypal/cancel?token=xyz');
+            displayResult('paypal-result', result, 'PayPal Cancel Callback');
+        }
+
+        async function testPayPalWebhook() {
+            const result = await makeRequest('/paypal/webhook');
+            displayResult('paypal-result', result, 'PayPal Webhook GET');
+        }
+
+        // 全テスト実行
+        async function runAllTests() {
+            const element = document.getElementById('all-result');
+            element.className = 'test-result';
+            element.textContent = 'テスト実行中...';
+
+            const tests = [
+                { name: 'License Verify GET', fn: () => makeRequest('/license/verify') },
+                { name: 'License Verify POST', fn: () => makeRequest('/license/verify', 'POST', { device_hash: 'test' }) },
+                { name: 'Device Register GET', fn: () => makeRequest('/device/register') },
+                { name: 'Device Register POST', fn: () => makeRequest('/device/register', 'POST', { device_hash: 'test', email: 'test@test.com' }) },
+                { name: 'PayPal Success', fn: () => makeRequest('/paypal/success') },
+                { name: 'PayPal Cancel', fn: () => makeRequest('/paypal/cancel') },
+                { name: 'PayPal Webhook', fn: () => makeRequest('/paypal/webhook') },
+            ];
+
+            let results = [];
+            for (const test of tests) {
+                const result = await test.fn();
+                results.push({
+                    name: test.name,
+                    status: result.status,
+                    success: result.success
+                });
+            }
+
+            const successCount = results.filter(r => r.success).length;
+            const totalCount = results.length;
+            const allSuccess = successCount === totalCount;
+
+            element.className = `test-result ${allSuccess ? 'success' : 'error'}`;
+            element.textContent = `統合テスト結果: ${successCount}/${totalCount} 成功
+
+${results.map(r => `${r.success ? '✅' : '❌'} ${r.name} (${r.status})`).join('\n')}
+
+テスト完了時刻: ${new Date().toLocaleString()}`;
+        }
+    </script>
+</body>
+</html>
