@@ -449,8 +449,8 @@ local function getDeviceHash()
     local serialNumber = getDeviceSerial()
 
     if serialNumber then
-        -- シリアル番号をそのまま使用（プレフィックス付き）
-        deviceId = string.format("IPHONE_%s", serialNumber)
+        -- シリアル番号をそのまま使用
+        deviceId = serialNumber
         log(string.format("✅ デバイスID確定: %s", deviceId))
     else
         -- フォールバック: UDIDを試す

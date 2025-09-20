@@ -90,19 +90,19 @@ async function handleLicenseVerify(request: Request) {
       },
 
       // iPhone 7/8のシリアル番号サンプル（実際のパターンに基づく）
-      'IPHONE_F2LXJ7XXHG7F': {
+      'F2LXJ7XXHG7F': {
         status: 'active',
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         device_model: 'iPhone 7',
         registered_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       },
-      'IPHONE_FMRY2J9KHFLL': {
+      'FMRY2J9KHFLL': {
         status: 'trial',
         expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         device_model: 'iPhone 8',
         registered_at: new Date().toISOString()
       },
-      'IPHONE_D4HJMQLNHFM4': {
+      'D4HJMQLNHFM4': {
         status: 'expired',
         expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         device_model: 'iPhone 7 Plus',
