@@ -14,12 +14,14 @@ node_modules/
 
 # Build cache (the problematic large files)
 .next/cache/
+.next/cache/**
 .next/build-manifest.json
 .next/react-loadable-manifest.json
 .next/static/chunks/webpack*
 .next/cache/webpack/
-*.pack
+**/*.pack
 cache/
+webpack/
 
 # Documentation
 *.md
