@@ -1,4 +1,5 @@
-# Cloudflare Pages redirects for Next.js App Router
-
-# SPA fallback - handle all routes with index.html
+# SPA fallback for Next.js routing
+/login /login/index.html 200
+/register /register/index.html 200
+/dashboard /dashboard/index.html 200
 /* /index.html 200
