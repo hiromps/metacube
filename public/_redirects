@@ -1,5 +1,2 @@
-# SPA fallback for Next.js routing
-/login /login/index.html 200
-/register /register/index.html 200
-/dashboard /dashboard/index.html 200
+# SPA fallback for Next.js static export
 /* /index.html 200
