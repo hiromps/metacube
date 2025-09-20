@@ -336,6 +336,25 @@ end
 -- ライセンス認証関数
 -- ==========================================
 
+-- クリップボードにコピー（AutoTouch関数）
+local function copyToClipboard(text)
+    -- AutoTouchのクリップボード機能を使用
+    -- 利用できない場合は、pasteboard APIを直接呼ぶ
+    if type(copyText) == "function" then
+        copyText(text)
+    elseif type(pasteboard) == "table" and pasteboard.copy then
+        pasteboard.copy(text)
+    else
+        -- フォールバック: ファイルに保存
+        local file = io.open("/var/mobile/Library/AutoTouch/Scripts/clipboard.txt", "w")
+        if file then
+            file:write(text)
+            file:close()
+            log("📋 クリップボードファイルに保存: clipboard.txt")
+        end
+    end
+end
+
 -- デバイスハッシュ取得
 local function getDeviceHash()
     local deviceId = nil
@@ -423,24 +442,39 @@ local function saveLicenseCache(data)
     return true
 end
 
--- HTTP POST リクエスト
+-- HTTP POST リクエスト（改善版）
 local function httpPost(url, data)
     local jsonData = string.format('{"device_hash":"%s"}', data.device_hash)
 
+    -- より詳細なログ
+    log(string.format("📡 API Request: %s", url))
+    log(string.format("📦 Payload: %s", jsonData))
+
+    -- curlコマンドの構築（エラー出力も取得）
     local cmd = string.format(
-        'curl -X POST "%s" -H "Content-Type: application/json" -d \'%s\' --connect-timeout 10 --max-time 15 -s',
+        'curl -X POST "%s" -H "Content-Type: application/json" -d \'%s\' --connect-timeout 10 --max-time 15 -s 2>&1',
         url, jsonData
     )
 
     local handle = io.popen(cmd)
     if not handle then
+        log("❌ Failed to execute curl command")
         return nil
     end
 
     local result = handle:read("*a")
     handle:close()
 
+    log(string.format("📥 API Response: %s", result or "empty"))
+
     if not result or result == "" then
+        log("❌ Empty response from API")
+        return nil
+    end
+
+    -- curlエラーのチェック
+    if result:match("^curl:") or result:match("Could not resolve") then
+        log(string.format("❌ Curl error: %s", result))
         return nil
     end
 
@@ -451,12 +485,16 @@ local function httpPost(url, data)
     response.expires_at = result:match('"expires_at":"([^"]+)"')
     response.error = result:match('"error":"([^"]+)"')
     response.registration_url = result:match('"registration_url":"([^"]+)"')
+    response.message = result:match('"message":"([^"]+)"')
 
     if response.is_valid == "true" then
         response.is_valid = true
     elseif response.is_valid == "false" then
         response.is_valid = false
     end
+
+    log(string.format("✅ Parsed response - Valid: %s, Status: %s",
+        tostring(response.is_valid), response.status or "unknown"))
 
     return response
 end
@@ -479,16 +517,109 @@ local function verifyLicense(deviceHash)
     return response.is_valid, response
 end
 
--- ライセンス認証エラー表示
+-- ライセンス認証エラー表示（改善版）
 local function showLicenseError(message, deviceHash)
-    local errorMsg = string.format(
-        "❌ ライセンス認証エラー\n\n%s\n\nデバイスID: %s\n\n登録URL:\nhttps://metacube-el5.pages.dev/register",
-        message, deviceHash
-    )
+    -- ダイアログの作成
+    local controls = {
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "❌ ライセンス認証エラー"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = message or "ライセンスが無効です"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "📱 あなたのデバイスID"
+        },
+        {
+            type = CONTROLLER_TYPE.INPUT,
+            title = "",
+            key = "device_id",
+            value = deviceHash,
+            prompt = "デバイスID（長押しでコピー可能）"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "🔗 登録方法"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "1. 上記のデバイスIDをコピー"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "2. Safariで以下のURLを開く："
+        },
+        {
+            type = CONTROLLER_TYPE.INPUT,
+            title = "",
+            key = "url",
+            value = "https://metacube-el5.pages.dev/register",
+            prompt = "登録URL（長押しでコピー可能）"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "3. デバイスIDを入力して登録"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "📝 メモ帳にコピー",
+            color = 0x68D391,
+            width = 0.5,
+            flag = 1,
+            collectInputs = false
+        },
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "❌ 終了",
+            color = 0xFF5733,
+            width = 0.5,
+            flag = 2,
+            collectInputs = false
+        }
+    }
 
-    alert(errorMsg)
-    log(errorMsg)
-    toast("❌ ライセンス認証に失敗しました", 3)
+    local orientations = {ORIENTATION_TYPE.PORTRAIT}
+    local result = dialog(controls, orientations)
+
+    if result == 1 then
+        -- メモ帳にコピー（クリップボードに保存）
+        local copyText = string.format(
+            "SocialTouch ライセンス登録情報\n\n" ..
+            "デバイスID: %s\n\n" ..
+            "登録URL: https://metacube-el5.pages.dev/register\n\n" ..
+            "※このデバイスIDを登録ページで入力してください",
+            deviceHash
+        )
+
+        -- クリップボードにコピー（AutoTouchの機能を利用）
+        copyToClipboard(copyText)
+        toast("📋 情報をクリップボードにコピーしました", 3)
+
+        -- 少し待ってからメモ帳を開く提案
+        usleep(1000000)
+        alert("クリップボードにコピーしました。\n\nSafariを開いて登録URLにアクセスし、\nデバイスIDを貼り付けて登録してください。")
+    end
+
+    log(string.format("❌ ライセンスエラー: %s (デバイス: %s)", message, deviceHash))
 end
 
 -- ライセンス認証メイン処理

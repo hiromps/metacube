@@ -21,13 +21,8 @@ function RegisterForm() {
   const urlError = searchParams.get('error')
 
   const validateForm = () => {
-    if (!deviceHash || deviceHash.length !== 16) {
-      setError('デバイスハッシュは16文字の英数字である必要があります')
-      return false
-    }
-
-    if (!/^[a-f0-9]{16}$/.test(deviceHash)) {
-      setError('デバイスハッシュは16進数形式である必要があります')
+    if (!deviceHash || deviceHash.length < 3) {
+      setError('デバイスIDを入力してください')
       return false
     }
 
@@ -168,22 +163,20 @@ function RegisterForm() {
         <form onSubmit={handleRegister}>
           <div className="mb-4">
             <label htmlFor="deviceHash" className="block text-sm font-medium text-gray-700 mb-2">
-              デバイスハッシュ
+              デバイスID
             </label>
             <input
               type="text"
               id="deviceHash"
               value={deviceHash}
-              onChange={(e) => setDeviceHash(e.target.value.toLowerCase())}
+              onChange={(e) => setDeviceHash(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="16文字の英数字"
-              maxLength={16}
-              pattern="[a-f0-9]{16}"
+              placeholder="例: DEMO-DEVICE-001"
               required
               disabled={loading}
             />
             <p className="mt-1 text-xs text-gray-500">
-              AutoTouchのmain.luaで表示される16文字のコード
+              AutoTouchのmain.luaで表示されるデバイスID
             </p>
           </div>
 
