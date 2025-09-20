@@ -25,6 +25,9 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [changingDevice, setChangingDevice] = useState(false)
+  const [newDeviceHash, setNewDeviceHash] = useState('')
+  const [showDeviceChangeForm, setShowDeviceChangeForm] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -144,6 +147,60 @@ export default function DashboardPage() {
       setError('解約処理に失敗しました')
     } finally {
       setCancelling(false)
+    }
+  }
+
+  const handleDeviceChange = async () => {
+    if (!newDeviceHash.trim()) {
+      setError('新しいデバイスハッシュを入力してください')
+      return
+    }
+
+    if (newDeviceHash === data?.device_hash) {
+      setError('新しいデバイスハッシュは現在のものと異なる必要があります')
+      return
+    }
+
+    if (!confirm('デバイスを変更しますか？変更後は新しいデバイスでのみご利用いただけます。')) {
+      return
+    }
+
+    setChangingDevice(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/device/change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          old_device_hash: data?.device_hash,
+          new_device_hash: newDeviceHash.trim(),
+          email: data?.email
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'デバイス変更に失敗しました')
+      }
+
+      if (result.success) {
+        alert('デバイス変更が完了しました。新しいデバイスでご利用ください。')
+        setNewDeviceHash('')
+        setShowDeviceChangeForm(false)
+        await checkAuth() // Refresh data
+      } else {
+        throw new Error(result.error || 'デバイス変更に失敗しました')
+      }
+
+    } catch (error: any) {
+      console.error('Device change error:', error)
+      setError(error.message || 'デバイス変更に失敗しました')
+    } finally {
+      setChangingDevice(false)
     }
   }
 
@@ -295,6 +352,82 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600">PayPal ID</p>
                 <p className="font-mono text-xs">{data.paypal_subscription_id || '-'}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Device Management */}
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-4">デバイス管理</h2>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">現在のデバイス</p>
+                <p className="font-mono text-sm bg-white p-2 rounded border">{data.device_hash}</p>
+              </div>
+
+              {/* Device change form */}
+              {!showDeviceChangeForm ? (
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    契約が有効な間は、別のデバイスに変更することができます。
+                  </p>
+                  {(data.license_valid && (data.device_status === 'active' || data.device_status === 'trial')) ? (
+                    <button
+                      onClick={() => setShowDeviceChangeForm(true)}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      デバイスを変更
+                    </button>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      デバイス変更は契約有効期間中のみ利用できます
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      新しいデバイスハッシュ
+                    </label>
+                    <input
+                      type="text"
+                      value={newDeviceHash}
+                      onChange={(e) => setNewDeviceHash(e.target.value)}
+                      placeholder="新しいデバイスハッシュを入力"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={changingDevice}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
+                    <p className="font-medium text-yellow-800">⚠️ 注意事項</p>
+                    <ul className="mt-2 space-y-1 text-yellow-700">
+                      <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
+                      <li>• 現在のデバイスでは利用できなくなります</li>
+                      <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
+                    </ul>
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleDeviceChange}
+                      disabled={changingDevice || !newDeviceHash.trim()}
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
+                    >
+                      {changingDevice ? '変更中...' : 'デバイス変更を実行'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeviceChangeForm(false)
+                        setNewDeviceHash('')
+                        setError('')
+                      }}
+                      disabled={changingDevice}
+                      className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 disabled:bg-gray-400"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

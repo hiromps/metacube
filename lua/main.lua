@@ -336,34 +336,22 @@ end
 -- ライセンス認証関数
 -- ==========================================
 
--- AutoTouch環境で利用できない関数の代替実装
-local function getScreenResolution()
-    -- AutoTouchの画面解像度取得
-    if getScreenSize then
-        local width, height = getScreenSize()
-        return width, height
-    elseif getDisplaySize then
-        local width, height = getDisplaySize()
-        return width, height
-    else
-        -- iPhone 7/8の標準解像度を返す
-        return 750, 1334  -- iPhone 7/8の解像度
-    end
-end
 
-local function getOSVersion()
-    -- iOSバージョン取得の試行
-    local handle = io.popen("sw_vers -productVersion 2>/dev/null")
-    if handle then
-        local result = handle:read("*a")
-        handle:close()
-        if result and result ~= "" then
-            return result:match("([%d%.]+)")
-        end
+-- AutoTouch対応の時間取得関数
+local function getCurrentTimestamp()
+    local currentTime = 1695000000  -- デフォルト値（2023年頃）
+
+    -- AutoTouchで利用可能な時間関数を試行
+    if type(getCurrentTime) == "function" then
+        currentTime = getCurrentTime()
+    elseif type(getTimestamp) == "function" then
+        currentTime = getTimestamp()
+    elseif type(os) == "table" and type(os.time) == "function" then
+        -- 標準のos.timeが利用可能な場合
+        currentTime = os.time()
     end
 
-    -- フォールバック
-    return "iOS15"
+    return currentTime
 end
 
 -- クリップボードにコピー（AutoTouch関数）
@@ -385,146 +373,29 @@ local function copyToClipboard(text)
     end
 end
 
--- iPhoneシリアル番号取得（AutoTouch環境対応版）
-local function getDeviceSerial()
-    local serialNumber = nil
-
-    log("🔍 iPhoneシリアル番号を取得中...")
-
-    -- Method 1: IOPlatformSerialNumber (iOS/jailbreak環境で最も確実)
-    local commands = {
-        "ioreg -l | grep IOPlatformSerialNumber | head -1",
-        "ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformSerialNumber",
-        "ioreg -c IOPlatformExpertDevice | grep IOPlatformSerialNumber"
-    }
-
-    for i, cmd in ipairs(commands) do
-        local handle = io.popen(cmd .. " 2>/dev/null")
-        if handle then
-            local result = handle:read("*a")
-            handle:close()
-            log(string.format("📡 ioreg method %d結果: %s", i, result or "empty"))
-
-            if result and result ~= "" then
-                -- "IOPlatformSerialNumber" = "F2LXJ7XXHG7F" の形式から抽出
-                serialNumber = result:match('"([A-Z0-9]+)"')
-                if serialNumber and #serialNumber >= 8 then
-                    log(string.format("✅ ioreg method %d成功 - シリアル番号: %s", i, serialNumber))
-                    return serialNumber
-                end
-            end
-        end
-    end
-
-    -- Method 2: sysctlコマンド（iOS/macOS共通）
-    local sysctl_commands = {
-        "sysctl hw.serialnumber",
-        "sysctl -n hw.serialnumber"
-    }
-
-    for i, cmd in ipairs(sysctl_commands) do
-        local handle = io.popen(cmd .. " 2>/dev/null")
-        if handle then
-            local result = handle:read("*a")
-            handle:close()
-            log(string.format("📡 sysctl method %d結果: %s", i, result or "empty"))
-
-            if result and result ~= "" then
-                -- hw.serialnumber: F2LXJ7XXHG7F または F2LXJ7XXHG7F の形式
-                serialNumber = result:match("([A-Z0-9]{8,})")
-                if serialNumber and #serialNumber >= 8 then
-                    log(string.format("✅ sysctl method %d成功 - シリアル番号: %s", i, serialNumber))
-                    return serialNumber
-                end
-            end
-        end
-    end
-
-    -- Method 3: system_profiler (macOS/iOS用 - 利用可能な場合)
-    local handle = io.popen("system_profiler SPHardwareDataType 2>/dev/null | grep -i serial")
-    if handle then
-        local result = handle:read("*a")
-        handle:close()
-        log(string.format("📡 system_profiler結果: %s", result or "empty"))
-
-        if result and result ~= "" then
-            serialNumber = result:match("Serial Number.-([A-Z0-9]+)")
-            if serialNumber and #serialNumber >= 8 then
-                log(string.format("✅ system_profiler成功 - シリアル番号: %s", serialNumber))
-                return serialNumber
-            end
-        end
-    end
-
-    log("⚠️ 全ての方法でシリアル番号取得に失敗")
-    return nil
-end
-
--- デバイスハッシュ取得（シリアル番号ベース）
+-- デバイスID取得（シンプル版）
 local function getDeviceHash()
-    local deviceId = nil
+    log("🔍 デバイスIDを取得中...")
 
-    -- iPhoneシリアル番号を取得
-    local serialNumber = getDeviceSerial()
-
-    if serialNumber then
-        -- シリアル番号をそのまま使用
-        deviceId = serialNumber
-        log(string.format("✅ デバイスID確定: %s", deviceId))
+    -- AutoTouchのgetSN()関数を使用
+    if type(getSN) == "function" then
+        local serial = getSN()
+        if serial and serial ~= "" and serial ~= "unknown" then
+            log(string.format("✅ getSN()成功: %s", serial))
+            return serial
+        else
+            log("⚠️ getSN()は利用可能ですが、有効なシリアル番号を取得できませんでした")
+        end
     else
-        -- フォールバック: UDIDを試す
-        log("🔄 フォールバック: UDIDを取得中...")
-        local handle = io.popen("ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID")
-        if handle then
-            local result = handle:read("*a")
-            handle:close()
-            if result and result ~= "" then
-                local uuid = result:match('"([A-F0-9-]+)"')
-                if uuid then
-                    deviceId = string.format("UUID_%s", uuid:gsub("-", ""):sub(1, 12))
-                    log(string.format("✅ フォールバック成功 - UUID: %s", deviceId))
-                end
-            end
-        end
+        log("⚠️ getSN()関数が利用できません")
     end
 
-    -- 最終フォールバック: デバイス特性ベース（安全版）
-    if not deviceId then
-        log("🔄 最終フォールバック: デバイス特性ベース")
+    -- フォールバック: 簡単な固定IDを生成
+    log("🔄 フォールバック: 固定IDを生成します")
+    local fallbackId = "DEVICE_" .. tostring(getCurrentTimestamp() % 1000000)
+    log(string.format("✅ フォールバックID: %s", fallbackId))
 
-        local width, height = 750, 1334  -- iPhone 7/8 デフォルト
-        local osVersion = "iOS15"  -- デフォルト
-
-        -- 安全に画面解像度とOSバージョンを取得
-        local success, w, h = pcall(getScreenResolution)
-        if success and w and h then
-            width, height = w, h
-            log(string.format("📱 画面解像度取得成功: %dx%d", width, height))
-        else
-            log("⚠️ 画面解像度取得失敗、デフォルト値使用")
-        end
-
-        local success2, os = pcall(getOSVersion)
-        if success2 and os then
-            osVersion = os
-            log(string.format("📱 OSバージョン取得成功: %s", osVersion))
-        else
-            log("⚠️ OSバージョン取得失敗、デフォルト値使用")
-        end
-
-        -- より安定したハッシュ生成
-        local timestamp = os.time()
-        local deviceInfo = string.format("%d_%d_%s_%d", width, height, osVersion, timestamp % 86400)
-        local hash = 0
-        for i = 1, #deviceInfo do
-            hash = (hash * 31 + string.byte(deviceInfo, i)) % 2147483647
-        end
-
-        deviceId = string.format("FALLBACK_%08X", hash)
-        log(string.format("✅ 最終フォールバック: %s", deviceId))
-    end
-
-    return deviceId or "DEMO-DEVICE-001"
+    return fallbackId
 end
 
 -- キャッシュ読み込み
@@ -552,7 +423,12 @@ local function loadLicenseCache()
 
     -- キャッシュの有効期限チェック
     local timestamp = tonumber(cache.timestamp)
-    if not timestamp or (os.time() - timestamp) > Config.CACHE_DURATION then
+    if timestamp then
+        local currentTime = getCurrentTimestamp()
+        if (currentTime - timestamp) > Config.CACHE_DURATION then
+            return nil
+        end
+    else
         return nil
     end
 
@@ -572,7 +448,9 @@ local function saveLicenseCache(data)
     file:write(string.format("is_valid:%s\n", tostring(data.is_valid)))
     file:write(string.format("status:%s\n", data.status or "unknown"))
     file:write(string.format("expires_at:%s\n", data.expires_at or ""))
-    file:write(string.format("timestamp:%d\n", os.time()))
+    -- タイムスタンプ取得
+    local currentTime = getCurrentTimestamp()
+    file:write(string.format("timestamp:%d\n", currentTime))
     file:close()
 
     return true

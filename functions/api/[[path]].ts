@@ -1,13 +1,34 @@
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client for Cloudflare Functions
+function getSupabaseClient(env: any) {
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase configuration')
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+}
+
 // Catch-all API route handler for Cloudflare Pages Functions
 export async function onRequest(context: any) {
-  const { request, params } = context;
+  const { request, params, env } = context;
   const path = params.path ? params.path.join('/') : '';
 
   // Route to specific handlers based on path
   if (path === 'license/verify') {
-    return handleLicenseVerify(request);
+    return handleLicenseVerify(request, env);
   } else if (path === 'device/register') {
-    return handleDeviceRegister(request);
+    return handleDeviceRegister(request, env);
+  } else if (path === 'device/change') {
+    return handleDeviceChange(request, env);
   } else if (path === 'paypal/success') {
     return handlePayPalSuccess(request);
   } else if (path === 'paypal/cancel') {
@@ -27,7 +48,7 @@ export async function onRequest(context: any) {
 }
 
 // License verification handler
-async function handleLicenseVerify(request: Request) {
+async function handleLicenseVerify(request: Request, env: any) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -173,7 +194,7 @@ async function handleLicenseVerify(request: Request) {
 }
 
 // Device registration handler
-async function handleDeviceRegister(request: Request) {
+async function handleDeviceRegister(request: Request, env: any) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -250,6 +271,239 @@ async function handleDeviceRegister(request: Request) {
       {
         status: 400,
         headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Device change handler
+async function handleDeviceChange(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const body = await request.json();
+    const { old_device_hash, new_device_hash, email } = body;
+
+    // Validate required fields
+    if (!old_device_hash || !new_device_hash || !email) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Old device hash, new device hash, and email are required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check if old and new device hashes are the same
+    if (old_device_hash === new_device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'New device hash must be different from the current one'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Find user by email
+    const { data: user, error: userError } = await supabase.auth.admin.getUserByEmail(email);
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'User not found with this email'
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check if old device exists and belongs to the user
+    const { data: oldDevice, error: oldDeviceError } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('device_hash', old_device_hash)
+      .eq('user_id', user.user.id)
+      .single();
+
+    if (oldDeviceError || !oldDevice) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Current device not found or not registered to this user'
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check if license is still valid
+    const isTrialExpired = oldDevice.trial_ends_at && new Date(oldDevice.trial_ends_at) < new Date();
+    const isValidStatus = ['active', 'trial'].includes(oldDevice.status);
+
+    if (!isValidStatus || (oldDevice.status === 'trial' && isTrialExpired)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Cannot change device: license has expired or is not active'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check if new device is already registered to any user
+    const { data: existingDevice, error: existingError } = await supabase
+      .from('devices')
+      .select('device_hash')
+      .eq('device_hash', new_device_hash)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('Error checking existing device:', existingError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Database error while checking device availability'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (existingDevice) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'New device is already registered to another account'
+        }),
+        {
+          status: 409,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Update device hash in database
+    const { data: updatedDevice, error: updateError } = await supabase
+      .from('devices')
+      .update({
+        device_hash: new_device_hash,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', oldDevice.id)
+      .eq('user_id', user.user.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating device:', updateError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to update device in database'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Device changed successfully',
+        old_device_hash: old_device_hash,
+        new_device_hash: new_device_hash,
+        status: oldDevice.status,
+        expires_at: oldDevice.trial_ends_at || 'No expiration',
+        changed_at: new Date().toISOString()
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Device change error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Device change failed. Please try again.'
+      }),
+      {
+        status: 500,
+      headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
