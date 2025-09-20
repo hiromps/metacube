@@ -319,7 +319,7 @@ export default function DashboardPage() {
               <div className="text-2xl font-bold text-white">
                 {data.license_valid ? '✓ 有効' : '✗ 無効'}
               </div>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-blue-100 mt-1">
                 期限: {formatDate(data.device_status === 'trial' ? data.trial_ends_at : data.license_expires_at)}
               </p>
             </CardContent>
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                 ¥{data.amount_jpy?.toLocaleString() || '2,980'}
                 <span className="text-sm font-normal text-gray-400">/月</span>
               </div>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-blue-100 mt-1">
                 次回請求: {formatDate(data.next_billing_date)}
               </p>
             </CardContent>
@@ -352,7 +352,7 @@ export default function DashboardPage() {
                 {data.verification_count || 0}
                 <span className="text-sm font-normal text-gray-400"> 回</span>
               </div>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-blue-100 mt-1">
                 デバイス認証の累計
               </p>
             </CardContent>

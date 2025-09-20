@@ -103,24 +103,24 @@ export default function Home() {
     <>
       {/* Navigation */}
       <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-dark/90 backdrop-blur-xl border-b border-dark-border' : 'bg-transparent'
+        scrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
       }`}>
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold bg-gradient-matrix bg-clip-text text-transparent">
+              <span className="text-2xl font-bold text-blue-600">
                 MetaCube
               </span>
-              <Badge variant="matrix" size="sm">v2.0</Badge>
+              <Badge className="bg-blue-100 text-blue-600 border-blue-200" size="sm">v2.0</Badge>
             </div>
             <div className="flex space-x-4">
               <Link href="/login">
-                <Button variant="glass" size="md">
+                <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50" size="md">
                   ログイン
                 </Button>
               </Link>
               <Link href="/register">
-                <Button variant="glow" size="md">
+                <Button className="bg-blue-500 text-white hover:bg-blue-600" size="md">
                   無料で始める
                 </Button>
               </Link>
@@ -130,33 +130,33 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-dark overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-          <div className="absolute top-0 -right-4 w-72 h-72 bg-matrix rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float animation-delay-4000"></div>
+          <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
+          <div className="absolute top-0 -right-4 w-72 h-72 bg-cyan-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-4000"></div>
         </div>
 
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="animate-slide-down">
-            <Badge variant="glass" size="lg" className="mb-4">
+            <Badge className="bg-blue-100 text-blue-700 border-blue-200 px-4 py-2" size="lg">
               Instagram成長の新時代へ
             </Badge>
-            <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-matrix bg-clip-text text-transparent">
+            <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
               MetaCube
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
               AIを活用したInstagram自動化ツールで、
               あなたのアカウントを次のレベルへ
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/register">
-                <Button variant="glow" size="xl" className="min-w-[200px]">
+                <Button className="bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:shadow-xl transition-all min-w-[200px]" size="xl">
                   3日間無料で試す
                 </Button>
               </Link>
-              <Button variant="outline" size="xl" className="min-w-[200px]">
+              <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 min-w-[200px]" size="xl">
                 デモを見る
               </Button>
             </div>
@@ -166,10 +166,10 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16">
             {stats.map((stat, index) => (
               <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
-                <Card variant="glass" className="text-center">
+                <Card className="bg-white shadow-lg border border-gray-100 text-center hover:shadow-xl transition-shadow">
                   <CardContent>
-                    <div className="text-3xl font-bold text-matrix mb-2">{stat.value}</div>
-                    <div className="text-sm text-gray-400">{stat.label}</div>
+                    <div className="text-3xl font-bold text-blue-600 mb-2">{stat.value}</div>
+                    <div className="text-sm text-gray-600">{stat.label}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -179,16 +179,16 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-dark-lighter">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="matrix" size="md" className="mb-4">
+            <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="md">
               機能紹介
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800">
               成長を加速する強力な機能
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               MetaCubeの高度な自動化機能で、Instagram運用の効率を最大化
             </p>
           </div>
@@ -200,13 +200,13 @@ export default function Home() {
                 className="animate-slide-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <Card variant="glass" hoverable className="h-full">
+                <Card className="bg-white shadow-lg border border-gray-100 hover:shadow-xl transition-shadow h-full">
                   <CardHeader>
                     <div className="text-4xl mb-4">{feature.icon}</div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl text-gray-800">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-400">{feature.description}</p>
+                    <p className="text-gray-600">{feature.description}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -216,16 +216,16 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-dark">
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge variant="matrix" size="md" className="mb-4">
+            <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="md">
               料金プラン
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800">
               あなたに合ったプランを選択
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               すべてのプランで全機能が利用可能。まずは無料トライアルから
             </p>
           </div>
@@ -238,28 +238,27 @@ export default function Home() {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Card
-                  variant={plan.popular ? 'gradient' : 'glass'}
-                  className="h-full relative"
+                  className={`h-full relative ${plan.popular ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl' : 'bg-white shadow-lg border border-gray-100'}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <Badge variant="matrix" size="md">
+                      <Badge className="bg-orange-500 text-white border-orange-600" size="md">
                         人気No.1
                       </Badge>
                     </div>
                   )}
                   <CardHeader className="text-center pt-8">
-                    <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                    <CardTitle className={`text-2xl mb-2 ${plan.popular ? 'text-white' : 'text-gray-800'}`}>{plan.name}</CardTitle>
                     <div className="flex items-baseline justify-center">
-                      <span className="text-4xl font-bold text-white">{plan.price}</span>
-                      <span className="text-gray-400 ml-2">/ {plan.duration}</span>
+                      <span className={`text-4xl font-bold ${plan.popular ? 'text-white' : 'text-blue-600'}`}>{plan.price}</span>
+                      <span className={`ml-2 ${plan.popular ? 'text-blue-100' : 'text-gray-500'}`}>/ {plan.duration}</span>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
                       {plan.features.map((feature, i) => (
-                        <li key={i} className="flex items-center text-gray-300">
-                          <svg className="w-5 h-5 text-matrix mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <li key={i} className={`flex items-center ${plan.popular ? 'text-white' : 'text-gray-700'}`}>
+                          <svg className={`w-5 h-5 mr-3 ${plan.popular ? 'text-blue-200' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                           {feature}
@@ -270,7 +269,7 @@ export default function Home() {
                   <CardFooter>
                     <Link href="/register" className="w-full">
                       <Button
-                        variant={plan.popular ? 'glow' : 'outline'}
+                        className={plan.popular ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-500 text-white hover:bg-blue-600'}
                         size="lg"
                         fullWidth
                       >
@@ -286,7 +285,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-matrix">
+      <section className="py-20 bg-gradient-to-r from-blue-500 to-blue-600">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
             今すぐ始めよう
@@ -297,12 +296,12 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
-              <Button variant="glass" size="xl" className="min-w-[200px] bg-white/20">
+              <Button className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg min-w-[200px]" size="xl">
                 無料トライアルを開始
               </Button>
             </Link>
             <Link href="/login">
-              <Button variant="outline" size="xl" className="min-w-[200px] border-white text-white hover:bg-white hover:text-dark">
+              <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600 min-w-[200px]" size="xl">
                 既存ユーザーログイン
               </Button>
             </Link>
@@ -311,43 +310,43 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 bg-dark-lighter border-t border-dark-border">
+      <footer className="py-12 bg-gray-50 border-t border-gray-200">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="text-xl font-bold mb-4 bg-gradient-matrix bg-clip-text text-transparent">
+              <h3 className="text-xl font-bold mb-4 text-blue-600">
                 MetaCube
               </h3>
-              <p className="text-gray-400">
+              <p className="text-gray-600">
                 Instagram成長を自動化する次世代ツール
               </p>
             </div>
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">製品</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-matrix transition">機能</a></li>
-                <li><a href="#" className="hover:text-matrix transition">料金</a></li>
-                <li><a href="#" className="hover:text-matrix transition">FAQ</a></li>
+              <h4 className="text-lg font-semibold mb-4 text-gray-800">製品</h4>
+              <ul className="space-y-2 text-gray-600">
+                <li><a href="#" className="hover:text-blue-600 transition">機能</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">料金</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">FAQ</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">サポート</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-matrix transition">ヘルプセンター</a></li>
-                <li><a href="#" className="hover:text-matrix transition">お問い合わせ</a></li>
-                <li><a href="#" className="hover:text-matrix transition">利用規約</a></li>
+              <h4 className="text-lg font-semibold mb-4 text-gray-800">サポート</h4>
+              <ul className="space-y-2 text-gray-600">
+                <li><a href="#" className="hover:text-blue-600 transition">ヘルプセンター</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">お問い合わせ</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">利用規約</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">フォロー</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-matrix transition">Twitter</a></li>
-                <li><a href="#" className="hover:text-matrix transition">Instagram</a></li>
-                <li><a href="#" className="hover:text-matrix transition">Discord</a></li>
+              <h4 className="text-lg font-semibold mb-4 text-gray-800">フォロー</h4>
+              <ul className="space-y-2 text-gray-600">
+                <li><a href="#" className="hover:text-blue-600 transition">Twitter</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">Instagram</a></li>
+                <li><a href="#" className="hover:text-blue-600 transition">Discord</a></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-dark-border pt-8 text-center text-gray-400">
+          <div className="border-t border-gray-200 pt-8 text-center text-gray-600">
             <p>© 2024 MetaCube. All rights reserved.</p>
           </div>
         </div>
