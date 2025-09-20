@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "preview": "npm run pages:build && wrangler pages dev",
+    "deploy": "npm run pages:build && wrangler pages deploy",
     "start": "next start",
     "lint": "next lint"
   },
@@ -13,11 +16,12 @@
     "@supabase/supabase-js": "^2.57.4",
     "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2",
-    "next": "^15.5.3",
+    "next": "15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
