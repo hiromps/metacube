@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     checkAuth()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkAuth = async () => {
     console.log('🔍 ダッシュボード: 認証状態確認開始')

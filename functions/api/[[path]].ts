@@ -344,10 +344,14 @@ async function handleDeviceChange(request: Request, env: any) {
       );
     }
 
-    // Find user by email
-    const { data: user, error: userError } = await supabase.auth.admin.getUserByEmail(email);
+    // Find user by email using users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
 
-    if (userError || !user) {
+    if (userError || !userData) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -368,7 +372,7 @@ async function handleDeviceChange(request: Request, env: any) {
       .from('devices')
       .select('*')
       .eq('device_hash', old_device_hash)
-      .eq('user_id', user.user.id)
+      .eq('user_id', userData.id)
       .single();
 
     if (oldDeviceError || !oldDevice) {
@@ -455,7 +459,7 @@ async function handleDeviceChange(request: Request, env: any) {
         updated_at: new Date().toISOString()
       })
       .eq('id', oldDevice.id)
-      .eq('user_id', user.user.id)
+      .eq('user_id', userData.id)
       .select()
       .single();
 
