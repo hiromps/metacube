@@ -1,5 +1,109 @@
 # CLAUDE.md
-# SocialTouch MVP要件定義書
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Commands
+
+```bash
+# Development
+npm run dev          # Start development server at localhost:3000
+npm run build        # Build for production (static export)
+npm run lint         # Run ESLint
+
+# Deployment
+git push origin main # Auto-deploys to Cloudflare Pages
+```
+
+## Architecture Overview
+
+### Deployment Architecture: Cloudflare Pages + Functions
+
+This project uses a **hybrid architecture** specifically designed for Cloudflare Pages:
+
+1. **Frontend**: Next.js 15 with static export (`output: 'export'`)
+   - Static HTML pages served from `/out` directory
+   - Client-side rendering with React 19
+   - Pages: `/`, `/login`, `/register`, `/dashboard`
+
+2. **API Layer**: Cloudflare Functions (NOT Next.js API Routes)
+   - All APIs handled by `functions/api/[[path]].ts` (catch-all route)
+   - TypeScript-based Functions for dynamic processing
+   - Endpoints:
+     - `/api/license/verify` - License validation
+     - `/api/device/register` - Device registration
+     - `/api/paypal/success|cancel|webhook` - PayPal callbacks
+
+3. **Critical Configuration Files**:
+   - `wrangler.toml`: Sets `pages_build_output_dir = "out"` (NOT `.next`)
+   - `public/_redirects`: Handles SPA routing (pages fallback to index.html)
+   - `next.config.mjs`: Must have `output: 'export'` for static generation
+
+### API Integration Pattern
+
+**IMPORTANT**: This project uses Cloudflare Functions, not Next.js API routes.
+
+```typescript
+// functions/api/[[path]].ts handles all API requests
+// Routes are determined by the path parameter
+if (path === 'license/verify') {
+  return handleLicenseVerify(request);
+}
+```
+
+Frontend API calls:
+```javascript
+// Always use relative paths
+fetch('/api/license/verify', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ device_hash: 'xyz' })
+})
+```
+
+### Database & Authentication
+
+- **Supabase**: PostgreSQL + Auth
+  - Tables: `users`, `devices`, `subscriptions`
+  - Row Level Security (RLS) enabled
+  - Authentication via `@supabase/supabase-js`
+
+- **PayPal Integration**:
+  - Monthly subscription: ¥2,980
+  - 3-day free trial
+  - Webhook handlers in Cloudflare Functions
+
+### Testing APIs
+
+Use the built-in test page: https://metacube-el5.pages.dev/api-test.html
+
+## Deployment Process
+
+1. **Local changes** → `git push` → GitHub
+2. **GitHub** → Cloudflare Pages (auto-build)
+3. **Build process**:
+   - Runs `npm run build` (Next.js static export)
+   - Outputs to `/out` directory
+   - Deploys Functions from `/functions`
+4. **Live in 2-5 minutes** at metacube-el5.pages.dev
+
+## Common Issues & Solutions
+
+### API returns HTML instead of JSON
+- Check `_redirects` file - should not redirect `/api/*`
+- Ensure Functions are in `functions/api/` directory
+- Verify `wrangler.toml` has correct `pages_build_output_dir`
+
+### Page routing returns 404
+- Confirm `output: 'export'` in `next.config.mjs`
+- Check `_redirects` includes page routes
+- Verify build outputs to `/out` directory
+
+### Build failures on Cloudflare
+- Remove any Next.js API routes (`app/api/` should not exist)
+- Ensure no `export const dynamic = "force-dynamic"` in pages
+- Check file sizes don't exceed 25MB limit
+
+## SocialTouch MVP要件定義書
 
 ## 1. MVP概要
 
