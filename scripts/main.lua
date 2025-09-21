@@ -33,6 +33,8 @@ end
 
 -- デバイスハッシュ取得
 function getDeviceHash()
+    print("=== DEVICE HASH DETECTION START ===")
+
     -- Check for saved hash first
     local hashFile = "/var/mobile/Library/AutoTouch/Scripts/.device_hash"
     print("Checking for saved hash at:", hashFile)
@@ -42,10 +44,18 @@ function getDeviceHash()
         local savedHash = file:read("*all")
         file:close()
         if savedHash and savedHash ~= "" then
+            savedHash = savedHash:gsub("\n", ""):gsub("\r", "") -- Remove any newlines
             print("Found saved hash:", savedHash)
-            return savedHash:gsub("\n", ""):gsub("\r", "") -- Remove any newlines
+            print("Saved hash length:", string.len(savedHash))
+            if string.len(savedHash) >= 12 then
+                print("=== DEVICE HASH DETECTION: SUCCESS (from file) ===")
+                return savedHash
+            else
+                print("Saved hash too short, regenerating...")
+            end
+        else
+            print("Saved hash file is empty")
         end
-        print("Saved hash file is empty")
     else
         print("No saved hash file found")
     end
@@ -137,7 +147,7 @@ function getDeviceHash()
         return hash
     end
 
-    -- Final fallback
+    -- Final fallback - ensure we always return a valid hash
     print("All methods failed, using test device hash")
     local fallback = "FFMZ3GTSJC6J"
 
@@ -146,8 +156,14 @@ function getDeviceHash()
     if file then
         file:write(fallback)
         file:close()
+        print("Saved fallback hash to file")
+    else
+        print("Failed to save fallback hash")
     end
 
+    print("=== DEVICE HASH DETECTION: FALLBACK (test device) ===")
+    print("Final device hash:", fallback)
+    print("Final hash length:", string.len(fallback))
     return fallback
 end
 
@@ -348,15 +364,28 @@ end
 function verifyLicense(deviceHash)
     print("=== LICENSE VERIFICATION START ===")
     print("Device Hash:", deviceHash)
+    print("Device Hash type:", type(deviceHash))
+    print("Device Hash length:", string.len(deviceHash or ""))
 
-    -- Try server authentication first for all devices
+    -- Validate device hash before sending
+    if not deviceHash or deviceHash == "" then
+        print("ERROR: Device hash is empty!")
+        return nil, "Device hash is empty"
+    end
 
+    if string.len(deviceHash) < 12 then
+        print("ERROR: Device hash too short:", string.len(deviceHash))
+        return nil, "Device hash too short"
+    end
+
+    print("Device hash validation: PASSED")
     print("Attempting online verification...")
 
     local url = API_BASE_URL .. "/license/verify"
     local body = '{"device_hash":"' .. deviceHash .. '"}'
     print("API URL:", url)
     print("Request body:", body)
+    print("Request body length:", string.len(body))
 
     -- Try HTTP request
     local response = tryHttpRequest(url, body)
@@ -622,7 +651,21 @@ function checkLicense()
     -- デバイスハッシュ取得
     local deviceHash = getDeviceHash()
     print("📱 Device hash obtained:", deviceHash)
-    print("Device hash obtained: " .. deviceHash)
+    print("Device hash obtained: " .. tostring(deviceHash))
+
+    -- Final validation before proceeding
+    if not deviceHash or deviceHash == "" then
+        print("CRITICAL ERROR: Device hash is empty after getDeviceHash()")
+        dialog({
+            title = "❌ エラー",
+            message = "デバイスハッシュの取得に失敗しました。\n\n" ..
+                     "AutoTouchの設定を確認してください。",
+            buttons = {"OK"}
+        })
+        return false
+    end
+
+    print("Device hash validation: OK (" .. string.len(deviceHash) .. " characters)")
 
     -- キャッシュチェック
     local cache = loadCache()
