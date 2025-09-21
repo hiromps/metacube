@@ -3,7 +3,8 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import PayPalButton from '@/components/PayPalButton'
+import { supabase } from '@/lib/supabase/client'
+// PayPalButton removed - using free registration
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
@@ -19,8 +20,7 @@ function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState<'form' | 'payment'>('form')
-  const [registrationData, setRegistrationData] = useState<any>(null)
+  // Removed payment step - going directly to free registration
 
   // Get error from URL params
   const urlError = searchParams.get('error')
@@ -60,6 +60,21 @@ function RegisterForm() {
     setLoading(true)
 
     try {
+      // Authenticate with existing Supabase user
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        throw new Error('ログインに失敗しました。メールアドレスとパスワードを確認してください。')
+      }
+
+      if (!authData.user) {
+        throw new Error('認証に失敗しました。')
+      }
+
+      // Now register the device with the authenticated user
       const response = await fetch('/api/device/register', {
         method: 'POST',
         headers: {
@@ -68,117 +83,40 @@ function RegisterForm() {
         body: JSON.stringify({
           device_hash: deviceHash,
           email,
-          password
+          user_id: authData.user.id
         })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || '登録に失敗しました')
+        throw new Error(data.error || 'デバイス登録に失敗しました')
       }
 
-      // Save registration data and proceed to payment
-      setRegistrationData(data.data)
-      setStep('payment')
+      // Registration successful, proceed to free trial
+      setError('')  // Clear any previous errors
+
+      // Add a 2-second delay before completing free registration
+      setTimeout(() => {
+        setLoading(false)
+        handleFreeRegistration()
+      }, 2000)
 
     } catch (error: any) {
       console.error('Registration error:', error)
       setError(error.message || '登録中にエラーが発生しました')
-    } finally {
       setLoading(false)
     }
   }
 
-  const handlePaymentSuccess = (data: any) => {
-    console.log('Payment successful:', data)
-    router.push('/dashboard?success=true')
+  const handleFreeRegistration = () => {
+    console.log('Free registration completed')
+    router.push('/dashboard?success=true&trial=true')
   }
 
-  const handlePaymentError = (error: any) => {
-    console.error('Payment error:', error)
-    setError('決済処理に失敗しました。もう一度お試しください。')
-    setStep('form')
-  }
+  // Payment handlers removed - using free registration only
 
-  const handlePaymentCancel = () => {
-    setError('決済がキャンセルされました')
-    setStep('form')
-  }
-
-  if (step === 'payment' && registrationData) {
-    return (
-      <div className="min-h-screen bg-white">
-        {/* Navigation */}
-        <nav className="bg-white shadow-sm border-b border-gray-100">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex justify-between items-center">
-              <Link href="/">
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl font-bold text-blue-600">
-                    MetaCube
-                  </span>
-                  <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="sm">v2.0</Badge>
-                </div>
-              </Link>
-              <Link href="/login">
-                <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50" size="md">
-                  ログイン
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* Payment Form */}
-        <div className="flex items-center justify-center min-h-[calc(100vh-73px)]">
-          <div className="w-full max-w-md px-4 py-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                決済情報の入力
-              </h1>
-              <p className="text-gray-600">
-                PayPalで安全にお支払い
-              </p>
-            </div>
-
-            <Card className="bg-white shadow-lg border border-gray-100">
-              <CardContent className="p-6">
-                {error && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm text-gray-600 mb-2">登録情報</p>
-                  <p className="text-gray-800 font-medium">{email}</p>
-                  <p className="text-xs text-gray-500 mt-1">デバイス: {deviceHash}</p>
-                </div>
-
-                <PayPalButton
-                  deviceHash={deviceHash}
-                  email={email}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                  onCancel={handlePaymentCancel}
-                />
-
-                <Button
-                  onClick={() => setStep('form')}
-                  className="mt-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  size="md"
-                  fullWidth
-                >
-                  戻る
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Payment step removed - going directly to free registration
 
   return (
     <div className="min-h-screen bg-white">
@@ -208,13 +146,13 @@ function RegisterForm() {
         <div className="w-full max-w-md px-4 py-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              アカウント作成
+              デバイス登録
             </h1>
             <p className="text-gray-600">
-              今すぐ始めて、Instagram成長を加速させましょう
+              既存のアカウントでログインしてデバイスを登録
             </p>
             <Badge className="bg-green-100 text-green-700 border-green-200 mt-2" size="md">
-              3日間無料トライアル
+              無料で利用開始
             </Badge>
           </div>
 
@@ -326,7 +264,7 @@ function RegisterForm() {
                   fullWidth
                   loading={loading}
                 >
-                  {loading ? '処理中...' : '次へ（決済情報入力）'}
+                  {loading ? '登録処理中...' : '無料で登録'}
                 </Button>
               </form>
 
@@ -341,37 +279,37 @@ function RegisterForm() {
             </CardContent>
           </Card>
 
-          {/* Pricing Info */}
+          {/* Feature Info */}
           <Card className="mt-6 bg-white shadow-md border border-gray-100">
             <CardContent className="py-4">
               <h3 className="text-sm font-semibold mb-3 text-gray-800 flex items-center">
-                <Badge className="bg-blue-100 text-blue-700 border-blue-200 mr-2" size="sm">料金プラン</Badge>
-                今なら特別価格
+                <Badge className="bg-green-100 text-green-700 border-green-200 mr-2" size="sm">無料利用</Badge>
+                今すぐ開始
               </h3>
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="space-y-2">
                   <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    月額¥2,980〜
+                    完全無料
                   </div>
                   <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    3日間無料体験
+                    すぐに利用開始
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    いつでも解約可能
+                    制限なし
                   </div>
                   <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     iPhone 7/8専用

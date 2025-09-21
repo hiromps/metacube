@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SocialTouch - Instagram自動化ツール",
-  description: "iPhone 7/8専用のInstagram自動化ツール。3日間の無料体験付き。",
+  title: "MetaCube - AutoTouchライセンス管理",
+  description: "AutoTouch用のInstagram自動化ツール。3日間の無料体験付き、月額2,980円。",
 };
 
 export default function RootLayout({

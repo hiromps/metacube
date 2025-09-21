@@ -753,14 +753,14 @@ async function handleDeviceRegister(request: Request, env: any) {
 
   try {
     const body = await request.json();
-    const { device_hash, email, password } = body;
+    const { device_hash, email, user_id } = body;
 
-    // Validate required fields
-    if (!device_hash || !email || !password) {
+    // Validate required fields - now using user_id instead of password
+    if (!device_hash || !email || !user_id) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Device hash, email, and password are required'
+          error: 'Device hash, email, and user_id are required'
         }),
         {
           status: 400,
@@ -774,20 +774,23 @@ async function handleDeviceRegister(request: Request, env: any) {
 
     const supabase = getSupabaseClient(env);
 
-    // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password
-    });
+    // Check if device already exists for this user
+    const { data: existingDevice, error: checkError } = await supabase
+      .from('devices')
+      .select('id, device_hash')
+      .eq('user_id', user_id)
+      .eq('device_hash', device_hash)
+      .maybeSingle();
 
-    if (authError) {
+    if (checkError) {
+      console.error('Error checking existing device:', checkError);
       return new Response(
         JSON.stringify({
           success: false,
-          error: authError.message
+          error: 'Database error while checking device'
         }),
         {
-          status: 400,
+          status: 500,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
@@ -796,14 +799,14 @@ async function handleDeviceRegister(request: Request, env: any) {
       );
     }
 
-    if (!authData.user) {
+    if (existingDevice) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Failed to create user account'
+          error: 'Device already registered for this user'
         }),
         {
-          status: 400,
+          status: 409,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
@@ -812,9 +815,9 @@ async function handleDeviceRegister(request: Request, env: any) {
       );
     }
 
-    // Register device with registered status (no trial yet)
+    // Register device with registered status (free registration)
     const { data: deviceData, error: deviceError } = await supabase.rpc('register_device_with_setup', {
-      p_user_id: authData.user.id,
+      p_user_id: user_id,
       p_device_hash: device_hash,
       p_email: email
     });
@@ -836,7 +839,11 @@ async function handleDeviceRegister(request: Request, env: any) {
     }
 
     return new Response(
-      JSON.stringify(deviceData),
+      JSON.stringify({
+        success: true,
+        message: 'Device registered successfully for free access',
+        data: deviceData
+      }),
       {
         status: 200,
         headers: {
@@ -846,13 +853,14 @@ async function handleDeviceRegister(request: Request, env: any) {
       }
     );
   } catch (error) {
+    console.error('Device registration error:', error);
     return new Response(
       JSON.stringify({
         success: false,
         error: 'Registration failed. Please try again.'
       }),
       {
-        status: 400,
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
