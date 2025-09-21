@@ -41,42 +41,85 @@ const features = [
 
 const pricingPlans = [
   {
-    name: 'トライアル',
-    price: '¥0',
-    duration: '3日間',
+    name: 'ベーシック',
+    price: '¥2,980',
+    duration: '月額',
     features: [
-      '全機能アクセス',
-      '1デバイス',
-      'メールサポート',
+      '❤️ タイムライン自動いいね',
+      '📄 PDFマニュアル（50ページ）',
+      '📱 ベーシック版スクリプト',
+      '✉️ メールサポート7日間',
+      '⏱️ 1日500いいねまで',
       'いつでもキャンセル可能',
     ],
+    functions: {
+      timeline: '✅',
+      follow: '❌',
+      unfollow: '❌',
+      active: '❌',
+    },
+    educational: {
+      pdf: '50ページ',
+      video: 'なし',
+      support: 'メール7日間',
+    },
     popular: false,
   },
   {
     name: 'スタンダード',
-    price: '¥2,980',
+    price: '¥4,980',
     duration: '月額',
+    subPrice: '¥49,800',
+    subDuration: '年額',
+    discount: '17%お得',
     features: [
-      '全機能アクセス',
-      '1デバイス',
-      '優先サポート',
-      'いつでもキャンセル可能',
-      '最新アップデート',
+      '❤️ タイムライン自動いいね',
+      '➕ 自動フォロー機能',
+      '➖ 自動アンフォロー機能',
+      '🎥 動画教材3時間',
+      '📄 PDFマニュアル（100ページ）',
+      '💬 LINEサポート30日間',
+      '⏱️ 1日1000いいね+200フォロー',
+      '🔄 アップデート永久無料',
     ],
+    functions: {
+      timeline: '✅',
+      follow: '✅',
+      unfollow: '✅',
+      active: '❌',
+    },
+    educational: {
+      pdf: '100ページ',
+      video: '3時間',
+      support: 'LINE30日間',
+    },
     popular: true,
   },
   {
-    name: 'プロフェッショナル',
-    price: '¥8,800',
+    name: 'プレミアム',
+    price: '¥9,800',
     duration: '月額',
     features: [
-      '全機能アクセス',
-      '3デバイス',
-      'VIPサポート',
-      'カスタマイズ設定',
-      '最新アップデート',
-      '専用Discord',
+      '❤️ タイムライン自動いいね',
+      '➕ 自動フォロー・アンフォロー',
+      '🎯 アクティブユーザーいいね',
+      '🔥 エンゲージメント最大化',
+      '💻 1対1 Zoom設定サポート',
+      '💬 3ヶ月間LINEサポート',
+      '⏱️ 制限なし（推奨値設定）',
+      '📊 成長戦略アドバイス',
     ],
+    functions: {
+      timeline: '✅',
+      follow: '✅',
+      unfollow: '✅',
+      active: '✅',
+    },
+    educational: {
+      pdf: '100ページ+特典',
+      video: '3時間+追加講座',
+      support: 'LINE3ヶ月+Zoom',
+    },
     popular: false,
   },
 ];
@@ -90,6 +133,7 @@ const stats = [
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [isYearly, setIsYearly] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -141,24 +185,29 @@ export default function Home() {
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="animate-slide-down">
             <Badge className="bg-blue-100 text-blue-700 border-blue-200 px-4 py-2" size="lg">
-              Instagram成長の新時代へ
+              動画とマニュアルで簡単設定
             </Badge>
             <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
               MetaCube
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              AIを活用したInstagram自動化ツールで、
-              あなたのアカウントを次のレベルへ
+            <p className="text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto">
+              Instagram自動化で月10万円の副収入を実現
+            </p>
+            <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
+              📹 3時間の動画教材と100ページのマニュアル付き<br/>
+              93%の方が初日に設定完了・LINEサポートで安心
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/register">
                 <Button className="bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:shadow-xl transition-all min-w-[200px]" size="xl">
-                  3日間無料で試す
+                  教材を見てみる
                 </Button>
               </Link>
-              <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 min-w-[200px]" size="xl">
-                デモを見る
-              </Button>
+              <Link href="#pricing">
+                <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 min-w-[200px]" size="xl">
+                  料金プランを見る
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -189,7 +238,8 @@ export default function Home() {
               成長を加速する強力な機能
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              MetaCubeの高度な自動化機能で、Instagram運用の効率を最大化
+              iPhone 7/8 専用に最適化された高度な自動化機能<br/>
+              <span className="text-sm text-gray-500">※ご利用には特別な設定が必要ですが、動画マニュアルで丁寧に解説します</span>
             </p>
           </div>
 
@@ -216,17 +266,17 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-white">
+      <section id="pricing" className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="md">
-              料金プラン
+              教材付きプラン
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800">
-              あなたに合ったプランを選択
+              設定動画とマニュアル付きで安心
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              すべてのプランで全機能が利用可能。まずは無料トライアルから
+              初心者でも動画を見ながら簡単設定。LINEサポートで疑問も即解決
             </p>
           </div>
 
@@ -248,10 +298,49 @@ export default function Home() {
                     </div>
                   )}
                   <CardHeader className="text-center pt-8">
+                    {plan.popular && (
+                      <div className="absolute top-2 right-2">
+                        <div className="flex items-center bg-white/20 backdrop-blur-sm rounded-full p-1">
+                          <button
+                            onClick={() => setIsYearly(false)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                              !isYearly ? 'bg-white text-blue-600' : 'text-white'
+                            }`}
+                          >
+                            月額
+                          </button>
+                          <button
+                            onClick={() => setIsYearly(true)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                              isYearly ? 'bg-white text-blue-600' : 'text-white'
+                            }`}
+                          >
+                            年額
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <CardTitle className={`text-2xl mb-2 ${plan.popular ? 'text-white' : 'text-gray-800'}`}>{plan.name}</CardTitle>
-                    <div className="flex items-baseline justify-center">
-                      <span className={`text-4xl font-bold ${plan.popular ? 'text-white' : 'text-blue-600'}`}>{plan.price}</span>
-                      <span className={`ml-2 ${plan.popular ? 'text-blue-100' : 'text-gray-500'}`}>/ {plan.duration}</span>
+                    <div className="flex flex-col items-center">
+                      {plan.popular && isYearly && plan.subPrice ? (
+                        <>
+                          <div className="flex items-baseline justify-center">
+                            <span className="text-4xl font-bold text-white">{plan.subPrice}</span>
+                            <span className="ml-2 text-blue-100">/ {plan.subDuration}</span>
+                          </div>
+                          <div className="mt-2">
+                            <Badge className="bg-green-500 text-white" size="sm">
+                              {plan.discount}
+                            </Badge>
+                            <p className="text-xs text-blue-100 mt-1">月額換算 ¥4,950</p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-baseline justify-center">
+                          <span className={`text-4xl font-bold ${plan.popular ? 'text-white' : 'text-blue-600'}`}>{plan.price}</span>
+                          <span className={`ml-2 ${plan.popular ? 'text-blue-100' : 'text-gray-500'}`}>/ {plan.duration}</span>
+                        </div>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -273,7 +362,7 @@ export default function Home() {
                         size="lg"
                         fullWidth
                       >
-                        無料で始める
+                        今すぐ始める
                       </Button>
                     </Link>
                   </CardFooter>
@@ -288,16 +377,16 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-r from-blue-500 to-blue-600">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
-            今すぐ始めよう
+            設定に不安がある方も大丈夫
           </h2>
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            3日間の無料トライアルで、MetaCubeの全機能をお試しください。
-            クレジットカード登録は不要です。
+            動画を見ながら真似るだけで設定完了。<br/>
+            LINEサポートでわからないこともすぐに解決します。
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
               <Button className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg min-w-[200px]" size="xl">
-                無料トライアルを開始
+                教材を確認する
               </Button>
             </Link>
             <Link href="/login">

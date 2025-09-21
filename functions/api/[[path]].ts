@@ -29,12 +29,18 @@ export async function onRequest(context: any) {
     return handleDeviceRegister(request, env);
   } else if (path === 'device/change') {
     return handleDeviceChange(request, env);
+  } else if (path === 'device/activate') {
+    return handleDeviceActivate(request, env);
+  } else if (path === 'user/status') {
+    return handleUserStatus(request, env);
+  } else if (path === 'content/access') {
+    return handleContentAccess(request, env);
   } else if (path === 'paypal/success') {
-    return handlePayPalSuccess(request);
+    return handlePayPalSuccess(request, env);
   } else if (path === 'paypal/cancel') {
     return handlePayPalCancel(request);
   } else if (path === 'paypal/webhook') {
-    return handlePayPalWebhook(request);
+    return handlePayPalWebhook(request, env);
   }
 
   // 404 for unknown API routes
@@ -130,6 +136,16 @@ async function handleLicenseVerify(request: Request, env: any) {
         registered_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
       },
 
+      // User requested device registration: akihiro0324mnr@gmail.com
+      'FFMZ3GTSJC6J': {
+        status: 'registered',
+        expires_at: null,
+        device_model: 'iPhone 7/8',
+        registered_at: new Date().toISOString(),
+        trial_activated: false,
+        email: 'akihiro0324mnr@gmail.com'
+      },
+
       // UUIDベースのフォールバック用
       'UUID_A1B2C3D4E5F6': {
         status: 'trial',
@@ -158,15 +174,55 @@ async function handleLicenseVerify(request: Request, env: any) {
       );
     }
 
-    const isExpired = new Date(device.expires_at) < new Date();
+    // Handle 'registered' status - trial activation on first run
+    if (device.status === 'registered' && !device.trial_activated) {
+      // Activate trial on first execution
+      const trialEndTime = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 72 hours from now
+      device.status = 'trial';
+      device.expires_at = trialEndTime.toISOString();
+      device.trial_activated = true;
+      device.trial_activated_at = new Date().toISOString();
+      device.first_execution_at = new Date().toISOString();
+
+      return new Response(
+        JSON.stringify({
+          is_valid: true,
+          status: 'trial',
+          expires_at: device.expires_at,
+          trial_ends_at: device.expires_at,
+          time_remaining_seconds: 3 * 24 * 60 * 60, // 72 hours in seconds
+          message: 'Trial activated! Enjoy 3 days of free access',
+          trial_activated_at: device.trial_activated_at,
+          first_execution_at: device.first_execution_at
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const isExpired = device.expires_at ? new Date(device.expires_at) < new Date() : false;
     const isValid = device.status === 'active' || (device.status === 'trial' && !isExpired);
+
+    // Calculate time remaining for trial users
+    let timeRemainingSeconds = 0;
+    if (device.status === 'trial' && device.expires_at) {
+      const timeRemaining = new Date(device.expires_at).getTime() - new Date().getTime();
+      timeRemainingSeconds = Math.max(0, Math.floor(timeRemaining / 1000));
+    }
 
     return new Response(
       JSON.stringify({
         is_valid: isValid,
         status: device.status,
         expires_at: device.expires_at,
-        message: isValid ? 'License is valid' : 'License has expired'
+        trial_ends_at: device.status === 'trial' ? device.expires_at : null,
+        time_remaining_seconds: timeRemainingSeconds,
+        message: isValid ? 'License is valid' : (device.status === 'registered' ? 'Device registered - Trial will start on first execution' : 'License has expired')
       }),
       {
         status: 200,
@@ -184,6 +240,290 @@ async function handleLicenseVerify(request: Request, env: any) {
       }),
       {
         status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Device activation handler (after setup period)
+async function handleDeviceActivate(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const body = await request.json();
+    const { device_hash } = body;
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Call the activate_trial function
+    const { data, error } = await supabase.rpc('activate_trial', {
+      p_device_hash: device_hash
+    });
+
+    if (error) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Activation failed'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// User status handler
+async function handleUserStatus(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('user_id');
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          error: 'User ID is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Get user status from the view
+    const { data, error } = await supabase
+      .from('user_status')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      return new Response(
+        JSON.stringify({
+          error: 'User not found'
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to get user status'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Content access handler
+async function handleContentAccess(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('user_id');
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          has_access: false,
+          reason: 'User ID is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Call the check_content_access function
+    const { data, error } = await supabase.rpc('check_content_access', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      return new Response(
+        JSON.stringify({
+          has_access: false,
+          reason: error.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        has_access: false,
+        reason: 'Failed to check access'
+      }),
+      {
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -240,20 +580,71 @@ async function handleDeviceRegister(request: Request, env: any) {
       );
     }
 
-    // TODO: Implement Supabase user creation and device registration
-    // For MVP, simulate registration with mock response
+    const supabase = getSupabaseClient(env);
 
-    // Calculate trial end date (3 days from now)
-    const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if (authError) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: authError.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!authData.user) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to create user account'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Register device with registered status (no trial yet)
+    const { data: deviceData, error: deviceError } = await supabase.rpc('register_device_with_setup', {
+      p_user_id: authData.user.id,
+      p_device_hash: device_hash,
+      p_email: email
+    });
+
+    if (deviceError) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: deviceError.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Device registered successfully. Your 3-day trial has started.',
-        device_hash: device_hash,
-        trial_ends_at: trialEndsAt,
-        status: 'trial'
-      }),
+      JSON.stringify(deviceData),
       {
         status: 200,
         headers: {
@@ -517,7 +908,7 @@ async function handleDeviceChange(request: Request, env: any) {
 }
 
 // PayPal success handler
-async function handlePayPalSuccess(request: Request) {
+async function handlePayPalSuccess(request: Request, env: any) {
   const url = new URL(request.url);
   const subscriptionId = url.searchParams.get('subscription_id');
   const token = url.searchParams.get('token');
@@ -563,7 +954,7 @@ async function handlePayPalCancel(request: Request) {
 }
 
 // PayPal webhook handler
-async function handlePayPalWebhook(request: Request) {
+async function handlePayPalWebhook(request: Request, env: any) {
   if (request.method === 'GET') {
     return new Response(
       JSON.stringify({
@@ -583,11 +974,31 @@ async function handlePayPalWebhook(request: Request) {
 
   if (request.method === 'POST') {
     try {
+      const supabase = getSupabaseClient(env);
       const body = await request.json();
+
+      // Handle subscription creation/activation
+      if (body.event_type === 'BILLING.SUBSCRIPTION.CREATED' ||
+          body.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+        const resource = body.resource;
+        const subscriptionId = resource.id;
+        const customId = resource.custom_id; // device_id
+
+        // Start setup period for the device
+        const { data, error } = await supabase.rpc('start_setup_period', {
+          p_device_id: customId,
+          p_paypal_subscription_id: subscriptionId
+        });
+
+        if (error) {
+          console.error('Failed to start setup period:', error);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'PayPal webhook received',
+          message: 'PayPal webhook processed',
           event_type: body.event_type || 'unknown',
           webhook_id: body.id || 'unknown',
           timestamp: new Date().toISOString()

@@ -2,6 +2,7 @@
 
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import { useState } from 'react'
+import { InlineLoadingSpinner } from '@/app/components/LoadingScreen'
 
 interface PayPalButtonProps {
   deviceHash: string
@@ -72,11 +73,7 @@ export default function PayPalButton({
   return (
     <PayPalScriptProvider options={initialOptions}>
       <div className="w-full">
-        {loading && (
-          <div className="text-center py-4">
-            <p className="text-gray-600">処理中...</p>
-          </div>
-        )}
+        {loading && <InlineLoadingSpinner message="決済処理中..." />}
 
         <PayPalButtons
           style={{

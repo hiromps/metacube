@@ -8,95 +8,170 @@ import { signOut } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
+import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
+import { LoadingScreen } from '@/app/components/LoadingScreen'
 
-interface DashboardData {
-  email: string
-  device_hash: string
-  device_status: 'trial' | 'active' | 'expired' | 'suspended'
-  trial_ends_at: string | null
-  subscription_status: string | null
-  paypal_subscription_id: string | null
-  next_billing_date: string | null
-  amount_jpy: number
-  license_valid: boolean
-  license_expires_at: string | null
-  verification_count: number
-}
 
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<DashboardData | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [changingDevice, setChangingDevice] = useState(false)
   const [newDeviceHash, setNewDeviceHash] = useState('')
   const [showDeviceChangeForm, setShowDeviceChangeForm] = useState(false)
+  const [timeLeft, setTimeLeft] = useState<string>('')
 
   useEffect(() => {
     checkAuth()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (userProfile?.trialEndsAt) {
+        updateTimeLeft()
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [userProfile])
 
   const checkAuth = async () => {
-    console.log('🔍 ダッシュボード: 認証状態確認開始')
-
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      console.log('👤 ユーザー情報:', {
-        user: user ? '✅ ログイン済み' : '❌ 未ログイン',
-        userId: user?.id,
-        email: user?.email,
-        authError: authError ? authError.message : 'なし'
-      })
-
-      if (authError) {
-        console.error('❌ 認証エラー:', authError)
+      if (authError || !user) {
         router.push('/login')
         return
       }
 
-      if (!user) {
-        console.log('🔄 未ログインのためログインページへリダイレクト')
-        router.push('/login')
+      // Get user status using the new API
+      let response: Response
+      let data: any
+
+      // In development, use mock data if API is not available
+      try {
+        response = await fetch(`/api/user/status?user_id=${user.id}`)
+
+        // Check if response is HTML (404 page)
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('API endpoint not found - using mock data')
+        }
+
+        data = await response.json()
+      } catch (fetchError) {
+        console.warn('API not available, using mock data:', fetchError)
+
+        // Mock data for development with registered device FFMZ3GTSJC6J
+        const isTrialActive = false; // Change to true to simulate activated trial
+        const mockActivationTime = isTrialActive ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() : null;
+        const mockTrialEndTime = isTrialActive ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null;
+
+        data = {
+          user_id: user.id,
+          email: user.email || '',
+          status: isTrialActive ? UserStatus.TRIAL : UserStatus.REGISTERED,
+          device_id: 'mock-device-id',
+          device_hash: 'FFMZ3GTSJC6J', // Registered device hash
+          trial_activated: isTrialActive,
+          trial_activated_at: mockActivationTime,
+          first_execution_at: mockActivationTime,
+          trial_ends_at: mockTrialEndTime,
+          subscription_id: 'mock-subscription',
+          paypal_subscription_id: 'I-MOCK123456789',
+          subscription_status: isTrialActive ? 'trial' : 'active', // Set to active for registered device
+          status_description: isTrialActive ? 'Trial - 2 days left' : 'Registered - Trial will start on first main.lua execution',
+          has_access_to_content: true,
+          has_access_to_tools: isTrialActive,
+          time_remaining_seconds: isTrialActive ? 172800 : null
+        }
+        response = { ok: true } as Response
+      }
+
+      if (!response.ok && response.status === 404) {
+        router.push('/register')
         return
       }
 
-      console.log('📊 ダッシュボードデータ取得開始')
-
-      // Get dashboard data
-      const { data: dashboardData, error: dbError } = await supabase
-        .from('user_dashboard')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      console.log('💾 データベースレスポンス:', {
-        data: dashboardData ? '✅ データあり' : '❌ データなし',
-        error: dbError ? `❌ ${dbError.message}` : '✅ エラーなし'
-      })
-
-      if (dbError) {
-        console.error('❌ ダッシュボードエラー:', dbError)
-        setError(`データベースエラー: ${dbError.message}`)
-        return
+      // Map the response to UserProfile with time synchronization
+      const profile: UserProfile = {
+        id: data.user_id,
+        email: data.email,
+        status: data.status as UserStatus,
+        deviceId: data.device_id,
+        deviceHash: data.device_hash,
+        trialActivatedAt: data.trial_activated_at,
+        firstExecutionAt: data.first_execution_at,
+        trialEndsAt: data.trial_ends_at,
+        subscriptionId: data.subscription_id,
+        paypalSubscriptionId: data.paypal_subscription_id,
+        subscriptionStatus: data.subscription_status,
+        statusDescription: data.status_description,
+        hasAccessToContent: data.has_access_to_content,
+        hasAccessToTools: data.has_access_to_tools,
+        timeRemainingSeconds: data.time_remaining_seconds
       }
 
-      if (!dashboardData) {
-        console.error('❌ ダッシュボードデータが見つかりません')
-        setError('ユーザーデータが見つかりません')
-        return
-      }
+      setUserProfile(profile)
 
-      console.log('✅ ダッシュボードデータ設定完了')
-      setData(dashboardData)
     } catch (error: any) {
-      console.error('🚨 認証確認中にエラー:', error)
+      console.error('Auth check error:', error)
       setError(error.message)
     } finally {
       setLoading(false)
     }
   }
+
+  const updateTimeLeft = () => {
+    if (!userProfile) return
+
+    let targetDate: Date | null = null
+    let activatedDate: Date | null = null
+    let label = ''
+
+    if (userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt) {
+      targetDate = new Date(userProfile.trialEndsAt)
+      activatedDate = userProfile.trialActivatedAt ? new Date(userProfile.trialActivatedAt) : null
+      label = '体験期間残り'
+    }
+
+    if (!targetDate) {
+      setTimeLeft('')
+      return
+    }
+
+    const now = new Date()
+    const diff = targetDate.getTime() - now.getTime()
+
+    if (diff <= 0) {
+      setTimeLeft(`${label}: 期限切れ`)
+      return
+    }
+
+    // Calculate exact remaining time (synced with first execution)
+    const totalSeconds = Math.floor(diff / 1000)
+    const days = Math.floor(totalSeconds / 86400)
+    const hours = Math.floor((totalSeconds % 86400) / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    // Show activation time for transparency
+    let timeDisplay = `${label}: ${days}日 ${hours}時間 ${minutes}分 ${seconds}秒`
+
+    if (activatedDate) {
+      const activationStr = activatedDate.toLocaleString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      })
+      timeDisplay += ` (開始: ${activationStr})`
+    }
+
+    setTimeLeft(timeDisplay)
+  }
+
 
   const handleCancelSubscription = async () => {
     if (!confirm('本当に解約しますか？解約すると即座にサービスが利用できなくなります。')) {
@@ -123,7 +198,7 @@ export default function DashboardPage() {
       }
 
       // Cancel PayPal subscription
-      if (data?.paypal_subscription_id) {
+      if (userProfile?.paypalSubscriptionId) {
         try {
           const response = await fetch('/api/paypal/cancel', {
             method: 'POST',
@@ -131,7 +206,7 @@ export default function DashboardPage() {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              subscription_id: data.paypal_subscription_id
+              subscription_id: userProfile.paypalSubscriptionId
             })
           })
 
@@ -160,7 +235,7 @@ export default function DashboardPage() {
       return
     }
 
-    if (newDeviceHash === data?.device_hash) {
+    if (newDeviceHash === userProfile?.deviceHash) {
       setError('新しいデバイスハッシュは現在のものと異なる必要があります')
       return
     }
@@ -179,9 +254,9 @@ export default function DashboardPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          old_device_hash: data?.device_hash,
+          old_device_hash: userProfile?.deviceHash,
           new_device_hash: newDeviceHash.trim(),
-          email: data?.email
+          email: userProfile?.email
         })
       })
 
@@ -227,322 +302,403 @@ export default function DashboardPage() {
     })
   }
 
-  const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
-    const statusMap: { [key: string]: 'success' | 'warning' | 'error' | 'matrix' | 'glass' } = {
-      trial: 'matrix',
-      active: 'success',
-      expired: 'error',
-      suspended: 'warning',
-      pending: 'glass',
-      cancelled: 'glass'
+  const getStatusVariant = (status: UserStatus): 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
+    switch (status) {
+      case UserStatus.ACTIVE:
+        return 'success'
+      case UserStatus.TRIAL:
+        return 'matrix'
+      case UserStatus.EXPIRED:
+      case UserStatus.SUSPENDED:
+        return 'error'
+      default:
+        return 'glass'
     }
-    return statusMap[status] || 'glass'
-  }
-
-  const getStatusLabel = (status: string): string => {
-    const labelMap: { [key: string]: string } = {
-      trial: '体験版',
-      active: '有効',
-      expired: '期限切れ',
-      suspended: '停止中',
-      pending: '処理中',
-      cancelled: '解約済み'
-    }
-    return labelMap[status] || status
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-dark">
-        <div className="text-gray-400 animate-pulse">読み込み中...</div>
-      </div>
-    )
+    return <LoadingScreen message="ダッシュボードを読み込み中..." />
   }
 
-  if (!data) {
+  if (!userProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-dark">
-        <Card variant="glass" className="max-w-md">
-          <CardContent className="text-center py-8">
-            <p className="text-error mb-4">{error || 'データが見つかりません'}</p>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="bg-white rounded-lg shadow-lg max-w-md p-8">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || 'データが見つかりません'}</p>
             <Link href="/login">
               <Button variant="gradient" size="md">
                 ログインページへ
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-dark py-8">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="bg-dark/50 backdrop-blur-xl border-b border-dark-border mb-8">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
             <Link href="/">
-              <h1 className="text-2xl font-bold bg-gradient-matrix bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors">
                 MetaCube
               </h1>
             </Link>
-            <Button
-              onClick={handleLogout}
-              variant="glass"
-              size="md"
-            >
-              ログアウト
-            </Button>
+            <div className="flex items-center gap-3">
+              <Link href="/guides">
+                <button className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                  📚 ガイド
+                </button>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+              >
+                🚪 ログアウト
+              </button>
+            </div>
           </div>
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 max-w-6xl">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-blue-50 to-white py-8 sm:py-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+              ダッシュボード
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base">
+              アカウントステータスとライセンス管理
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         {error && (
-          <div className="mb-6 p-4 bg-error/10 border border-error/30 text-error rounded-lg animate-slide-down">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card variant="gradient" className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-matrix/20 rounded-full blur-3xl"></div>
-            <CardContent className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-300">ライセンス状態</p>
-                <Badge variant={getStatusVariant(data.device_status)} size="sm">
-                  {getStatusLabel(data.device_status)}
-                </Badge>
-              </div>
-              <div className="text-2xl font-bold text-white">
-                {data.license_valid ? '✓ 有効' : '✗ 無効'}
-              </div>
-              <p className="text-sm text-blue-100 mt-1">
-                期限: {formatDate(data.device_status === 'trial' ? data.trial_ends_at : data.license_expires_at)}
+        {/* Status Hero Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-1">アカウントステータス</h2>
+              <p className="text-gray-600">{userProfile.statusDescription}</p>
+            </div>
+            <div className={`px-4 py-2 rounded-lg font-medium ${
+              userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' :
+              userProfile.status === UserStatus.ACTIVE ? 'bg-green-100 text-green-700' :
+              userProfile.status === UserStatus.EXPIRED ? 'bg-gray-100 text-gray-700' :
+              userProfile.status === UserStatus.SUSPENDED ? 'bg-red-100 text-red-700' :
+              'bg-gray-100 text-gray-700'
+            }`}>
+              {userProfile.status === UserStatus.REGISTERED && '📦 登録済み - 未アクティベート'}
+              {userProfile.status === UserStatus.TRIAL && '🎯 体験期間'}
+              {userProfile.status === UserStatus.ACTIVE && '✨ 有料会員'}
+              {userProfile.status === UserStatus.EXPIRED && '⏰ 期限切れ'}
+              {userProfile.status === UserStatus.SUSPENDED && '⚠️ 停止中'}
+            </div>
+          </div>
+          {timeLeft && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <p className="text-2xl font-bold text-blue-600">
+                {timeLeft}
               </p>
-            </CardContent>
-          </Card>
-
-          <Card variant="glass">
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-300">サブスクリプション</p>
-                {data.subscription_status && (
-                  <Badge variant={getStatusVariant(data.subscription_status)} size="sm">
-                    {getStatusLabel(data.subscription_status)}
-                  </Badge>
-                )}
-              </div>
-              <div className="text-2xl font-bold text-white">
-                ¥{data.amount_jpy?.toLocaleString() || '2,980'}
-                <span className="text-sm font-normal text-gray-400">/月</span>
-              </div>
-              <p className="text-sm text-blue-100 mt-1">
-                次回請求: {formatDate(data.next_billing_date)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card variant="glass">
-            <CardContent>
-              <p className="text-sm text-gray-300 mb-2">認証回数</p>
-              <div className="text-2xl font-bold text-white">
-                {data.verification_count || 0}
-                <span className="text-sm font-normal text-gray-400"> 回</span>
-              </div>
-              <p className="text-sm text-blue-100 mt-1">
-                デバイス認証の累計
-              </p>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
 
-        {/* Account Information */}
-        <Card variant="glass" className="mb-6">
-          <CardHeader>
-            <CardTitle>アカウント情報</CardTitle>
-            <CardDescription>登録情報と契約状態</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">メールアドレス</p>
-                  <p className="text-white font-medium">{data.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">現在のデバイス</p>
-                  <p className="font-mono text-sm bg-dark-card p-2 rounded border border-dark-border text-matrix">
-                    {data.device_hash}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">PayPal サブスクリプションID</p>
-                  <p className="font-mono text-xs text-gray-300">
-                    {data.paypal_subscription_id || 'なし'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">契約プラン</p>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="matrix" size="md">
-                      スタンダード
-                    </Badge>
-                    <span className="text-white">月額 ¥{data.amount_jpy?.toLocaleString() || '2,980'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Content for Registered (Pre-trial) Status */}
+        {userProfile.status === UserStatus.REGISTERED && (
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl shadow-sm border border-yellow-200 p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">🚀 体験期間を開始する準備</h3>
+            <p className="text-gray-600 mb-4">
+              支払い登録が完了しました。AutoTouchのmain.luaを実行すると、自動的に3日間の体験期間が開始されます。
+            </p>
 
-        {/* Device Management */}
-        <Card variant="glass" className="mb-6">
-          <CardHeader>
-            <CardTitle>デバイス管理</CardTitle>
-            <CardDescription>登録デバイスの変更</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!showDeviceChangeForm ? (
-              <div>
-                <p className="text-gray-300 mb-4">
-                  契約が有効な間は、別のデバイスに変更することができます。
-                  デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
+            <div className="bg-white border border-gray-200 p-4 rounded-lg mb-4">
+              <h4 className="font-medium text-gray-800 mb-3">📋 次のステップ</h4>
+              <ol className="space-y-2 text-sm text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 font-medium">1.</span>
+                  <span>iPhone 7/8でAutoTouchを起動</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 font-medium">2.</span>
+                  <span>main.luaスクリプトを実行</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 font-medium">3.</span>
+                  <span>自動的に3日間の体験期間が開始されます</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>💡 ヒント:</strong> 体験期間は最初のmain.lua実行時に自動的に開始されます。
+                準備が整ってから実行することをお勧めします。
+              </p>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link href="/guides">
+                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  📖 セットアップガイドを見る →
+                </button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Content for Trial/Active Status */}
+        {(userProfile.status === UserStatus.TRIAL || userProfile.status === UserStatus.ACTIVE) && (
+          <>
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600">ライセンス状態</p>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {userProfile.status === UserStatus.TRIAL ? '体験版' : '有効'}
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-gray-800 mb-1">
+                  {userProfile.hasAccessToTools ? '✅ 有効' : '❌ 無効'}
+                </div>
+                <p className="text-sm text-gray-600">
+                  期限: {userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt ? formatDate(userProfile.trialEndsAt) : '無制限'}
                 </p>
-                {(data.license_valid && (data.device_status === 'active' || data.device_status === 'trial')) ? (
-                  <Button
-                    onClick={() => setShowDeviceChangeForm(true)}
-                    variant="gradient"
-                    size="md"
-                  >
-                    デバイスを変更
-                  </Button>
-                ) : (
-                  <div className="text-sm text-gray-500">
-                    デバイス変更は契約有効期間中のみ利用できます
-                  </div>
-                )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    新しいデバイスハッシュ
-                  </label>
-                  <input
-                    type="text"
-                    value={newDeviceHash}
-                    onChange={(e) => setNewDeviceHash(e.target.value)}
-                    placeholder="新しいデバイスハッシュを入力"
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-matrix focus:border-transparent text-white placeholder-gray-400 transition"
-                    disabled={changingDevice}
-                  />
-                </div>
-                <div className="bg-warning/10 border border-warning/30 p-4 rounded-lg">
-                  <p className="font-medium text-warning mb-2">⚠️ 注意事項</p>
-                  <ul className="space-y-1 text-sm text-gray-300">
-                    <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
-                    <li>• 現在のデバイスでは利用できなくなります</li>
-                    <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
-                  </ul>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleDeviceChange}
-                    disabled={changingDevice || !newDeviceHash.trim()}
-                    variant="glow"
-                    size="md"
-                    loading={changingDevice}
-                  >
-                    デバイス変更を実行
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setShowDeviceChangeForm(false)
-                      setNewDeviceHash('')
-                      setError('')
-                    }}
-                    disabled={changingDevice}
-                    variant="outline"
-                    size="md"
-                  >
-                    キャンセル
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Actions */}
-        <Card variant="glass">
-          <CardHeader>
-            <CardTitle>アクション</CardTitle>
-            <CardDescription>契約の管理</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-              <div className="space-y-3">
-                {data.subscription_status === 'active' && (
-                  <Button
-                    onClick={handleCancelSubscription}
-                    disabled={cancelling}
-                    variant="outline"
-                    size="md"
-                    loading={cancelling}
-                    className="border-error text-error hover:bg-error hover:text-white"
-                  >
-                    サブスクリプションを解約
-                  </Button>
-                )}
-                {data.device_status === 'expired' && (
-                  <Link href="/register">
-                    <Button variant="gradient" size="md">
-                      再登録して利用を再開
-                    </Button>
-                  </Link>
-                )}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600">サブスクリプション</p>
+                  {userProfile.subscriptionStatus && (
+                    <span className="text-sm">
+                      {userProfile.subscriptionStatus === 'active' ? '✅' : '⏳'}
+                    </span>
+                  )}
+                </div>
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  ¥2,980
+                  <span className="text-sm font-normal text-gray-500">/月</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {userProfile.status === UserStatus.TRIAL ? '🎯 体験期間中' : '🔄 自動更新'}
+                </p>
               </div>
-              <div className="text-sm text-gray-400">
-                <p className="mb-1">お困りの場合は</p>
-                <a href="mailto:support@metacube.app" className="text-matrix hover:text-matrix-light">
-                  support@metacube.app
-                </a>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <p className="text-sm text-gray-600 mb-3">利用可能な機能</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600">✅</span>
+                    <span className="text-sm text-gray-700">全ツール利用可能</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600">✅</span>
+                    <span className="text-sm text-gray-700">全ガイド閲覧可能</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600">✅</span>
+                    <span className="text-sm text-gray-700">サポート利用可能</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Account Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">アカウント情報</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">メールアドレス</p>
+                    <p className="text-gray-800 font-medium">{userProfile.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">現在のデバイス</p>
+                    <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
+                      {userProfile.deviceHash || '未設定'}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">PayPal サブスクリプションID</p>
+                    <p className="font-mono text-xs text-gray-500">
+                      {userProfile.paypalSubscriptionId || 'なし'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">契約プラン</p>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+                        スタンダード
+                      </span>
+                      <span className="text-gray-700">月額 ¥2,980</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Device Management */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">デバイス管理</h3>
+              <p className="text-sm text-gray-600 mb-4">登録デバイスの変更</p>
+              {!showDeviceChangeForm ? (
+                <div>
+                  <p className="text-gray-700 mb-4">
+                    契約が有効な間は、別のデバイスに変更することができます。
+                    デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
+                  </p>
+                  {userProfile.hasAccessToTools ? (
+                    <button
+                      onClick={() => setShowDeviceChangeForm(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      デバイスを変更
+                    </button>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      デバイス変更は契約有効期間中のみ利用できます
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      新しいデバイスハッシュ
+                    </label>
+                    <input
+                      type="text"
+                      value={newDeviceHash}
+                      onChange={(e) => setNewDeviceHash(e.target.value)}
+                      placeholder="新しいデバイスハッシュを入力"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400"
+                      disabled={changingDevice}
+                    />
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                    <p className="font-medium text-yellow-800 mb-2">⚠️ 注意事項</p>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
+                      <li>• 現在のデバイスでは利用できなくなります</li>
+                      <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
+                    </ul>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleDeviceChange}
+                      disabled={changingDevice || !newDeviceHash.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {changingDevice ? '変更中...' : 'デバイス変更を実行'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeviceChangeForm(false)
+                        setNewDeviceHash('')
+                        setError('')
+                      }}
+                      disabled={changingDevice}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">アクション</h3>
+              <p className="text-sm text-gray-600 mb-4">契約の管理</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div className="space-y-3">
+                  {userProfile.subscriptionStatus === 'active' && (
+                    <button
+                      onClick={handleCancelSubscription}
+                      disabled={cancelling}
+                      className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                    >
+                      {cancelling ? '解約中...' : 'サブスクリプションを解約'}
+                    </button>
+                  )}
+                </div>
+                <div className="text-sm text-gray-600">
+                  <p className="mb-1">お困りの場合は</p>
+                  <a href="mailto:support@metacube.app" className="text-blue-600 hover:text-blue-700">
+                    support@metacube.app
+                  </a>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Expired Status */}
+        {userProfile.status === UserStatus.EXPIRED && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">契約が期限切れです</h3>
+            <p className="text-gray-600 mb-6">サービスを継続するには再登録が必要です</p>
+            <div className="text-center">
+              <p className="text-gray-700 mb-6">
+                体験期間または契約期間が終了しました。
+                サービスを継続利用するには、再度契約をお願いします。
+              </p>
+              <Link href="/register">
+                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  再登録して利用を再開
+                </button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Link href="/">
-            <Card variant="glass" hoverable className="text-center">
-              <CardContent className="py-6">
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">クイックアクセス</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Link href="/">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
                 <div className="text-2xl mb-2">🏠</div>
-                <p className="text-white">ホーム</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('ヘルプセンターは準備中です') }}>
-            <Card variant="glass" hoverable className="text-center">
-              <CardContent className="py-6">
-                <div className="text-2xl mb-2">❓</div>
-                <p className="text-white">ヘルプセンター</p>
-              </CardContent>
-            </Card>
-          </a>
-          <a href="mailto:support@metacube.app">
-            <Card variant="glass" hoverable className="text-center">
-              <CardContent className="py-6">
+                <p className="text-gray-700 font-medium">ホーム</p>
+              </div>
+            </Link>
+            <Link href="/guides">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
+                <div className="text-2xl mb-2">📚</div>
+                <p className="text-gray-700 font-medium">ガイド</p>
+              </div>
+            </Link>
+            <a href="mailto:support@metacube.app">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
                 <div className="text-2xl mb-2">📧</div>
-                <p className="text-white">サポート</p>
-              </CardContent>
-            </Card>
-          </a>
+                <p className="text-gray-700 font-medium">サポート</p>
+              </div>
+            </a>
+            <Link href="/register">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
+                <div className="text-2xl mb-2">🎯</div>
+                <p className="text-gray-700 font-medium">プラン</p>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

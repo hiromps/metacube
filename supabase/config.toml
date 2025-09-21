@@ -17,26 +17,17 @@ major_version = 15
 
 [auth]
 enabled = true
-port = 54324
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://your-domain.com"]
 jwt_expiry = 3600
 enable_signup = true
-enable_confirmations = false
-enable_recoveries = true
-enable_phone_confirmations = false
-enable_phone_change_with_password = false
 
 [auth.email]
 enable_signup = true
 double_confirm_changes = false
 enable_confirmations = false
-template = {}
 
 [storage]
-enabled = false
-
-[edge_functions]
 enabled = false
 
 [analytics]
