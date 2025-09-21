@@ -169,7 +169,10 @@ async function handleLicenseVerify(request: Request, env: any) {
       return new Response(
         JSON.stringify({
           is_valid: false,
+          status: 'unregistered',
+          license_type: null, // AutoTouchスタイル
           error: 'Device not registered',
+          message: 'Please register your device first',
           registration_url: 'https://metacube-el5.pages.dev/register'
         }),
         {
@@ -196,9 +199,13 @@ async function handleLicenseVerify(request: Request, env: any) {
         JSON.stringify({
           is_valid: true,
           status: 'trial',
+          license_type: 'TRIAL', // AutoTouchスタイル
           expires_at: device.expires_at,
           trial_ends_at: device.expires_at,
           time_remaining_seconds: 3 * 24 * 60 * 60, // 72 hours in seconds
+          device_hash: device_hash,
+          device_model: device.device_model || 'iPhone 7/8',
+          registered_at: device.registered_at,
           message: 'Trial activated! Enjoy 3 days of free access',
           trial_activated_at: device.trial_activated_at,
           first_execution_at: device.first_execution_at
@@ -227,9 +234,13 @@ async function handleLicenseVerify(request: Request, env: any) {
       JSON.stringify({
         is_valid: isValid,
         status: device.status,
+        license_type: device.status === 'trial' ? 'TRIAL' : (device.status === 'active' ? 'PRO' : null), // AutoTouchスタイル
         expires_at: device.expires_at,
         trial_ends_at: device.status === 'trial' ? device.expires_at : null,
         time_remaining_seconds: timeRemainingSeconds,
+        device_hash: device_hash,
+        device_model: device.device_model || 'iPhone',
+        registered_at: device.registered_at,
         message: isValid ? 'License is valid' : (device.status === 'registered' ? 'Device registered - Trial will start on first execution' : 'License has expired')
       }),
       {

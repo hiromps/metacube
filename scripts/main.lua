@@ -12,6 +12,7 @@ local API_BASE_URL = "https://metacube-el5.pages.dev/api"
 local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
 local LOG_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_log"
 local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
+local ACTIVATION_COOLDOWN = 24 * 60 * 60 -- 24 hours between activations (AutoTouch style)
 
 -- ================================
 -- ログ管理関数
@@ -30,6 +31,39 @@ end
 -- ================================
 -- ライセンス管理関数
 -- ================================
+
+-- AutoTouchスタイルのライセンス状態取得関数
+function getLicense()
+    local cache = loadCache()
+    if cache and cache.is_valid then
+        if cache.status == "trial" then
+            return "TRIAL"
+        elseif cache.status == "active" then
+            return "PRO"
+        end
+    end
+    return nil
+end
+
+-- MetaCubeライセンス状態取得（詳細版）
+function getLicenseDetails()
+    local cache = loadCache()
+    if not cache then
+        return {
+            status = "none",
+            is_valid = false,
+            message = "No license cache found"
+        }
+    end
+
+    return {
+        status = cache.status or "unknown",
+        is_valid = cache.is_valid or false,
+        trial_ends_at = cache.trial_ends_at,
+        time_remaining_seconds = cache.time_remaining_seconds,
+        message = cache.message or "License data available"
+    }
+end
 
 -- デバイスハッシュ取得
 function getDeviceHash()
@@ -613,32 +647,45 @@ end
 -- 設定メニュー
 function showSettingsMenu()
     local deviceHash = getDeviceHash()
-    local cache = loadCache()
+    local licenseStatus = getLicense() -- AutoTouchスタイル
+    local licenseDetails = getLicenseDetails() -- 詳細情報
 
-    local status = "不明"
+    local status = licenseDetails.status or "不明"
     local expires = "不明"
 
-    if cache then
-        status = cache.status or "不明"
-        if cache.trial_ends_at then
-            local endTime = tonumber(cache.trial_ends_at)
-            if endTime then
-                expires = os.date("%Y/%m/%d %H:%M", endTime)
-            else
-                expires = cache.trial_ends_at
-            end
+    if licenseDetails.trial_ends_at then
+        local endTime = tonumber(licenseDetails.trial_ends_at)
+        if endTime then
+            expires = os.date("%Y/%m/%d %H:%M", endTime)
+        else
+            expires = licenseDetails.trial_ends_at
         end
     end
 
+    -- AutoTouchスタイルの表示
+    local licenseDisplay = "未認証"
+    if licenseStatus == "TRIAL" then
+        licenseDisplay = "体験版 (TRIAL)"
+    elseif licenseStatus == "PRO" then
+        licenseDisplay = "有料版 (PRO)"
+    end
+
+    local remainingTime = ""
+    if licenseDetails.time_remaining_seconds and licenseDetails.time_remaining_seconds > 0 then
+        local hours = math.floor(licenseDetails.time_remaining_seconds / 3600)
+        local minutes = math.floor((licenseDetails.time_remaining_seconds % 3600) / 60)
+        remainingTime = "\n残り時間: " .. hours .. "時間" .. minutes .. "分"
+    end
+
     dialog({
-        title = "⚙️ 設定情報",
+        title = "⚙️ MetaCube ライセンス情報",
         message = "デバイスハッシュ:\n" .. deviceHash .. "\n\n" ..
+                  "ライセンス: " .. licenseDisplay .. "\n" ..
                   "ステータス: " .. status .. "\n" ..
-                  "有効期限: " .. expires .. "\n\n" ..
-                  "キャッシュ: " .. (cache and "有効" or "無効") .. "\n\n" ..
+                  "有効期限: " .. expires .. remainingTime .. "\n\n" ..
                   "ダッシュボード:\n" ..
                   "https://metacube-el5.pages.dev/dashboard",
-        buttons = {"閉じる"}
+        buttons = {"ライセンス確認", "閉じる"}
     })
 end
 
@@ -758,10 +805,28 @@ function main()
     end
 
     print("License check SUCCESS - starting tool selection")
+
+    -- AutoTouchスタイルのライセンス情報取得
+    local licenseStatus = getLicense()
+    local licenseDetails = getLicenseDetails()
+
+    local licenseDisplay = "ライセンス認証完了"
+    if licenseStatus == "TRIAL" then
+        licenseDisplay = "体験版 (TRIAL) アクティブ"
+    elseif licenseStatus == "PRO" then
+        licenseDisplay = "有料版 (PRO) アクティブ"
+    end
+
+    local timeInfo = ""
+    if licenseDetails.time_remaining_seconds and licenseDetails.time_remaining_seconds > 0 then
+        local hours = math.floor(licenseDetails.time_remaining_seconds / 3600)
+        timeInfo = "\n残り時間: " .. hours .. " 時間"
+    end
+
     -- 認証成功を明確に表示
     dialog({
-        title = "✅ 認証成功",
-        message = "ライセンス認証が完了しました。\n\n使用するツールを選択してください。",
+        title = "✅ " .. licenseDisplay,
+        message = "MetaCube ライセンス認証が完了しました。" .. timeInfo .. "\n\n使用するツールを選択してください。",
         buttons = {"ツール選択へ"}
     })
 
