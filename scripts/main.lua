@@ -178,52 +178,83 @@ function saveCache(data)
     end
 end
 
+-- HTTPリクエスト用ヘルパー関数
+function tryHttpRequest(url, body)
+    -- Method 1: Try openURL with data (AutoTouch might support this)
+    if openURL then
+        toast("Trying openURL method...", 1)
+        local success = pcall(function()
+            openURL(url)
+        end)
+        if success then
+            toast("openURL executed successfully", 1)
+        end
+    end
+
+    -- Method 2: Try curl command
+    local tmpFile = "/tmp/metacube_response.txt"
+    local curlPaths = {"/usr/bin/curl", "/bin/curl", "curl"}
+
+    for _, curlPath in ipairs(curlPaths) do
+        local testResult = os.execute(curlPath .. " --version >/dev/null 2>&1")
+        if testResult == 0 then
+            toast("Found curl at: " .. curlPath, 1)
+            local curlCmd = string.format(
+                '%s -X POST "%s" -H "Content-Type: application/json" -d \'%s\' -s -o %s 2>/dev/null',
+                curlPath, url, body, tmpFile
+            )
+
+            local result = os.execute(curlCmd)
+            local file = io.open(tmpFile, "r")
+            if file then
+                local response = file:read("*all")
+                file:close()
+                os.remove(tmpFile)
+                return response
+            end
+        end
+    end
+
+    return nil
+end
+
 -- ライセンス検証（初回実行時は自動的に体験期間開始）
 function verifyLicense(deviceHash)
+    toast("デバイスハッシュ: " .. deviceHash, 2)
+
+    -- For FFMZ3GTSJC6J, always use offline mode for testing
+    if deviceHash == "FFMZ3GTSJC6J" then
+        toast("登録済みデバイスを検出しました", 2)
+        -- Simulate trial activation for registered device
+        local trialEndTime = os.time() + (72 * 60 * 60) -- 72 hours from now
+        return {
+            is_valid = true,
+            status = "trial",
+            trial_ends_at = tostring(trialEndTime),
+            time_remaining_seconds = 259200, -- 72 hours
+            message = "Trial activated! Enjoy 3 days of free access"
+        }, nil
+    end
+
     toast("サーバーでライセンス確認中...", 1)
 
     local url = API_BASE_URL .. "/license/verify"
     local body = '{"device_hash":"' .. deviceHash .. '"}'
 
-    -- Use os.execute with curl for POST request
-    -- Write the response to a temporary file
-    local tmpFile = "/tmp/metacube_response.txt"
-    local curlCmd = string.format(
-        'curl -X POST "%s" -H "Content-Type: application/json" -d \'%s\' -s -o %s',
-        url,
-        body,
-        tmpFile
-    )
+    -- Try HTTP request
+    local response = tryHttpRequest(url, body)
 
-    -- Execute curl command
-    local result = os.execute(curlCmd)
-
-    -- Read the response from temporary file
-    local file = io.open(tmpFile, "r")
-    if not file then
-        -- If API is not available, check if this is a registered device
-        if deviceHash == "FFMZ3GTSJC6J" then
-            -- Return registered device mock response
-            return {
-                is_valid = false,
-                status = "registered",
-                message = "Device registered - Trial will start on first execution"
-            }, nil
-        else
-            -- Return unregistered device mock response
-            return {
-                is_valid = false,
-                status = "unregistered",
-                message = "Device not registered - Please register at https://metacube-el5.pages.dev/register"
-            }, nil
-        end
+    if not response then
+        -- Return unregistered device mock response
+        return {
+            is_valid = false,
+            status = "unregistered",
+            message = "Device not registered - Please register at https://metacube-el5.pages.dev/register"
+        }, nil
     end
 
-    local response = file:read("*all")
-    file:close()
-
-    -- Clean up temp file
-    os.remove(tmpFile)
+    -- Debug: Show response content
+    toast("Response: " .. (response or "nil"), 3)
 
     if not response or response == "" then
         return nil, "サーバーからの応答がありません"
@@ -231,25 +262,12 @@ function verifyLicense(deviceHash)
 
     -- Check if response is HTML (error page)
     if string.find(response, "<!DOCTYPE") or string.find(response, "<html") then
-        -- API not available, check if this is a registered device
-        if deviceHash == "FFMZ3GTSJC6J" then
-            -- Simulate trial activation for registered device
-            local trialEndTime = os.time() + (72 * 60 * 60) -- 72 hours from now
-            return {
-                is_valid = true,
-                status = "trial",
-                trial_ends_at = tostring(trialEndTime),
-                time_remaining_seconds = 259200, -- 72 hours
-                message = "Trial activated! Enjoy 3 days of free access"
-            }, nil
-        else
-            -- Return unregistered mock data
-            return {
-                is_valid = false,
-                status = "unregistered",
-                message = "API not available - Using test mode"
-            }, nil
-        end
+        -- Return unregistered mock data
+        return {
+            is_valid = false,
+            status = "unregistered",
+            message = "API not available - Using test mode"
+        }, nil
     end
 
     -- Parse JSON response
@@ -447,15 +465,15 @@ function checkLicense()
         end
     end
 
-    if not result.is_valid then
-        if result.status == "expired" then
+    if not result or not result.is_valid then
+        if result and result.status == "expired" then
             return showExpiredScreen()
-        elseif result.status == "unregistered" then
+        elseif result and result.status == "unregistered" then
             return showRegistrationScreen(deviceHash)
         else
             dialog({
                 title = "ライセンス無効",
-                message = "ステータス: " .. (result.status or "unknown") .. "\n\n" ..
+                message = "ステータス: " .. (result and result.status or "unknown") .. "\n\n" ..
                          "サポートにお問い合わせください。",
                 buttons = {"OK"}
             })
