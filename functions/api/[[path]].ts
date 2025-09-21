@@ -546,7 +546,7 @@ async function handleUserStatus(request: Request, env: any) {
     return new Response(
       JSON.stringify({
         error: 'Failed to get user status',
-        details: error.message
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         status: 500,
