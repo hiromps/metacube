@@ -392,6 +392,7 @@ async function handleUserStatus(request: Request, env: any) {
   }
 
   try {
+    const supabase = getSupabaseClient(env);
     const url = new URL(request.url);
     const userId = url.searchParams.get('user_id');
 
@@ -410,28 +411,128 @@ async function handleUserStatus(request: Request, env: any) {
       );
     }
 
-    // Mock user status data - replace with real Supabase integration later
-    const mockUserData = {
+    // Try to get user email from the request or use a default
+    // In production, this would come from a verified JWT token
+    let userEmail = 'akihiro0324mnr@gmail.com'; // Default test user
+
+    // Get device information for this user
+    const { data: deviceData, error: deviceError } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        device_hash,
+        status,
+        trial_activated,
+        trial_activated_at,
+        first_execution_at,
+        trial_ends_at,
+        registered_at,
+        subscriptions(
+          id,
+          paypal_subscription_id,
+          status,
+          plan_id
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    // If no device found, return default user data indicating they need to register
+    if (deviceError || !deviceData || deviceData.length === 0) {
+      console.log('No device found for user, returning default data:', deviceError?.message);
+      const defaultUserData = {
+        user_id: userId,
+        email: userEmail,
+        status: 'unregistered',
+        device_id: null,
+        device_hash: null,
+        trial_activated: false,
+        trial_activated_at: null,
+        first_execution_at: null,
+        trial_ends_at: null,
+        subscription_id: null,
+        paypal_subscription_id: null,
+        subscription_status: 'unregistered',
+        status_description: 'No device registered - Please register your device first',
+        has_access_to_content: false,
+        has_access_to_tools: false,
+        time_remaining_seconds: null
+      };
+
+      return new Response(
+        JSON.stringify(defaultUserData),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const device = deviceData[0];
+    const subscription = device.subscriptions && device.subscriptions.length > 0 ? device.subscriptions[0] : null;
+
+    // Calculate time remaining for trial
+    let timeRemainingSeconds = null;
+    let hasAccessToTools = false;
+    let statusDescription = '';
+
+    const now = new Date();
+    const trialEndDate = device.trial_ends_at ? new Date(device.trial_ends_at) : null;
+
+    switch (device.status) {
+      case 'registered':
+        statusDescription = 'Registered - Trial will start on first main.lua execution';
+        hasAccessToTools = false;
+        break;
+      case 'trial':
+        if (trialEndDate && trialEndDate > now) {
+          timeRemainingSeconds = Math.floor((trialEndDate.getTime() - now.getTime()) / 1000);
+          hasAccessToTools = true;
+          const daysLeft = Math.ceil(timeRemainingSeconds / (24 * 60 * 60));
+          statusDescription = `Trial Active - ${daysLeft} days remaining`;
+        } else {
+          statusDescription = 'Trial Expired';
+          hasAccessToTools = false;
+        }
+        break;
+      case 'active':
+        statusDescription = 'Active Subscription';
+        hasAccessToTools = true;
+        break;
+      case 'expired':
+        statusDescription = 'Subscription Expired';
+        hasAccessToTools = false;
+        break;
+      default:
+        statusDescription = 'Unknown Status';
+        hasAccessToTools = false;
+    }
+
+    const userData = {
       user_id: userId,
-      email: 'akihiro0324mnr@gmail.com', // Known test user
-      status: 'registered', // registered, trial, active, expired
-      device_id: 'mock-device-id-123',
-      device_hash: 'FFMZ3GTSJC6J', // Known registered device
-      trial_activated: false,
-      trial_activated_at: null,
-      first_execution_at: null,
-      trial_ends_at: null,
-      subscription_id: 'mock-subscription-id',
-      paypal_subscription_id: 'I-MOCK123456789',
-      subscription_status: 'registered', // registered means waiting for trial activation
-      status_description: 'Registered - Trial will start on first main.lua execution',
-      has_access_to_content: true,
-      has_access_to_tools: false, // Will be true after trial activation
-      time_remaining_seconds: null
+      email: userEmail,
+      status: device.status,
+      device_id: device.id,
+      device_hash: device.device_hash,
+      trial_activated: device.trial_activated || false,
+      trial_activated_at: device.trial_activated_at,
+      first_execution_at: device.first_execution_at,
+      trial_ends_at: device.trial_ends_at,
+      subscription_id: subscription?.id || null,
+      paypal_subscription_id: subscription?.paypal_subscription_id || null,
+      subscription_status: subscription?.status || device.status,
+      status_description: statusDescription,
+      has_access_to_content: true, // All registered users can access content
+      has_access_to_tools: hasAccessToTools,
+      time_remaining_seconds: timeRemainingSeconds
     };
 
     return new Response(
-      JSON.stringify(mockUserData),
+      JSON.stringify(userData),
       {
         status: 200,
         headers: {
@@ -441,9 +542,11 @@ async function handleUserStatus(request: Request, env: any) {
       }
     );
   } catch (error) {
+    console.error('Error in handleUserStatus:', error);
     return new Response(
       JSON.stringify({
-        error: 'Failed to get user status'
+        error: 'Failed to get user status',
+        details: error.message
       }),
       {
         status: 500,
