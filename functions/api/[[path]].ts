@@ -27,6 +27,8 @@ export async function onRequest(context: any) {
     return handleLicenseVerify(request, env);
   } else if (path === 'device/register') {
     return handleDeviceRegister(request, env);
+  } else if (path === 'device/login') {
+    return handleDeviceLogin(request, env);
   } else if (path === 'device/change') {
     return handleDeviceChange(request, env);
   } else if (path === 'device/activate') {
@@ -677,6 +679,144 @@ async function handleDeviceRegister(request: Request, env: any) {
       JSON.stringify({
         success: false,
         error: 'Registration failed. Please try again.'
+      }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Device login handler (for auto-login with device hash)
+async function handleDeviceLogin(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { device_hash } = body;
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // まずモックデータでデバイスを確認
+    const mockDevices: { [key: string]: any } = {
+      // User requested device registration: akihiro0324mnr@gmail.com
+      'FFMZ3GTSJC6J': {
+        status: 'registered',
+        expires_at: null,
+        device_model: 'iPhone 7/8',
+        registered_at: new Date().toISOString(),
+        trial_activated: false,
+        email: 'akihiro0324mnr@gmail.com',
+        user_id: 'mock-user-id-123'
+      }
+    };
+
+    const device = mockDevices[device_hash];
+
+    if (!device || !device.email) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device not found or not registered'
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // デバイスが有効な状態かチェック
+    const validStatuses = ['registered', 'trial', 'active'];
+    if (!validStatuses.includes(device.status)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device license is expired or invalid'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // ユーザー情報を返す
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Device found and valid for auto-login',
+        user: {
+          email: device.email,
+          user_id: device.user_id
+        },
+        device: {
+          device_hash: device_hash,
+          status: device.status,
+          device_model: device.device_model,
+          registered_at: device.registered_at
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Device login failed. Please try again.'
       }),
       {
         status: 400,

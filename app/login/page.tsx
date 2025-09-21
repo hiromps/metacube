@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
@@ -10,10 +10,62 @@ import { Badge } from '@/app/components/ui/Badge'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [deviceHash, setDeviceHash] = useState<string | null>(null)
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false)
+
+  // デバイスハッシュによる自動ログイン試行
+  const attemptDeviceLogin = async (deviceHash: string) => {
+    try {
+      console.log('🔐 デバイスハッシュによる自動ログイン試行:', deviceHash)
+      setLoading(true)
+      setError('')
+
+      // デバイス情報を取得してユーザーを特定
+      const response = await fetch('/api/device/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ device_hash: deviceHash })
+      })
+
+      const result = await response.json()
+      console.log('🔐 デバイスログイン結果:', result)
+
+      if (result.success && result.user) {
+        // デバイスに紐づくユーザーでログイン（パスワードレス）
+        // 注意: 実際の実装では、デバイスハッシュによる安全な認証メカニズムが必要
+        console.log('✅ デバイスログイン成功:', result.user)
+
+        // 今回は手動ログインにフォールバック（セキュリティのため）
+        setEmail(result.user.email)
+        setError('デバイスが確認されました。パスワードを入力してログインしてください。')
+      } else {
+        console.log('⚠️ 自動ログイン失敗、手動ログインにフォールバック')
+        setError('デバイスが登録されていません。手動でログインしてください。')
+      }
+    } catch (error: any) {
+      console.error('❌ デバイス自動ログインエラー:', error)
+      setError('自動ログインに失敗しました。手動でログインしてください。')
+    } finally {
+      setLoading(false)
+      setAutoLoginAttempted(true)
+    }
+  }
+
+  // URLパラメータからデバイスハッシュを取得
+  useEffect(() => {
+    const device = searchParams.get('device')
+    if (device && !autoLoginAttempted) {
+      setDeviceHash(device)
+      attemptDeviceLogin(device)
+    }
+  }, [searchParams, autoLoginAttempted])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,8 +131,16 @@ export default function LoginPage() {
               ログイン
             </h1>
             <p className="text-gray-600">
-              アカウントにログインして続行
+              {deviceHash && !autoLoginAttempted
+                ? 'デバイスハッシュによる自動ログイン中...'
+                : 'アカウントにログインして続行'
+              }
             </p>
+            {deviceHash && (
+              <div className="mt-2 text-sm text-blue-600">
+                デバイス: {deviceHash}
+              </div>
+            )}
           </div>
 
           <Card className="bg-white shadow-lg border border-gray-100">
@@ -104,7 +164,7 @@ export default function LoginPage() {
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
                     placeholder="email@example.com"
                     required
-                    disabled={loading}
+                    disabled={loading || (deviceHash && !autoLoginAttempted)}
                   />
                 </div>
 
@@ -120,7 +180,7 @@ export default function LoginPage() {
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
                     placeholder="••••••••"
                     required
-                    disabled={loading}
+                    disabled={loading || (deviceHash && !autoLoginAttempted)}
                   />
                 </div>
 
@@ -142,9 +202,12 @@ export default function LoginPage() {
                   className="bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg transition-all"
                   size="lg"
                   fullWidth
-                  loading={loading}
+                  loading={loading || (deviceHash && !autoLoginAttempted)}
                 >
-                  {loading ? 'ログイン中...' : 'ログイン'}
+                  {loading || (deviceHash && !autoLoginAttempted)
+                    ? (deviceHash && !autoLoginAttempted ? 'デバイス認証中...' : 'ログイン中...')
+                    : 'ログイン'
+                  }
                 </Button>
               </form>
 

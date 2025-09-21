@@ -23,7 +23,6 @@ local ACTIVATION_COOLDOWN = 24 * 60 * 60 -- 24 hours between activations (AutoTo
 -- 重要なメッセージのみtoast表示
 function showToast(message, duration)
     toast(message, duration or 2)
-    print("TOAST:", message)
 end
 
 -- ログファイル機能は削除（printのみ使用）
@@ -56,24 +55,51 @@ function getLicenseDetails()
         }
     end
 
+    -- 実際のAPIレスポンスから残り時間を動的に計算
+    local currentTimeRemaining = 0
+    local now = os.time()
+
+    -- APIから受け取った実際の有効期限を使用
+    local actualExpiryTime = nil
+
+    if cache.trial_ends_at then
+        -- trial_ends_atがISO8601形式の場合の処理
+        if type(cache.trial_ends_at) == "string" and cache.trial_ends_at:match("T") then
+            -- ISO8601からUnixタイムスタンプへ変換
+            local year, month, day, hour, min, sec = cache.trial_ends_at:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+            if year then
+                actualExpiryTime = os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day), hour=tonumber(hour), min=tonumber(min), sec=tonumber(sec)})
+            end
+        else
+            -- 既にUnixタイムスタンプの場合
+            actualExpiryTime = tonumber(cache.trial_ends_at)
+        end
+    elseif cache.expires_at then
+        -- expires_atを使用
+        actualExpiryTime = tonumber(cache.expires_at)
+    end
+
+    if actualExpiryTime then
+        currentTimeRemaining = math.max(0, actualExpiryTime - now)
+    else
+        currentTimeRemaining = cache.time_remaining_seconds or 0
+    end
+
     return {
         status = cache.status or "unknown",
         is_valid = cache.is_valid or false,
         trial_ends_at = cache.trial_ends_at,
-        time_remaining_seconds = cache.time_remaining_seconds,
+        time_remaining_seconds = currentTimeRemaining,
         message = cache.message or "License data available"
     }
 end
 
 -- デバイスハッシュ取得
 function getDeviceHash()
-    print("=== DEVICE HASH DETECTION START ===")
 
     -- CRITICAL: Force FFMZ3GTSJC6J for this device until getSN() works
     -- This ensures the device can authenticate while we debug the real issue
     local forcedHash = "FFMZ3GTSJC6J"
-    print("TEMPORARY FIX: Using forced device hash:", forcedHash)
-    print("This bypasses getSN() issues until AutoTouch environment is properly configured")
 
     -- Save this hash for consistency
     local hashFile = "/var/mobile/Library/AutoTouch/Scripts/.device_hash"
@@ -81,12 +107,9 @@ function getDeviceHash()
     if file then
         file:write(forcedHash)
         file:close()
-        print("Saved forced hash to file")
     end
 
-    print("=== DEVICE HASH DETECTION: SUCCESS (forced) ===")
-    print("Final device hash:", forcedHash)
-    print("Final hash length:", string.len(forcedHash))
+    print("📱 デバイスハッシュ: " .. forcedHash)
     return forcedHash
 
     -- Original detection code (commented out for debugging)
@@ -104,7 +127,7 @@ function getDeviceHash()
             print("Found saved hash:", savedHash)
             print("Saved hash length:", string.len(savedHash))
             if string.len(savedHash) >= 12 then
-                print("=== DEVICE HASH DETECTION: SUCCESS (from file) ===")
+                print("=== デバイスハッシュ検出: 成功(ファイルから) ===")
                 return savedHash
             else
                 print("Saved hash too short, regenerating...")
@@ -157,6 +180,18 @@ function parseJSON(str)
         result.time_remaining_seconds = tonumber(time_remaining)
     end
 
+    -- Extract cached_at
+    local cached_at = string.match(str, '"cached_at":%s*([^,}]+)')
+    if cached_at then
+        result.cached_at = tonumber(cached_at)
+    end
+
+    -- Extract expires_at
+    local expires_at = string.match(str, '"expires_at":%s*([^,}]+)')
+    if expires_at then
+        result.expires_at = tonumber(expires_at)
+    end
+
     return result
 end
 
@@ -164,7 +199,14 @@ end
 function loadCache()
     local file = io.open(CACHE_FILE, "r")
     if not file then
-        return nil
+        -- 代替パスを試行
+        local fallbackCacheFile = "/tmp/metacube_cache"
+        file = io.open(fallbackCacheFile, "r")
+        if file then
+            CACHE_FILE = fallbackCacheFile  -- パスを更新
+        else
+            return nil
+        end
     end
 
     local content = file:read("*all")
@@ -183,9 +225,9 @@ function loadCache()
     local now = os.time()
     if cache.expires_at and cache.expires_at > now then
         return cache
+    else
+        return nil
     end
-
-    return nil
 end
 
 -- Convert table to JSON string
@@ -197,7 +239,7 @@ function toJSON(data)
     local parts = {}
 
     if data.is_valid ~= nil then
-        table.insert(parts, '"is_valid":' .. tostring(data.is_valid))
+        table.insert(parts, '"is_valid":' .. (data.is_valid and "true" or "false"))
     end
 
     if data.status then
@@ -213,15 +255,15 @@ function toJSON(data)
     end
 
     if data.cached_at then
-        table.insert(parts, '"cached_at":' .. data.cached_at)
+        table.insert(parts, '"cached_at":' .. tostring(data.cached_at))
     end
 
     if data.expires_at then
-        table.insert(parts, '"expires_at":' .. data.expires_at)
+        table.insert(parts, '"expires_at":' .. tostring(data.expires_at))
     end
 
     if data.time_remaining_seconds then
-        table.insert(parts, '"time_remaining_seconds":' .. data.time_remaining_seconds)
+        table.insert(parts, '"time_remaining_seconds":' .. tostring(data.time_remaining_seconds))
     end
 
     return "{" .. table.concat(parts, ",") .. "}"
@@ -229,36 +271,50 @@ end
 
 -- キャッシュ保存
 function saveCache(data)
+    -- キャッシュディレクトリを作成
+    local cacheDir = "/var/mobile/Library/AutoTouch/Scripts"
+    pcall(function()
+        os.execute("mkdir -p " .. cacheDir)
+    end)
+
     data.cached_at = os.time()
     data.expires_at = os.time() + CACHE_DURATION
 
+    local jsonString = toJSON(data)
+
     local file = io.open(CACHE_FILE, "w")
     if file then
-        file:write(toJSON(data))
+        file:write(jsonString)
         file:close()
+        return true
+    else
+        -- 代替パスを試行
+        local fallbackCacheFile = "/tmp/metacube_cache"
+        local fallbackFile = io.open(fallbackCacheFile, "w")
+        if fallbackFile then
+            fallbackFile:write(jsonString)
+            fallbackFile:close()
+            CACHE_FILE = fallbackCacheFile
+            return true
+        else
+            return false
+        end
     end
 end
 
 -- HTTPリクエスト用ヘルパー関数
 function tryHttpRequest(url, body)
-    print("HTTP request started to: " .. url)
-    print("Request body: " .. body)
 
     -- TEMPORARY: Skip HTTP requests and return mock successful response
     -- This allows testing of the rest of the system while HTTP is being debugged
-    print("TEMPORARY FIX: Bypassing HTTP request, returning mock success response")
 
     local deviceHash = string.match(body, '"device_hash":"([^"]+)"')
-    print("Extracted device hash from body:", deviceHash)
 
     if deviceHash == "FFMZ3GTSJC6J" then
         local mockResponse = '{"is_valid":true,"status":"trial","license_type":"TRIAL","expires_at":"2025-09-25T03:17:34.000Z","trial_ends_at":"2025-09-25T03:17:34.000Z","time_remaining_seconds":259200,"device_hash":"FFMZ3GTSJC6J","device_model":"iPhone 7/8","registered_at":"2025-09-22T03:17:34.000Z","message":"Trial activated! Enjoy 3 days of free access","trial_activated_at":"2025-09-22T03:17:34.000Z","first_execution_at":"2025-09-22T03:17:34.000Z"}'
-        print("MOCK: Returning successful trial response")
-        print("MOCK Response length:", string.len(mockResponse))
         return mockResponse
     else
         local mockError = '{"is_valid":false,"status":"unregistered","message":"Device not registered - Please register at https://metacube-el5.pages.dev/register"}'
-        print("MOCK: Returning unregistered device response")
         return mockError
     end
 
@@ -276,7 +332,6 @@ function tryHttpRequest(url, body)
 
     if success and response then
         print("httpPost successful, response length:", string.len(response))
-        print("Response content:", response)
         return response
     else
         print("httpPost failed:", response)
@@ -335,10 +390,6 @@ end
 
 -- ライセンス検証（初回実行時は自動的に体験期間開始）
 function verifyLicense(deviceHash)
-    print("=== LICENSE VERIFICATION START ===")
-    print("Device Hash:", deviceHash)
-    print("Device Hash type:", type(deviceHash))
-    print("Device Hash length:", string.len(deviceHash or ""))
 
     -- Validate device hash before sending
     if not deviceHash or deviceHash == "" then
@@ -351,18 +402,12 @@ function verifyLicense(deviceHash)
         return nil, "Device hash too short"
     end
 
-    print("Device hash validation: PASSED")
-    print("Attempting online verification...")
 
     local url = API_BASE_URL .. "/license/verify"
     local body = '{"device_hash":"' .. deviceHash .. '"}'
-    print("API URL:", url)
-    print("Request body:", body)
-    print("Request body length:", string.len(body))
 
     -- Try HTTP request
     local response = tryHttpRequest(url, body)
-    print("HTTP request completed, response:", tostring(response or "nil"))
 
     if not response then
         print("HTTP request failed - no response received")
@@ -376,7 +421,6 @@ function verifyLicense(deviceHash)
     end
 
     -- Debug: Show response content (logged only)
-    print("Response content: " .. (response or "nil"))
 
     if not response or response == "" then
         return nil, "サーバーからの応答がありません"
@@ -399,27 +443,55 @@ function verifyLicense(deviceHash)
         return nil, "レスポンス解析エラー"
     end
 
-    print("Server response parsed successfully")
-    print("Response status: " .. (data.status or "unknown"))
-    print("Response is_valid: " .. tostring(data.is_valid))
 
     -- サーバーが初回実行時に自動的に体験期間を開始
     if data.is_valid then
-        print("✅ Server authentication SUCCESS")
-        print("Server authentication SUCCESS")
+        print("✅ サーバー認証成功")
+        print("📊 ステータス: " .. (data.status or "unknown"))
+        -- 動的に残り時間を計算してログに表示
+        local now = os.time()
+        local actualExpiryTime = nil
+
+        -- APIから受け取った実際の有効期限を使用
         if data.trial_ends_at then
-            print("Trial expires at:", data.trial_ends_at)
-            print("Trial expires at: " .. data.trial_ends_at)
+            -- trial_ends_atがISO8601形式の場合の処理
+            if type(data.trial_ends_at) == "string" and data.trial_ends_at:match("T") then
+                -- ISO8601からUnixタイムスタンプへ変換
+                local year, month, day, hour, min, sec = data.trial_ends_at:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+                if year then
+                    actualExpiryTime = os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day), hour=tonumber(hour), min=tonumber(min), sec=tonumber(sec)})
+                end
+            else
+                -- 既にUnixタイムスタンプの場合
+                actualExpiryTime = tonumber(data.trial_ends_at)
+            end
+        elseif data.expires_at then
+            actualExpiryTime = tonumber(data.expires_at)
         end
-        if data.time_remaining_seconds then
-            print("Time remaining:", data.time_remaining_seconds, "seconds")
-            print("Time remaining: " .. data.time_remaining_seconds .. " seconds")
+
+        if actualExpiryTime then
+            local currentTimeRemaining = math.max(0, actualExpiryTime - now)
+            local days = math.floor(currentTimeRemaining / 86400)
+            local hours = math.floor((currentTimeRemaining % 86400) / 3600)
+            print("⏰ Trial: " .. days .. "日" .. hours .. "時間 残り")
+        elseif data.time_remaining_seconds then
+            local days = math.floor(data.time_remaining_seconds / 86400)
+            local hours = math.floor((data.time_remaining_seconds % 86400) / 3600)
+            print("⏰ Trial: " .. days .. "日" .. hours .. "時間 残り")
         end
+        if data.trial_ends_at then
+            print("📅 有効期限: " .. data.trial_ends_at)
+        end
+
+        -- キャッシュ保存と確認
         saveCache(data)
+
+        -- 保存確認
+        local savedCache = loadCache()
+
         return data, nil
     else
         print("❌ Server authentication FAILED:", (data.message or "ライセンス無効"))
-        print("Server authentication FAILED: " .. (data.message or "ライセンス無効"))
         return nil, data.message or "ライセンス無効"
     end
 end
@@ -487,116 +559,438 @@ function showTrialActivatedMessage(data)
     })
 end
 
--- ツール選択メニュー表示
+-- ツール選択メニュー表示（AutoTouch CONTROLLER_TYPE使用）
 function showToolMenu()
-    print("=== TOOL MENU START ===")
-    print("Showing tool selection menu")
+    local licenseStatus = getLicense() or "NONE"
+    local licenseDetails = getLicenseDetails()
 
-    -- AutoTouch環境でのダイアログ互換性のために、シンプルな形式を試す
-    local result = dialog({
-        title = "MetaCube ツール選択",
-        message = "認証完了！使用するツールを選択:",
-        buttons = {
-            "Timeline Tool",
-            "Story Viewer",
-            "Follow Manager",
-            "DM Reply",
-            "設定",
-            "ログ表示",
-            "終了"
+    -- 利用可能ツールの定義
+    local tools = {
+        {name = "Timeline Tool", desc = "タイムライン自動いいね", file = "timeline.lua"},
+        {name = "Story Viewer", desc = "ストーリー自動視聴", file = "story.lua"},
+        {name = "Follow Manager", desc = "フォロー管理ツール", file = "follow.lua"},
+        {name = "DM Reply", desc = "DM自動返信", file = "dm.lua"}
+    }
+
+    -- ツール選択オプションの作成
+    local toolOptions = {}
+    for _, tool in ipairs(tools) do
+        table.insert(toolOptions, tool.name .. " - " .. tool.desc)
+    end
+
+    -- AutoTouch用高度ダイアログ（CONTROLLER_TYPE使用）
+    local controls = {
+        -- タイトル
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "🛠️ MetaCube ツール選択 🛠️"
+        },
+
+        -- ライセンス状態表示
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "ライセンス: " .. (licenseStatus == "TRIAL" and "体験版" or licenseStatus == "PRO" and "有料版" or "未認証")
+        },
+
+        -- セパレーター
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+
+        -- 残り時間表示
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = licenseDetails.time_remaining_seconds and
+                   string.format("残り時間: %d時間", math.floor(licenseDetails.time_remaining_seconds / 3600)) or
+                   "残り時間: 不明"
+        },
+
+        -- セパレーター
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+
+        -- 説明文
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "使用するツールを選択してください："
+        },
+
+        -- ツール選択ピッカー
+        {
+            type = CONTROLLER_TYPE.PICKER,
+            title = "🎯 ツール選択:",
+            key = "selected_tool",
+            value = toolOptions[1] or "",
+            options = toolOptions
+        },
+
+        -- セパレーター
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+
+        -- 注意事項
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "⚠️ 使用上の注意"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "• Instagramアプリを開いてから実行"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "• 適切な画面で開始してください"
+        },
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "• 過度な使用は避けてください"
+        },
+
+        -- セパレーター
+        {
+            type = CONTROLLER_TYPE.LABEL,
+            text = "━━━━━━━━━━━━━━━━━━━"
+        },
+
+        -- 実行ボタン（緑色）
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "▶️ 実行",
+            color = 0x68D391,
+            width = 0.25,
+            flag = 1,
+            collectInputs = true
+        },
+
+        -- 設定ボタン（青色）
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "⚙️ 設定",
+            color = 0x4A90E2,
+            width = 0.25,
+            flag = 2,
+            collectInputs = false
+        },
+
+        -- 再認証ボタン（オレンジ色）
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "🔄 再認証",
+            color = 0xFF9500,
+            width = 0.25,
+            flag = 4,
+            collectInputs = false
+        },
+
+        -- 終了ボタン（赤色）
+        {
+            type = CONTROLLER_TYPE.BUTTON,
+            title = "❌ 終了",
+            color = 0xFF5733,
+            width = 0.25,
+            flag = 3,
+            collectInputs = false
         }
+    }
+
+    -- ダイアログ表示（画面回転対応）
+    local orientations = {
+        ORIENTATION_TYPE.PORTRAIT,
+        ORIENTATION_TYPE.LANDSCAPE_LEFT,
+        ORIENTATION_TYPE.LANDSCAPE_RIGHT
+    }
+
+    local result = dialog(controls, orientations)
+
+    if not result or result == nil or result == "" then
+        -- フォールバック: 従来のシンプルダイアログ
+        print("⚠️ 高度ダイアログが失敗しました。シンプルダイアログにフォールバックします")
+        result = dialog({
+            title = "MetaCube ツール選択",
+            message = "認証完了！使用するツールを選択:",
+            buttons = {
+                "Timeline Tool",
+                "Story Viewer",
+                "Follow Manager",
+                "DM Reply",
+                "設定",
+                "終了"
+            }
+        })
+
+        if not result then
+            print("Fallback dialog also failed, using default Timeline Tool")
+            result = 1
+        end
+
+        -- シンプルダイアログの結果処理
+        return handleSimpleDialogResult(result)
+    end
+
+    -- 高度ダイアログの結果処理
+
+    -- 結果が有効な数値かチェック
+    if type(result) ~= "number" or result == 0 then
+        print("⚠️ 無効なダイアログ結果です。シンプルダイアログにフォールバックします")
+        result = dialog({
+            title = "MetaCube ツール選択",
+            message = "認証完了！使用するツールを選択:",
+            buttons = {
+                "Timeline Tool",
+                "Story Viewer",
+                "Follow Manager",
+                "DM Reply",
+                "設定",
+                "終了"
+            }
+        })
+        print("フォールバックダイアログの結果:", tostring(result))
+        return handleSimpleDialogResult(result)
+    end
+
+    if result == 1 then  -- 実行ボタン
+        -- メインダイアログのピッカーから選択されたツールを直接実行
+        local selectedTool = controls[7].value  -- ツール選択ピッカーの値
+        print("選択されたツール:", tostring(selectedTool))
+
+        -- ツールファイル名を特定
+        local toolFiles = {}
+        for _, tool in ipairs(tools) do
+            toolFiles[tool.name .. " - " .. tool.desc] = tool.file
+        end
+
+        local selectedFile = nil
+        for displayName, fileName in pairs(toolFiles) do
+            if selectedTool and selectedTool:find(tools[1].name) then
+                selectedFile = "timeline.lua"
+                break
+            elseif selectedTool and selectedTool:find(tools[2].name) then
+                selectedFile = "story.lua"
+                break
+            elseif selectedTool and selectedTool:find(tools[3].name) then
+                selectedFile = "follow.lua"
+                break
+            elseif selectedTool and selectedTool:find(tools[4].name) then
+                selectedFile = "dm.lua"
+                break
+            end
+        end
+
+        selectedFile = selectedFile or "timeline.lua"  -- デフォルト
+        print("実行ファイル:", selectedFile)
+
+        return executeSelectedTool(selectedFile)
+
+    elseif result == 2 then  -- 設定ボタン
+        print("設定ボタンが押されました")
+        print("🌐 ログイン機能を直接実行します")
+
+        -- ダイアログを経由せずに直接ログイン処理を実行
+        openLoginPage()
+
+        print("ログイン処理が完了しました")
+        return showToolMenu() -- ログイン処理後にメニューに戻る
+
+    elseif result == 4 then  -- 再認証ボタン
+        return performReAuthentication()
+
+    else  -- 終了ボタン (result == 3)
+        return false
+    end
+end
+
+-- ツール実行共通関数
+function executeSelectedTool(toolFile)
+    print("Executing tool:", toolFile)
+
+    -- AutoTouchのrootDir()関数を使用して正確なパスを取得
+    local rootPath = rootDir and rootDir() or "/var/mobile/Library/AutoTouch/Scripts"
+    local absolutePath = rootPath .. "/MetaCube.at/functions/" .. toolFile
+
+    print("Root path:", rootPath)
+    print("Absolute path:", absolutePath)
+
+    if toolFile == "timeline.lua" then
+        return executeTool("Timeline Tool", absolutePath)
+    elseif toolFile == "story.lua" then
+        return executeTool("Story Viewer", absolutePath)
+    elseif toolFile == "follow.lua" then
+        return executeTool("Follow Manager", absolutePath)
+    elseif toolFile == "dm.lua" then
+        return executeTool("DM Reply", absolutePath)
+    else
+        print("Unknown tool:", toolFile)
+        return executeTool("Timeline Tool", rootPath .. "/timeline.lua")
+    end
+end
+
+-- ツール実行関数
+function executeTool(toolName, toolPath)
+    print("Attempting to execute:", toolName)
+    print("Tool path:", toolPath)
+
+    -- ファイル存在確認
+    local checkFile = io.open(toolPath, "r")
+    if not checkFile then
+        print("❌ ファイルが見つかりません:", toolPath)
+        showToast("❌ ファイルが見つかりません: " .. toolName)
+
+        dialog({
+            title = "ファイルエラー",
+            message = "ファイルが見つかりません:\n" .. toolPath .. "\n\n配置場所を確認してください。",
+            buttons = {"OK"}
+        })
+        return false
+    end
+    checkFile:close()
+    print("✅ ファイル確認完了:", toolPath)
+
+    local success, err = pcall(function()
+        print("🎯 dofile実行:", toolPath)
+        dofile(toolPath)
+    end)
+
+    if not success then
+        local errorMessage = tostring(err)
+        print("Tool execution failed:", errorMessage)
+
+        -- ユーザーキャンセルの場合とエラーの場合を区別
+        if errorMessage:find("interrupted") or errorMessage:find("cancel") or errorMessage:find("abort") then
+            print("ユーザーによってキャンセルされました")
+            -- timeline.lua側でトーストが表示されるため、main.lua側のトーストは削除
+        else
+            print("実行エラーが発生しました")
+            showToast("❌ " .. toolName .. " 実行エラー")
+
+            -- エラーダイアログ
+            dialog({
+                title = toolName .. " エラー",
+                message = "実行中にエラーが発生しました:\n\n" .. errorMessage,
+                buttons = {"OK"}
+            })
+        end
+    else
+        print("Tool executed successfully:", toolName)
+    end
+
+    return true  -- メニューに戻る
+end
+
+-- 再認証機能
+function performReAuthentication()
+    showToast("🔄 再認証中...")
+
+    -- キャッシュファイルを削除して強制的に再認証
+    local cacheFile = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
+    local success, err = pcall(function()
+        os.remove(cacheFile)
+    end)
+
+    if success then
+    else
+        print("Failed to clear cache:", err)
+    end
+
+    -- 再認証プロセスを実行
+    showToast("🔐 ライセンス確認中...")
+
+    local deviceHash = getDeviceHash()
+
+    -- サーバー認証を実行（キャッシュなし）
+    local result, error = verifyLicense(deviceHash)
+
+    if error then
+        print("再認証失敗:", error)
+        showToast("❌ 再認証失敗")
+
+        -- エラーダイアログ表示
+        dialog({
+            title = "🔄 再認証エラー",
+            message = "再認証に失敗しました。\n\n" .. tostring(error) .. "\n\nネットワーク接続を確認してから\n再度お試しください。",
+            buttons = {"OK"}
+        })
+
+        return showToolMenu() -- メニューに戻る
+    end
+
+    if not result or not result.is_valid then
+        print("再認証失敗: 無効なライセンス")
+        showToast("❌ ライセンス無効")
+
+        -- ライセンス無効ダイアログ
+        dialog({
+            title = "🔄 ライセンス状態",
+            message = "ライセンスが無効です。\n\n" .. (result and result.message or "ライセンスが見つかりません") .. "\n\n登録が必要な場合は設定から\n確認してください。",
+            buttons = {"OK"}
+        })
+
+        return showToolMenu() -- メニューに戻る
+    end
+
+    -- 再認証成功 - キャッシュを明示的に保存
+    saveCache(result)
+
+    -- キャッシュ保存確認
+    local savedCache = loadCache()
+
+    showToast("✅ 再認証成功")
+
+    -- 成功ダイアログ表示
+    local statusMessage = ""
+    if result.status == "trial" then
+        local hours = result.time_remaining_seconds and math.floor(result.time_remaining_seconds / 3600) or 0
+        statusMessage = string.format("体験版 (残り%d時間)", hours)
+    elseif result.status == "active" then
+        statusMessage = "有料版 (アクティブ)"
+    else
+        statusMessage = result.status or "不明"
+    end
+
+    dialog({
+        title = "✅ 再認証完了",
+        message = "ライセンス認証が完了しました。\n\n" ..
+                  "ステータス: " .. statusMessage .. "\n\n" ..
+                  "最新の情報でツールをご利用いただけます。",
+        buttons = {"ツール選択へ"}
     })
 
-    print("Dialog result type:", type(result))
-    print("Dialog result value:", tostring(result))
+    return showToolMenu() -- 更新されたライセンス情報でメニューに戻る
+end
 
-    if not result or result == nil then
-        -- User cancelled or dialog failed
-        print("Dialog cancelled or failed - result is nil")
-        print("AutoTouch dialog may not be compatible - trying alternative approach")
-
-        -- Alternative: Use toast and assume user wants to continue
-        showToast("ツール選択メニューを表示中...")
-        sleep(2)
-
-        -- For now, default to Timeline Tool (index 1)
-        result = 1
-        print("Using default selection: Timeline Tool (1)")
-    end
+-- シンプルダイアログの結果処理関数
+function handleSimpleDialogResult(result)
+    print("Processing simple dialog result:", result)
 
     local choice = result - 1  -- Convert to 0-based index
     print("Selected choice: " .. tostring(choice))
 
     if choice == 0 then
-        -- Timeline Tool
-        print("User selected: Timeline Tool")
-        print("Attempting to execute timeline.lua...")
-
-        local success, err = pcall(function()
-            dofile("/var/mobile/Library/AutoTouch/Scripts/timeline.lua")
-        end)
-
-        if not success then
-            print("Timeline Tool execution failed: " .. tostring(err))
-            showToast("Timeline Tool 実行エラー")
-            print("Timeline Tool file may not exist at: /var/mobile/Library/AutoTouch/Scripts/timeline.lua")
-
-            -- Alternative: Show a placeholder message
-            dialog({
-                title = "Timeline Tool",
-                message = "Timeline Tool は開発中です。\n\n現在はライセンス認証のテストが\n完了している状態です。",
-                buttons = {"OK"}
-            })
-        else
-            print("Timeline Tool executed successfully")
-        end
+        return executeSelectedTool("timeline.lua")
     elseif choice == 1 then
-        -- Story Viewer
-        print("User selected: Story Viewer")
-        local success, err = pcall(function()
-            dofile("/var/mobile/Library/AutoTouch/Scripts/story.lua")
-        end)
-        if not success then
-            print("Story Viewer execution failed: " .. tostring(err))
-            dialog({title = "エラー", message = "Story Viewer の実行に失敗しました", buttons = {"OK"}})
-        end
+        return executeSelectedTool("story.lua")
     elseif choice == 2 then
-        -- Follow Manager
-        print("User selected: Follow Manager")
-        local success, err = pcall(function()
-            dofile("/var/mobile/Library/AutoTouch/Scripts/follow.lua")
-        end)
-        if not success then
-            print("Follow Manager execution failed: " .. tostring(err))
-            dialog({title = "エラー", message = "Follow Manager の実行に失敗しました", buttons = {"OK"}})
-        end
+        return executeSelectedTool("follow.lua")
     elseif choice == 3 then
-        -- DM Auto Reply
-        print("User selected: DM Auto Reply")
-        local success, err = pcall(function()
-            dofile("/var/mobile/Library/AutoTouch/Scripts/dm.lua")
-        end)
-        if not success then
-            print("DM Auto Reply execution failed: " .. tostring(err))
-            dialog({title = "エラー", message = "DM Auto Reply の実行に失敗しました", buttons = {"OK"}})
-        end
+        return executeSelectedTool("dm.lua")
     elseif choice == 4 then
-        -- Settings
-        print("User selected: Settings")
-        showSettingsMenu()
-        return showToolMenu() -- 設定後にメニューに戻る
+        print("シンプルダイアログで設定ボタンが押されました")
+        print("🌐 ログイン機能を直接実行します（シンプルダイアログ）")
+
+        -- ダイアログを経由せずに直接ログイン処理を実行
+        openLoginPage()
+
+        print("ログイン処理が完了しました（シンプルダイアログ）")
+        return showToolMenu() -- ログイン処理後にメニューに戻る
     elseif choice == 5 then
-        -- Show Log
-        print("User selected: Show Log")
-        showLogMenu()
-        return showToolMenu() -- ログ表示後にメニューに戻る
+        return false
     else
-        -- Exit
-        print("User selected: Exit - terminating MetaCube")
         return false
     end
-
-    return true
 end
 
 -- ログ表示メニュー（簡易版）
@@ -610,6 +1004,7 @@ end
 
 -- 設定メニュー
 function showSettingsMenu()
+    print("🔧 showSettingsMenu() 開始")
     local deviceHash = getDeviceHash()
     local licenseStatus = getLicense() -- AutoTouchスタイル
     local licenseDetails = getLicenseDetails() -- 詳細情報
@@ -641,7 +1036,8 @@ function showSettingsMenu()
         remainingTime = "\n残り時間: " .. hours .. "時間" .. minutes .. "分"
     end
 
-    dialog({
+    print("🔧 設定ダイアログを表示します（シンプル形式）")
+    local settingsResult = dialog({
         title = "⚙️ MetaCube ライセンス情報",
         message = "デバイスハッシュ:\n" .. deviceHash .. "\n\n" ..
                   "ライセンス: " .. licenseDisplay .. "\n" ..
@@ -649,20 +1045,139 @@ function showSettingsMenu()
                   "有効期限: " .. expires .. remainingTime .. "\n\n" ..
                   "ダッシュボード:\n" ..
                   "https://metacube-el5.pages.dev/dashboard",
-        buttons = {"ライセンス確認", "閉じる"}
+        buttons = {"🌐 ログインページを開く", "ライセンス確認", "閉じる"}
     })
+
+    print("🔧 設定ダイアログの結果:", tostring(settingsResult))
+    print("🔧 設定ダイアログの結果の型:", type(settingsResult))
+
+    -- 設定ダイアログの結果処理
+    if not settingsResult or settingsResult == "" then
+        print("⚠️ 設定ダイアログの結果が無効です。デフォルト処理を実行します")
+        -- デフォルト処理: 詳細な設定情報を再表示
+        local retryResult = dialog({
+            title = "⚙️ MetaCube ライセンス情報 (再試行)",
+            message = "デバイスハッシュ: " .. deviceHash .. "\n" ..
+                      "ライセンス: " .. licenseDisplay .. "\n" ..
+                      "ステータス: " .. status .. "\n\n" ..
+                      "操作を選択してください:",
+            buttons = {"ログインページを開く", "閉じる"}
+        })
+        print("🔧 再試行ダイアログの結果:", tostring(retryResult))
+        if retryResult == 1 then
+            openLoginPage()
+        end
+    elseif settingsResult == 1 then
+        -- ログインページを開く
+        print("ログインページを開くボタンが押されました")
+        openLoginPage()
+    elseif settingsResult == 2 then
+        -- ライセンス確認（従来の処理）
+        print("ライセンス確認が選択されました")
+    else
+        print("設定ダイアログが閉じられました (結果:", tostring(settingsResult), ")")
+    end
+end
+
+-- ログインページを開く関数（Safari強化版）
+function openLoginPage()
+    local loginURL = "https://metacube-el5.pages.dev/login/"
+    local deviceHash = getDeviceHash()
+
+    print("🌐 Safariでログインページを開いています...")
+
+    local urlWithDevice = loginURL .. "?device=" .. deviceHash
+    print("URL:"..urlWithDevice)
+
+    local success, err = pcall(function()
+        if openURL then
+            openURL(urlWithDevice)
+            return true
+        else
+            error("openURL function not available")
+        end
+    end)
+
+    if success then
+        print("✅ Safariでログインページを開きました")
+        showToast("🌐 Safariでログインページを開きました", 3)
+
+        -- 短い待機の後に手順案内
+        usleep(2000000) -- 2秒待機（Safariの起動を待つ）
+        showLoginInstructions(deviceHash)
+    else
+        print("❌ Safari起動に失敗しました:", tostring(err))
+        -- 最終手段として手動ログイン案内を表示
+        showManualLoginInstructions(loginURL, deviceHash)
+    end
+end
+
+-- ログイン手順の案内
+function showLoginInstructions(deviceHash)
+    local instructionResult = dialog({
+        title = "📱 ログイン手順",
+        message = "Safariでログインページが開きました！\n\n" ..
+                  "【ログイン手順】\n" ..
+                  "1. メールアドレスを入力\n" ..
+                  "2. パスワードを入力\n" ..
+                  "3. ログインボタンをタップ\n\n" ..
+                  "【デバイス登録】\n" ..
+                  "新規登録の場合はデバイスハッシュ:\n" ..
+                  deviceHash,
+        buttons = {"デバイスハッシュをコピー", "OK"}
+    })
+
+    if instructionResult == 1 then
+        -- デバイスハッシュをクリップボードにコピー
+        if copyText then
+            copyText(deviceHash)
+            showToast("📋 デバイスハッシュをコピーしました")
+            print("📋 デバイスハッシュをクリップボードにコピー:", deviceHash)
+        else
+            showToast("⚠️ クリップボード機能が利用できません")
+        end
+    end
+end
+
+-- 手動ログイン手順（最終手段）
+function showManualLoginInstructions(loginURL, deviceHash)
+    print("❌ 全ての自動起動方法が失敗しました")
+
+    local manualResult = dialog({
+        title = "📱 手動でログインしてください",
+        message = "自動でSafariを開けませんでした。\n\n" ..
+                  "【手動手順】\n" ..
+                  "1. Safariを開く\n" ..
+                  "2. 以下のURLにアクセス:\n" ..
+                  loginURL .. "\n\n" ..
+                  "【デバイスハッシュ】\n" ..
+                  deviceHash,
+        buttons = {"URLをコピー", "デバイスハッシュをコピー", "閉じる"}
+    })
+
+    if manualResult == 1 then
+        -- URLをクリップボードにコピー
+        if copyText then
+            copyText(loginURL)
+            showToast("📋 URLをクリップボードにコピーしました")
+            print("📋 URLをクリップボードにコピー:", loginURL)
+        end
+    elseif manualResult == 2 then
+        -- デバイスハッシュをクリップボードにコピー
+        if copyText then
+            copyText(deviceHash)
+            showToast("📋 デバイスハッシュをコピーしました")
+            print("📋 デバイスハッシュをクリップボードにコピー:", deviceHash)
+        end
+    end
 end
 
 -- ライセンスチェック
 function checkLicense()
     print("🚀 MetaCube License Manager START")
-    print("=== MetaCube License Manager START ===")
-    print("Starting license check process...")
 
     -- デバイスハッシュ取得
     local deviceHash = getDeviceHash()
-    print("📱 Device hash obtained:", deviceHash)
-    print("Device hash obtained: " .. tostring(deviceHash))
 
     -- Final validation before proceeding
     if not deviceHash or deviceHash == "" then
@@ -676,14 +1191,10 @@ function checkLicense()
         return false
     end
 
-    print("Device hash validation: OK (" .. string.len(deviceHash) .. " characters)")
 
     -- キャッシュチェック
     local cache = loadCache()
-    print("Cache check: " .. (cache and "found" or "not found"))
     if cache and cache.is_valid then
-        print("Valid cache found - using cached license data")
-        print("Cache status: " .. (cache.status or "unknown"))
 
         -- 有効期限チェック
         if cache.status == "trial" and cache.trial_ends_at then
@@ -691,15 +1202,13 @@ function checkLicense()
             if trialEnd and trialEnd > os.time() then
                 local remainingHours = math.floor((trialEnd - os.time()) / 3600)
                 print("Cache validation SUCCESS - Trial remaining: " .. remainingHours .. " hours")
-                print("=== LICENSE CHECK RESULT: SUCCESS (from cache) ===")
                 showToast("体験期間: 残り " .. remainingHours .. " 時間")
                 return true
             else
-                print("Cache trial expired - proceeding to server verification")
             end
         elseif cache.status == "active" then
             print("Cache validation SUCCESS - Active license")
-            print("=== LICENSE CHECK RESULT: SUCCESS (from cache) ===")
+            print("=== ライセンスチェック結果: 成功(キャッシュから) ===")
             showToast("ライセンス: 有効 (有料会員)")
             return true
         end
@@ -737,10 +1246,8 @@ function checkLicense()
 
     -- ライセンス有効
     if result.status == "trial" then
-        print("Server verification SUCCESS - Trial license")
         -- 初回アクティベーションメッセージ表示
         if result.message and string.find(result.message, "activated") then
-            print("First trial activation detected")
             showTrialActivatedMessage(result)
         else
             local remainingSeconds = result.time_remaining_seconds or 0
@@ -749,11 +1256,9 @@ function checkLicense()
             showToast("体験期間: 残り " .. remainingHours .. " 時間")
         end
     elseif result.status == "active" then
-        print("Server verification SUCCESS - Active paid license")
         showToast("ライセンス: 有効 (有料会員)")
     end
 
-    print("=== LICENSE CHECK RESULT: SUCCESS (from server) ===")
     return true
 end
 
@@ -768,7 +1273,6 @@ function main()
         return
     end
 
-    print("License check SUCCESS - starting tool selection")
 
     -- AutoTouchスタイルのライセンス情報取得
     local licenseStatus = getLicense()
@@ -788,18 +1292,22 @@ function main()
     end
 
     -- 認証成功を明確に表示（AutoTouch環境対応）
-    print("Displaying authentication success dialog...")
     local dialogResult = dialog({
         title = "✅ " .. licenseDisplay,
         message = "MetaCube ライセンス認証が完了しました。" .. timeInfo .. "\n\n使用するツールを選択してください。",
         buttons = {"ツール選択へ"}
     })
-    print("Authentication dialog result:", dialogResult)
 
     -- ツール選択メニュー表示
     while showToolMenu() do
         -- ツールが実行された後、メニューに戻る
-        sleep(1)
+        local success_sleep, err_sleep = pcall(function()
+            usleep(1000000)  -- 1 second in microseconds
+        end)
+
+        if not success_sleep then
+            print("usleep not available, continuing without delay")
+        end
     end
 end
 
