@@ -60,13 +60,13 @@ async function handleLicenseVerify(request: Request, env: any) {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
       }
     });
   }
 
-  if (request.method !== 'POST') {
+  if (request.method !== 'POST' && request.method !== 'GET') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       {
@@ -80,8 +80,16 @@ async function handleLicenseVerify(request: Request, env: any) {
   }
 
   try {
-    const body = await request.json();
-    const { device_hash } = body;
+    let device_hash: string;
+
+    if (request.method === 'POST') {
+      const body = await request.json();
+      device_hash = body.device_hash;
+    } else {
+      // GET request - extract from query parameters
+      const url = new URL(request.url);
+      device_hash = url.searchParams.get('device_hash') || '';
+    }
 
     if (!device_hash) {
       return new Response(

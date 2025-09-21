@@ -10,7 +10,22 @@
 -- Configuration
 local API_BASE_URL = "https://metacube-el5.pages.dev/api"
 local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
+local LOG_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_log"
 local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
+
+-- ================================
+-- ログ管理関数
+-- ================================
+
+-- printのみを使用（ログファイル機能は無効）
+
+-- 重要なメッセージのみtoast表示
+function showToast(message, duration)
+    toast(message, duration or 2)
+    print("TOAST:", message)
+end
+
+-- ログファイル機能は削除（printのみ使用）
 
 -- ================================
 -- ライセンス管理関数
@@ -18,44 +33,122 @@ local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
 
 -- デバイスハッシュ取得
 function getDeviceHash()
-    -- Method 1: Use AutoTouch's getSN() function
-    local sn = getSN()
-    if sn and sn ~= "" then
-        -- Take first 12 characters and convert to uppercase
-        return string.sub(sn, 1, 12):upper()
-    end
-
-    -- Method 2: Fallback - Generate consistent hash based on device
-    -- Use a combination of available system info
-    local seed = os.time()
-    math.randomseed(seed)
-
-    -- Generate a consistent hash for this device
-    local hash = ""
-    for i = 1, 12 do
-        hash = hash .. string.format("%X", math.random(0, 15))
-    end
-
-    -- Save the generated hash to a file so it remains consistent
+    -- Check for saved hash first
     local hashFile = "/var/mobile/Library/AutoTouch/Scripts/.device_hash"
+    print("Checking for saved hash at:", hashFile)
+
     local file = io.open(hashFile, "r")
     if file then
-        -- If we have a saved hash, use it
         local savedHash = file:read("*all")
         file:close()
         if savedHash and savedHash ~= "" then
-            return savedHash
+            print("Found saved hash:", savedHash)
+            return savedHash:gsub("\n", ""):gsub("\r", "") -- Remove any newlines
+        end
+        print("Saved hash file is empty")
+    else
+        print("No saved hash file found")
+    end
+
+    -- Method 1: Try AutoTouch's getSN() function
+    print("Attempting to get device SN using getSN()...")
+    local success, sn = pcall(getSN)
+    if success and sn and sn ~= "" then
+        print("getSN() returned:", type(sn), sn)
+        -- Take first 12 characters and convert to uppercase
+        local deviceHash = string.sub(tostring(sn), 1, 12):upper()
+        print("Generated device hash from SN:", deviceHash)
+
+        -- Save the hash for future use
+        file = io.open(hashFile, "w")
+        if file then
+            file:write(deviceHash)
+            file:close()
+            print("Saved device hash to file")
+        end
+
+        return deviceHash
+    else
+        print("getSN() failed or returned empty:", success, sn)
+    end
+
+    -- Method 2: Try alternative AutoTouch device info functions
+    print("Trying alternative device info methods...")
+
+    -- Try getDeviceInfo if available
+    local success2, devInfo = pcall(function() return getDeviceInfo() end)
+    if success2 and devInfo then
+        print("getDeviceInfo() returned:", type(devInfo), devInfo)
+        if type(devInfo) == "string" and devInfo ~= "" then
+            local deviceHash = string.sub(devInfo:gsub("[^%w]", ""), 1, 12):upper()
+            if deviceHash ~= "" then
+                print("Generated hash from device info:", deviceHash)
+                -- Save the hash
+                file = io.open(hashFile, "w")
+                if file then
+                    file:write(deviceHash)
+                    file:close()
+                end
+                return deviceHash
+            end
         end
     end
 
-    -- Save the new hash
+    -- Method 3: Generate stable hash based on current time (but make it stable)
+    print("All device info methods failed, generating stable hash...")
+
+    -- Use a predictable seed based on file system to make it consistent
+    local tempFile = "/var/mobile/Library/AutoTouch/Scripts/.device_seed"
+    local seed = nil
+
+    local seedFile = io.open(tempFile, "r")
+    if seedFile then
+        seed = tonumber(seedFile:read("*all"))
+        seedFile:close()
+        print("Found existing seed:", seed)
+    else
+        -- Create a new seed
+        seed = os.time()
+        seedFile = io.open(tempFile, "w")
+        if seedFile then
+            seedFile:write(tostring(seed))
+            seedFile:close()
+            print("Generated new seed:", seed)
+        end
+    end
+
+    if seed then
+        math.randomseed(seed)
+        local hash = ""
+        for i = 1, 12 do
+            hash = hash .. string.format("%X", math.random(0, 15))
+        end
+
+        print("Generated stable hash:", hash)
+
+        -- Save the hash
+        file = io.open(hashFile, "w")
+        if file then
+            file:write(hash)
+            file:close()
+            print("Saved generated hash to file")
+        end
+
+        return hash
+    end
+
+    -- Final fallback
+    print("All methods failed, using test device hash")
+    local fallback = "FFMZ3GTSJC6J"
+
+    -- Save even the fallback
     file = io.open(hashFile, "w")
     if file then
-        file:write(hash)
+        file:write(fallback)
         file:close()
     end
 
-    return hash
+    return fallback
 end
 
 -- Simple JSON parser for basic responses
@@ -180,71 +273,98 @@ end
 
 -- HTTPリクエスト用ヘルパー関数
 function tryHttpRequest(url, body)
-    -- Method 1: Try openURL with data (AutoTouch might support this)
-    if openURL then
-        toast("Trying openURL method...", 1)
-        local success = pcall(function()
-            openURL(url)
+    print("HTTP request started to: " .. url)
+    print("Request body: " .. body)
+
+    -- Method 1: Try AutoTouch's built-in HTTP functions
+    print("Trying AutoTouch httpPost function...")
+    local success, response = pcall(function()
+        -- AutoTouch httpPost(url, data, headers)
+        local headers = {
+            ["Content-Type"] = "application/json"
+        }
+        return httpPost(url, body, headers)
+    end)
+
+    if success and response then
+        print("httpPost successful, response length:", string.len(response))
+        print("Response content:", response)
+        return response
+    else
+        print("httpPost failed:", response)
+    end
+
+    -- Method 2: Try alternative AutoTouch HTTP function
+    print("Trying alternative AutoTouch HTTP method...")
+    local success2, response2 = pcall(function()
+        -- Some AutoTouch versions might have different function names
+        return httpRequest(url, "POST", body, {["Content-Type"] = "application/json"})
+    end)
+
+    if success2 and response2 then
+        print("httpRequest successful, response length:", string.len(response2))
+        return response2
+    else
+        print("httpRequest failed:", response2)
+    end
+
+    -- Method 3: Try basic HTTP GET with parameters (as fallback)
+    print("Trying GET request as fallback...")
+    local deviceHash = string.match(body, '"device_hash":"([^"]+)"')
+    if deviceHash then
+        local getUrl = url .. "?device_hash=" .. deviceHash
+        print("GET URL:", getUrl)
+
+        local success3, response3 = pcall(function()
+            return httpGet(getUrl)
         end)
-        if success then
-            toast("openURL executed successfully", 1)
+
+        if success3 and response3 then
+            print("httpGet successful, response length:", string.len(response3))
+            return response3
+        else
+            print("httpGet failed:", response3)
         end
     end
 
-    -- Method 2: Try curl command
-    local tmpFile = "/tmp/metacube_response.txt"
-    local curlPaths = {"/usr/bin/curl", "/bin/curl", "curl"}
+    -- Method 4: Try openURL as last resort (might not work for API calls but worth trying)
+    print("Trying openURL as last resort...")
+    local success4, response4 = pcall(function()
+        return openURL(url)
+    end)
 
-    for _, curlPath in ipairs(curlPaths) do
-        local testResult = os.execute(curlPath .. " --version >/dev/null 2>&1")
-        if testResult == 0 then
-            toast("Found curl at: " .. curlPath, 1)
-            local curlCmd = string.format(
-                '%s -X POST "%s" -H "Content-Type: application/json" -d \'%s\' -s -o %s 2>/dev/null',
-                curlPath, url, body, tmpFile
-            )
-
-            local result = os.execute(curlCmd)
-            local file = io.open(tmpFile, "r")
-            if file then
-                local response = file:read("*all")
-                file:close()
-                os.remove(tmpFile)
-                return response
-            end
-        end
+    if success4 then
+        print("openURL executed (may have opened browser)")
+        -- openURL typically doesn't return response, so we return nil
+    else
+        print("openURL failed:", response4)
     end
 
+    print("All HTTP methods failed")
     return nil
 end
 
 -- ライセンス検証（初回実行時は自動的に体験期間開始）
 function verifyLicense(deviceHash)
-    toast("デバイスハッシュ: " .. deviceHash, 2)
+    print("=== LICENSE VERIFICATION START ===")
+    print("Device Hash:", deviceHash)
 
-    -- For FFMZ3GTSJC6J, always use offline mode for testing
-    if deviceHash == "FFMZ3GTSJC6J" then
-        toast("登録済みデバイスを検出しました", 2)
-        -- Simulate trial activation for registered device
-        local trialEndTime = os.time() + (72 * 60 * 60) -- 72 hours from now
-        return {
-            is_valid = true,
-            status = "trial",
-            trial_ends_at = tostring(trialEndTime),
-            time_remaining_seconds = 259200, -- 72 hours
-            message = "Trial activated! Enjoy 3 days of free access"
-        }, nil
-    end
+    -- Try server authentication first for all devices
 
-    toast("サーバーでライセンス確認中...", 1)
+    print("Attempting online verification...")
 
     local url = API_BASE_URL .. "/license/verify"
     local body = '{"device_hash":"' .. deviceHash .. '"}'
+    print("API URL:", url)
+    print("Request body:", body)
 
     -- Try HTTP request
     local response = tryHttpRequest(url, body)
+    print("HTTP request completed, response:", tostring(response or "nil"))
 
     if not response then
+        print("HTTP request failed - no response received")
+        print("Authentication result: FAILURE (unregistered)")
         -- Return unregistered device mock response
         return {
             is_valid = false,
@@ -253,8 +373,8 @@ function verifyLicense(deviceHash)
         }, nil
     end
 
-    -- Debug: Show response content
-    toast("Response: " .. (response or "nil"), 3)
+    -- Debug: Show response content (logged only)
+    print("Response content: " .. (response or "nil"))
 
     if not response or response == "" then
         return nil, "サーバーからの応答がありません"
@@ -273,14 +393,31 @@ function verifyLicense(deviceHash)
     -- Parse JSON response
     local data = parseJSON(response)
     if not data then
+        print("JSON parsing failed for response")
         return nil, "レスポンス解析エラー"
     end
 
+    print("Server response parsed successfully")
+    print("Response status: " .. (data.status or "unknown"))
+    print("Response is_valid: " .. tostring(data.is_valid))
+
     -- サーバーが初回実行時に自動的に体験期間を開始
     if data.is_valid then
+        print("✅ Server authentication SUCCESS")
+        print("Server authentication SUCCESS")
+        if data.trial_ends_at then
+            print("Trial expires at:", data.trial_ends_at)
+            print("Trial expires at: " .. data.trial_ends_at)
+        end
+        if data.time_remaining_seconds then
+            print("Time remaining:", data.time_remaining_seconds, "seconds")
+            print("Time remaining: " .. data.time_remaining_seconds .. " seconds")
+        end
         saveCache(data)
         return data, nil
     else
+        print("❌ Server authentication FAILED:", (data.message or "ライセンス無効"))
+        print("Server authentication FAILED: " .. (data.message or "ライセンス無効"))
         return nil, data.message or "ライセンス無効"
     end
 end
@@ -350,48 +487,98 @@ end
 
 -- ツール選択メニュー表示
 function showToolMenu()
+    print("Showing tool selection menu")
     local result = dialog({
-        title = "MetaCube - ツール選択",
-        message = "使用するツールを選択してください",
+        title = "🛠️ MetaCube ツール選択",
+        message = "認証が完了しました。\n使用するツールを選択してください：",
         buttons = {
             "Timeline Tool",
             "Story Viewer",
             "Follow Manager",
             "DM Reply",
             "設定",
+            "ログ表示",
             "終了"
         }
     })
 
+    print("Dialog result: " .. tostring(result))
+
+    if not result then
+        -- User cancelled or dialog failed
+        print("Dialog cancelled or failed")
+        return false
+    end
+
     local choice = result - 1  -- Convert to 0-based index
+    print("Selected choice: " .. tostring(choice))
 
     if choice == 0 then
         -- Timeline Tool
-        toast("Timeline Tool を起動中...", 2)
-        dofile("/var/mobile/Library/AutoTouch/Scripts/timeline.lua")
+        print("User selected: Timeline Tool")
+        local success, err = pcall(function()
+            dofile("/var/mobile/Library/AutoTouch/Scripts/timeline.lua")
+        end)
+        if not success then
+            print("Timeline Tool execution failed: " .. tostring(err))
+            dialog({title = "エラー", message = "Timeline Tool の実行に失敗しました", buttons = {"OK"}})
+        end
     elseif choice == 1 then
         -- Story Viewer
-        toast("Story Viewer を起動中...", 2)
-        dofile("/var/mobile/Library/AutoTouch/Scripts/story.lua")
+        print("User selected: Story Viewer")
+        local success, err = pcall(function()
+            dofile("/var/mobile/Library/AutoTouch/Scripts/story.lua")
+        end)
+        if not success then
+            print("Story Viewer execution failed: " .. tostring(err))
+            dialog({title = "エラー", message = "Story Viewer の実行に失敗しました", buttons = {"OK"}})
+        end
     elseif choice == 2 then
         -- Follow Manager
-        toast("Follow Manager を起動中...", 2)
-        dofile("/var/mobile/Library/AutoTouch/Scripts/follow.lua")
+        print("User selected: Follow Manager")
+        local success, err = pcall(function()
+            dofile("/var/mobile/Library/AutoTouch/Scripts/follow.lua")
+        end)
+        if not success then
+            print("Follow Manager execution failed: " .. tostring(err))
+            dialog({title = "エラー", message = "Follow Manager の実行に失敗しました", buttons = {"OK"}})
+        end
     elseif choice == 3 then
         -- DM Auto Reply
-        toast("DM Auto Reply を起動中...", 2)
-        dofile("/var/mobile/Library/AutoTouch/Scripts/dm.lua")
+        print("User selected: DM Auto Reply")
+        local success, err = pcall(function()
+            dofile("/var/mobile/Library/AutoTouch/Scripts/dm.lua")
+        end)
+        if not success then
+            print("DM Auto Reply execution failed: " .. tostring(err))
+            dialog({title = "エラー", message = "DM Auto Reply の実行に失敗しました", buttons = {"OK"}})
+        end
     elseif choice == 4 then
         -- Settings
+        print("User selected: Settings")
         showSettingsMenu()
         return showToolMenu() -- 設定後にメニューに戻る
+    elseif choice == 5 then
+        -- Show Log
+        print("User selected: Show Log")
+        showLogMenu()
+        return showToolMenu() -- ログ表示後にメニューに戻る
     else
         -- Exit
-        toast("MetaCube を終了します", 1)
+        print("User selected: Exit - terminating MetaCube")
         return false
     end
 
     return true
+end
+
+-- ログ表示メニュー（簡易版）
+function showLogMenu()
+    dialog({
+        title = "📋 実行ログ",
+        message = "ログはAutoTouchのコンソール出力で\n確認してください。\n\nprint文で出力されたメッセージが\n表示されます。",
+        buttons = {"OK"}
+    })
 end
 
 -- 設定メニュー
@@ -428,29 +615,42 @@ end
 
 -- ライセンスチェック
 function checkLicense()
-    toast("MetaCube License Manager", 1)
+    print("🚀 MetaCube License Manager START")
+    print("=== MetaCube License Manager START ===")
+    print("Starting license check process...")
 
     -- デバイスハッシュ取得
     local deviceHash = getDeviceHash()
-    toast("デバイスハッシュ: " .. deviceHash, 1)
+    print("📱 Device hash obtained:", deviceHash)
+    print("Device hash obtained: " .. deviceHash)
 
     -- キャッシュチェック
     local cache = loadCache()
+    print("Cache check: " .. (cache and "found" or "not found"))
     if cache and cache.is_valid then
-        toast("キャッシュからライセンス確認", 1)
+        print("Valid cache found - using cached license data")
+        print("Cache status: " .. (cache.status or "unknown"))
 
         -- 有効期限チェック
         if cache.status == "trial" and cache.trial_ends_at then
             local trialEnd = tonumber(cache.trial_ends_at)
             if trialEnd and trialEnd > os.time() then
                 local remainingHours = math.floor((trialEnd - os.time()) / 3600)
-                toast("体験期間: 残り " .. remainingHours .. " 時間", 2)
+                print("Cache validation SUCCESS - Trial remaining: " .. remainingHours .. " hours")
+                print("=== LICENSE CHECK RESULT: SUCCESS (from cache) ===")
+                showToast("体験期間: 残り " .. remainingHours .. " 時間")
                 return true
+            else
+                print("Cache trial expired - proceeding to server verification")
             end
         elseif cache.status == "active" then
-            toast("ライセンス: 有効", 2)
+            print("Cache validation SUCCESS - Active license")
+            print("=== LICENSE CHECK RESULT: SUCCESS (from cache) ===")
+            showToast("ライセンス: 有効 (有料会員)")
             return true
         end
+    else
+        print("No valid cache found - proceeding to server verification")
     end
 
     -- サーバーで検証（初回実行時は自動的に体験期間開始）
@@ -483,18 +683,23 @@ function checkLicense()
 
     -- ライセンス有効
     if result.status == "trial" then
+        print("Server verification SUCCESS - Trial license")
         -- 初回アクティベーションメッセージ表示
         if result.message and string.find(result.message, "activated") then
+            print("First trial activation detected")
             showTrialActivatedMessage(result)
         else
             local remainingSeconds = result.time_remaining_seconds or 0
             local remainingHours = math.floor(remainingSeconds / 3600)
-            toast("体験期間: 残り " .. remainingHours .. " 時間", 2)
+            print("Trial ongoing - remaining: " .. remainingHours .. " hours")
+            showToast("体験期間: 残り " .. remainingHours .. " 時間")
         end
     elseif result.status == "active" then
-        toast("ライセンス: 有効 (有料会員)", 2)
+        print("Server verification SUCCESS - Active paid license")
+        showToast("ライセンス: 有効 (有料会員)")
     end
 
+    print("=== LICENSE CHECK RESULT: SUCCESS (from server) ===")
     return true
 end
 
@@ -504,9 +709,18 @@ end
 function main()
     -- ライセンスチェック
     if not checkLicense() then
-        toast("ライセンス認証に失敗しました", 2)
+        print("License check failed - main() exiting")
+        showToast("ライセンス認証に失敗しました")
         return
     end
+
+    print("License check SUCCESS - starting tool selection")
+    -- 認証成功を明確に表示
+    dialog({
+        title = "✅ 認証成功",
+        message = "ライセンス認証が完了しました。\n\n使用するツールを選択してください。",
+        buttons = {"ツール選択へ"}
+    })
 
     -- ツール選択メニュー表示
     while showToolMenu() do
