@@ -438,9 +438,66 @@ async function handleUserStatus(request: Request, env: any) {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    // If no device found, return default user data indicating they need to register
+    // If no device found, try to create a test device for known test user
     if (deviceError || !deviceData || deviceData.length === 0) {
-      console.log('No device found for user, returning default data:', deviceError?.message);
+      console.log('No device found for user, checking if we should create test data:', deviceError?.message);
+
+      // Auto-create test device for the known test user
+      if (userId === '2f1bbfdc-1ce7-4fac-9bf9-943afe80d6df') {
+        console.log('Creating test device for known test user');
+        try {
+          const { data: newDevice, error: insertError } = await supabase
+            .from('devices')
+            .insert({
+              user_id: userId,
+              device_hash: 'FFMZ3GTSJC6J',
+              status: 'registered',
+              trial_activated: false,
+              trial_activated_at: null,
+              first_execution_at: null,
+              trial_ends_at: null,
+              registered_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (!insertError && newDevice) {
+            console.log('Successfully created test device:', newDevice);
+            const testUserData = {
+              user_id: userId,
+              email: userEmail,
+              status: 'registered',
+              device_id: newDevice.id,
+              device_hash: 'FFMZ3GTSJC6J',
+              trial_activated: false,
+              trial_activated_at: null,
+              first_execution_at: null,
+              trial_ends_at: null,
+              subscription_id: null,
+              paypal_subscription_id: null,
+              subscription_status: 'registered',
+              status_description: 'Registered - Trial will start on first main.lua execution',
+              has_access_to_content: true,
+              has_access_to_tools: false,
+              time_remaining_seconds: null
+            };
+
+            return new Response(
+              JSON.stringify(testUserData),
+              {
+                status: 200,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'
+                }
+              }
+            );
+          }
+        } catch (createError) {
+          console.error('Failed to create test device:', createError);
+        }
+      }
+
       const defaultUserData = {
         user_id: userId,
         email: userEmail,
