@@ -395,6 +395,7 @@ async function handleUserStatus(request: Request, env: any) {
     const supabase = getSupabaseClient(env);
     const url = new URL(request.url);
     const userId = url.searchParams.get('user_id');
+    const deviceHash = url.searchParams.get('device_hash'); // Optional parameter for device creation
 
     if (!userId) {
       return new Response(
@@ -442,15 +443,15 @@ async function handleUserStatus(request: Request, env: any) {
     if (deviceError || !deviceData || deviceData.length === 0) {
       console.log('No device found for user, checking if we should create test data:', deviceError?.message);
 
-      // Auto-create test device for the known test user
-      if (userId === '2f1bbfdc-1ce7-4fac-9bf9-943afe80d6df') {
-        console.log('Creating test device for known test user');
+      // Auto-create test device for the known test user if device_hash is provided
+      if (userId === '2f1bbfdc-1ce7-4fac-9bf9-943afe80d6df' && deviceHash) {
+        console.log('Creating test device for known test user with device hash:', deviceHash);
         try {
           const { data: newDevice, error: insertError } = await supabase
             .from('devices')
             .insert({
               user_id: userId,
-              device_hash: 'FFMZ3GTSJC6J',
+              device_hash: deviceHash,
               status: 'registered',
               trial_activated: false,
               trial_activated_at: null,
@@ -468,7 +469,7 @@ async function handleUserStatus(request: Request, env: any) {
               email: userEmail,
               status: 'registered',
               device_id: newDevice.id,
-              device_hash: 'FFMZ3GTSJC6J',
+              device_hash: deviceHash,
               trial_activated: false,
               trial_activated_at: null,
               first_execution_at: null,
