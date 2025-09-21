@@ -1,16 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,14 +57,17 @@ export default function LoginPage() {
     }
   }
 
-  // URLパラメータからデバイスハッシュを取得
+  // URLパラメータからデバイスハッシュを取得（クライアントサイドで直接）
   useEffect(() => {
-    const device = searchParams.get('device')
-    if (device && !autoLoginAttempted) {
-      setDeviceHash(device)
-      attemptDeviceLogin(device)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const device = urlParams.get('device')
+      if (device && !autoLoginAttempted) {
+        setDeviceHash(device)
+        attemptDeviceLogin(device)
+      }
     }
-  }, [searchParams, autoLoginAttempted])
+  }, [autoLoginAttempted])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -271,5 +273,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
