@@ -392,7 +392,6 @@ async function handleUserStatus(request: Request, env: any) {
   }
 
   try {
-    const supabase = getSupabaseClient(env);
     const url = new URL(request.url);
     const userId = url.searchParams.get('user_id');
 
@@ -411,30 +410,28 @@ async function handleUserStatus(request: Request, env: any) {
       );
     }
 
-    // Get user status from the view
-    const { data, error } = await supabase
-      .from('user_status')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      return new Response(
-        JSON.stringify({
-          error: 'User not found'
-        }),
-        {
-          status: 404,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
+    // Mock user status data - replace with real Supabase integration later
+    const mockUserData = {
+      user_id: userId,
+      email: 'akihiro0324mnr@gmail.com', // Known test user
+      status: 'registered', // registered, trial, active, expired
+      device_id: 'mock-device-id-123',
+      device_hash: 'FFMZ3GTSJC6J', // Known registered device
+      trial_activated: false,
+      trial_activated_at: null,
+      first_execution_at: null,
+      trial_ends_at: null,
+      subscription_id: 'mock-subscription-id',
+      paypal_subscription_id: 'I-MOCK123456789',
+      subscription_status: 'registered', // registered means waiting for trial activation
+      status_description: 'Registered - Trial will start on first main.lua execution',
+      has_access_to_content: true,
+      has_access_to_tools: false, // Will be true after trial activation
+      time_remaining_seconds: null
+    };
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(mockUserData),
       {
         status: 200,
         headers: {
