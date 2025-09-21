@@ -133,12 +133,12 @@ function LoginForm() {
               ログイン
             </h1>
             <p className="text-gray-600">
-              {deviceHash && !autoLoginAttempted
+              {!!deviceHash && !autoLoginAttempted
                 ? 'デバイスハッシュによる自動ログイン中...'
                 : 'アカウントにログインして続行'
               }
             </p>
-            {deviceHash && (
+            {!!deviceHash && (
               <div className="mt-2 text-sm text-blue-600">
                 デバイス: {deviceHash}
               </div>
@@ -166,7 +166,7 @@ function LoginForm() {
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
                     placeholder="email@example.com"
                     required
-                    disabled={loading || (deviceHash && !autoLoginAttempted)}
+                    disabled={loading || (!!deviceHash && !autoLoginAttempted)}
                   />
                 </div>
 
@@ -182,7 +182,7 @@ function LoginForm() {
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
                     placeholder="••••••••"
                     required
-                    disabled={loading || (deviceHash && !autoLoginAttempted)}
+                    disabled={loading || (!!deviceHash && !autoLoginAttempted)}
                   />
                 </div>
 
@@ -204,10 +204,10 @@ function LoginForm() {
                   className="bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg transition-all"
                   size="lg"
                   fullWidth
-                  loading={loading || (deviceHash && !autoLoginAttempted)}
+                  loading={loading || (!!deviceHash && !autoLoginAttempted)}
                 >
-                  {loading || (deviceHash && !autoLoginAttempted)
-                    ? (deviceHash && !autoLoginAttempted ? 'デバイス認証中...' : 'ログイン中...')
+                  {loading || (!!deviceHash && !autoLoginAttempted)
+                    ? (!!deviceHash && !autoLoginAttempted ? 'デバイス認証中...' : 'ログイン中...')
                     : 'ログイン'
                   }
                 </Button>
