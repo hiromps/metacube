@@ -15,6 +15,7 @@ export interface UserProfile {
   status: UserStatus;
   deviceId?: string;
   deviceHash?: string;
+  trialActivated?: boolean;
   trialActivatedAt?: string;
   firstExecutionAt?: string;
   trialEndsAt?: string;
