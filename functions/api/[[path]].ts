@@ -5,7 +5,10 @@ function getSupabaseClient(env: any) {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY
 
+  console.log('Environment check - URL exists:', !!supabaseUrl, 'Key exists:', !!supabaseServiceKey);
+
   if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase config - URL:', !!supabaseUrl, 'Key:', !!supabaseServiceKey);
     throw new Error('Missing Supabase configuration')
   }
 
@@ -22,6 +25,8 @@ export async function onRequest(context: any) {
   const { request, params, env } = context;
   const path = params.path ? params.path.join('/') : '';
 
+  console.log('API Request - Path:', path, 'URL:', request.url, 'Method:', request.method);
+
   // Route to specific handlers based on path
   if (path === 'license/verify') {
     return handleLicenseVerify(request, env);
@@ -34,6 +39,7 @@ export async function onRequest(context: any) {
   } else if (path === 'device/activate') {
     return handleDeviceActivate(request, env);
   } else if (path === 'user/status') {
+    console.log('Routing to handleUserStatus');
     return handleUserStatus(request, env);
   } else if (path === 'content/access') {
     return handleContentAccess(request, env);
@@ -392,12 +398,17 @@ async function handleUserStatus(request: Request, env: any) {
   }
 
   try {
+    console.log('handleUserStatus called with URL:', request.url);
+
     const supabase = getSupabaseClient(env);
     const url = new URL(request.url);
     const userId = url.searchParams.get('user_id');
     const deviceHash = url.searchParams.get('device_hash'); // Optional parameter for device creation
 
+    console.log('Parsed parameters - userId:', userId, 'deviceHash:', deviceHash);
+
     if (!userId) {
+      console.log('Missing userId, returning 400');
       return new Response(
         JSON.stringify({
           error: 'User ID is required'
@@ -601,10 +612,12 @@ async function handleUserStatus(request: Request, env: any) {
     );
   } catch (error) {
     console.error('Error in handleUserStatus:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return new Response(
       JSON.stringify({
         error: 'Failed to get user status',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        url: request.url
       }),
       {
         status: 500,
