@@ -459,8 +459,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Dashboard Content for Trial/Active Status */}
-        {(userProfile.status === UserStatus.TRIAL || userProfile.status === UserStatus.ACTIVE) && (
+        {/* Dashboard Content for Registered/Trial/Active Status */}
+        {(userProfile.status === UserStatus.REGISTERED || userProfile.status === UserStatus.TRIAL || userProfile.status === UserStatus.ACTIVE) && (
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -468,16 +468,20 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-600">ライセンス状態</p>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                    userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' :
+                    userProfile.status === UserStatus.ACTIVE ? 'bg-green-100 text-green-700' :
+                    'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {userProfile.status === UserStatus.TRIAL ? '体験版' : '有効'}
+                    {userProfile.status === UserStatus.TRIAL ? '体験版' :
+                     userProfile.status === UserStatus.ACTIVE ? '有効' : '登録済み'}
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
                   {userProfile.hasAccessToTools ? '✅ 有効' : '❌ 無効'}
                 </div>
                 <p className="text-sm text-gray-600">
-                  期限: {userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt ? formatDate(userProfile.trialEndsAt) : '無制限'}
+                  期限: {userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt ? formatDate(userProfile.trialEndsAt) :
+                         userProfile.status === UserStatus.REGISTERED ? '未アクティベート' : '無制限'}
                 </p>
               </div>
 
