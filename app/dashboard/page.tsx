@@ -554,6 +554,73 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Main.lua Script Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">📜 main.lua スクリプト情報</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">設定済みデバイスハッシュ</p>
+                    <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
+                      {userProfile.deviceHash || '未設定'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">初回実行日時</p>
+                    <p className="text-gray-800">
+                      {userProfile.firstExecutionAt ? formatDate(userProfile.firstExecutionAt) : '未実行'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">デバイス登録日時</p>
+                    <p className="text-gray-800">
+                      {formatDate(new Date().toISOString())}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">スクリプト実行状態</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded text-sm font-medium ${
+                        userProfile.firstExecutionAt ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {userProfile.firstExecutionAt ? '✅ 実行済み' : '⏳ 未実行'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Trial開始状態</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded text-sm font-medium ${
+                        userProfile.trialActivated ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {userProfile.trialActivated ? '🎯 開始済み' : '📦 未開始'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">利用可能ツール</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded text-sm font-medium ${
+                        userProfile.hasAccessToTools ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {userProfile.hasAccessToTools ? '🛠️ 全ツール利用可能' : '🚫 ツール利用不可'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!userProfile.trialActivated && (
+                <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>💡 次のステップ:</strong> AutoTouchでmain.luaを実行すると、3日間の体験期間が自動的に開始されます。
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Device Management */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-2">デバイス管理</h3>

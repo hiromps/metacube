@@ -443,9 +443,9 @@ async function handleUserStatus(request: Request, env: any) {
     if (deviceError || !deviceData || deviceData.length === 0) {
       console.log('No device found for user, checking if we should create test data:', deviceError?.message);
 
-      // Auto-create test device for the known test user if device_hash is provided
-      if (userId === '2f1bbfdc-1ce7-4fac-9bf9-943afe80d6df' && deviceHash) {
-        console.log('Creating test device for known test user with device hash:', deviceHash);
+      // Only auto-create test device if device_hash is explicitly provided
+      if (deviceHash) {
+        console.log('Creating device for user with provided device hash:', deviceHash);
         try {
           const { data: newDevice, error: insertError } = await supabase
             .from('devices')
@@ -463,7 +463,7 @@ async function handleUserStatus(request: Request, env: any) {
             .single();
 
           if (!insertError && newDevice) {
-            console.log('Successfully created test device:', newDevice);
+            console.log('Successfully created device:', newDevice);
             const testUserData = {
               user_id: userId,
               email: userEmail,
@@ -495,7 +495,7 @@ async function handleUserStatus(request: Request, env: any) {
             );
           }
         } catch (createError) {
-          console.error('Failed to create test device:', createError);
+          console.error('Failed to create device:', createError);
         }
       }
 
