@@ -41,6 +41,12 @@ export async function onRequest(context: any) {
   } else if (path === 'user/status') {
     console.log('Routing to handleUserStatus');
     return handleUserStatus(request, env);
+  } else if (path === 'user/dashboard') {
+    return handleUserDashboard(request, env);
+  } else if (path === 'admin/update-device') {
+    return handleAdminUpdateDevice(request, env);
+  } else if (path === 'admin/create-test-data') {
+    return handleAdminCreateTestData(request, env);
   } else if (path === 'content/access') {
     return handleContentAccess(request, env);
   } else if (path === 'paypal/success') {
@@ -115,63 +121,34 @@ async function handleLicenseVerify(request: Request, env: any) {
       );
     }
 
-    // TODO: Implement Supabase integration here
-    // For MVP, simulate license check with mock data
-    const mockDevices: { [key: string]: any } = {
-      // 従来のテスト用デバイス
-      'DEMO-DEVICE-001': {
-        status: 'active',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      },
-      'DEMO-DEVICE-002': {
-        status: 'trial',
-        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days trial
-      },
-      'DEMO-DEVICE-003': {
-        status: 'expired',
-        expires_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() // Expired yesterday
-      },
+    // Get device from Supabase
+    const supabase = getSupabaseClient(env);
 
-      // iPhone 7/8のシリアル番号サンプル（実際のパターンに基づく）
-      'F2LXJ7XXHG7F': {
-        status: 'active',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        device_model: 'iPhone 7',
-        registered_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      'FMRY2J9KHFLL': {
-        status: 'trial',
-        expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        device_model: 'iPhone 8',
-        registered_at: new Date().toISOString()
-      },
-      'D4HJMQLNHFM4': {
-        status: 'expired',
-        expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        device_model: 'iPhone 7 Plus',
-        registered_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      },
+    // First, try to get device from database
+    const { data: deviceData, error: deviceError } = await supabase
+      .from('devices')
+      .select('*, users(*), subscriptions(*)')
+      .eq('device_hash', device_hash)
+      .single();
 
-      // User requested device registration: akihiro0324mnr@gmail.com
-      'FFMZ3GTSJC6J': {
-        status: 'registered',
-        expires_at: null,
-        device_model: 'iPhone 7/8',
-        registered_at: new Date().toISOString(),
-        trial_activated: false,
-        email: 'akihiro0324mnr@gmail.com'
-      },
+    if (deviceError && deviceError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Database error:', deviceError);
+      return new Response(
+        JSON.stringify({
+          is_valid: false,
+          error: 'Database error occurred'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
 
-      // UUIDベースのフォールバック用
-      'UUID_A1B2C3D4E5F6': {
-        status: 'trial',
-        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        device_model: 'iPhone Unknown',
-        registered_at: new Date().toISOString()
-      }
-    };
-
-    const device = mockDevices[device_hash];
+    const device = deviceData;
 
     if (!device) {
       return new Response(
@@ -194,29 +171,55 @@ async function handleLicenseVerify(request: Request, env: any) {
     }
 
     // Handle 'registered' status - trial activation on first run
-    if (device.status === 'registered' && !device.trial_activated) {
+    if (device && device.status === 'registered' && !device.trial_activated) {
       // Activate trial on first execution
       const trialEndTime = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 72 hours from now
-      device.status = 'trial';
-      device.expires_at = trialEndTime.toISOString();
-      device.trial_activated = true;
-      device.trial_activated_at = new Date().toISOString();
-      device.first_execution_at = new Date().toISOString();
+
+      // Update device in database
+      const { data: updatedDevice, error: updateError } = await supabase
+        .from('devices')
+        .update({
+          status: 'trial',
+          trial_ends_at: trialEndTime.toISOString(),
+          trial_activated: true,
+          trial_activated_at: new Date().toISOString(),
+          first_execution_at: new Date().toISOString()
+        })
+        .eq('device_hash', device_hash)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Failed to activate trial:', updateError);
+        return new Response(
+          JSON.stringify({
+            is_valid: false,
+            error: 'Failed to activate trial'
+          }),
+          {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      }
 
       return new Response(
         JSON.stringify({
           is_valid: true,
           status: 'trial',
           license_type: 'TRIAL', // AutoTouchスタイル
-          expires_at: device.expires_at,
-          trial_ends_at: device.expires_at,
+          expires_at: trialEndTime.toISOString(),
+          trial_ends_at: trialEndTime.toISOString(),
           time_remaining_seconds: 3 * 24 * 60 * 60, // 72 hours in seconds
           device_hash: device_hash,
-          device_model: device.device_model || 'iPhone 7/8',
-          registered_at: device.registered_at,
+          device_model: 'iPhone 7/8',
+          registered_at: device.created_at,
           message: 'Trial activated! Enjoy 3 days of free access',
-          trial_activated_at: device.trial_activated_at,
-          first_execution_at: device.first_execution_at
+          trial_activated_at: new Date().toISOString(),
+          first_execution_at: new Date().toISOString()
         }),
         {
           status: 200,
@@ -228,28 +231,58 @@ async function handleLicenseVerify(request: Request, env: any) {
       );
     }
 
-    const isExpired = device.expires_at ? new Date(device.expires_at) < new Date() : false;
+    // Check if device exists but return appropriate response based on status
+    if (!device) {
+      return new Response(
+        JSON.stringify({
+          is_valid: false,
+          status: 'unregistered',
+          license_type: null,
+          error: 'Device not registered',
+          message: 'Please register your device first',
+          registration_url: 'https://metacube-el5.pages.dev/register'
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Use trial_ends_at for trial expiration check
+    const expiresAt = device.trial_ends_at || device.expires_at;
+    const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false;
     const isValid = device.status === 'active' || (device.status === 'trial' && !isExpired);
 
     // Calculate time remaining for trial users
     let timeRemainingSeconds = 0;
-    if (device.status === 'trial' && device.expires_at) {
-      const timeRemaining = new Date(device.expires_at).getTime() - new Date().getTime();
+    if (device.status === 'trial' && device.trial_ends_at) {
+      const timeRemaining = new Date(device.trial_ends_at).getTime() - new Date().getTime();
       timeRemainingSeconds = Math.max(0, Math.floor(timeRemaining / 1000));
     }
+
+    // Check if device has active subscription
+    const hasActiveSubscription = device.subscriptions &&
+      device.subscriptions.some((sub: any) => sub.status === 'active');
 
     return new Response(
       JSON.stringify({
         is_valid: isValid,
         status: device.status,
-        license_type: device.status === 'trial' ? 'TRIAL' : (device.status === 'active' ? 'PRO' : null), // AutoTouchスタイル
-        expires_at: device.expires_at,
-        trial_ends_at: device.status === 'trial' ? device.expires_at : null,
+        license_type: device.status === 'trial' ? 'TRIAL' : (device.status === 'active' || hasActiveSubscription ? 'PRO' : null),
+        expires_at: expiresAt,
+        trial_ends_at: device.trial_ends_at,
         time_remaining_seconds: timeRemainingSeconds,
         device_hash: device_hash,
-        device_model: device.device_model || 'iPhone',
-        registered_at: device.registered_at,
-        message: isValid ? 'License is valid' : (device.status === 'registered' ? 'Device registered - Trial will start on first execution' : 'License has expired')
+        device_model: 'iPhone 7/8',
+        registered_at: device.created_at,
+        message: isValid ? 'License is valid' : (device.status === 'registered' ? 'Device registered - Trial will start on first execution' : 'License has expired'),
+        trial_activated: device.trial_activated,
+        trial_activated_at: device.trial_activated_at,
+        first_execution_at: device.first_execution_at
       }),
       {
         status: 200,
@@ -359,6 +392,159 @@ async function handleDeviceActivate(request: Request, env: any) {
       JSON.stringify({
         success: false,
         error: 'Activation failed'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// User dashboard data handler
+async function handleUserDashboard(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('user_id');
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          error: 'User ID is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Get user info from auth
+    const { data: userAuth, error: authError } = await supabase.auth.admin.getUserById(userId);
+
+    if (authError || !userAuth.user) {
+      console.warn('User not found in auth:', authError?.message);
+    }
+
+    // Get user's device and subscription data
+    const { data: devices, error: deviceError } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        device_hash,
+        status,
+        trial_ends_at,
+        created_at,
+        subscriptions (
+          id,
+          paypal_subscription_id,
+          status,
+          created_at
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (deviceError) {
+      console.error('Error fetching devices:', deviceError);
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to fetch user data'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const device = devices && devices.length > 0 ? devices[0] : null;
+    const subscription = device?.subscriptions && device.subscriptions.length > 0 ? device.subscriptions[0] : null;
+
+    // Calculate trial status
+    let trialDaysRemaining = null;
+    let isTrialActive = false;
+    if (device && device.trial_ends_at) {
+      const trialEndDate = new Date(device.trial_ends_at);
+      const now = new Date();
+      const diffTime = trialEndDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        trialDaysRemaining = diffDays;
+        isTrialActive = true;
+      }
+    }
+
+    const isSubscriptionActive = subscription?.status === 'active';
+
+    return new Response(
+      JSON.stringify({
+        email: userAuth?.user?.email || 'unknown@example.com',
+        device: device ? {
+          id: device.id,
+          device_hash: device.device_hash,
+          status: device.status,
+          trial_ends_at: device.trial_ends_at,
+          created_at: device.created_at
+        } : null,
+        subscription: subscription ? {
+          id: subscription.id,
+          paypal_subscription_id: subscription.paypal_subscription_id,
+          status: subscription.status,
+          created_at: subscription.created_at
+        } : null,
+        trialDaysRemaining,
+        isTrialActive,
+        isSubscriptionActive
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Error in handleUserDashboard:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to get dashboard data'
       }),
       {
         status: 500,
@@ -1387,4 +1573,321 @@ async function handlePayPalWebhook(request: Request, env: any) {
       }
     }
   );
+}// Admin API functions to append to functions/api/[[path]].ts
+
+// Admin: Update device hash handler
+async function handleAdminUpdateDevice(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const body = await request.json();
+    const { user_id, new_device_hash, admin_key } = body;
+
+    // Simple admin authentication
+    if (admin_key !== 'metacube-admin-2024') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid admin key'
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!user_id || !new_device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'User ID and new device hash are required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Update device hash in database
+    const { data, error } = await supabase
+      .from('devices')
+      .update({
+        device_hash: new_device_hash,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating device hash:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to update device hash: ' + error.message
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Device hash updated successfully',
+        data: {
+          device_hash: new_device_hash,
+          updated_at: new Date().toISOString()
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Admin update device error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Internal server error'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Admin: Create test data handler
+async function handleAdminCreateTestData(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const supabase = getSupabaseClient(env);
+    const body = await request.json();
+    const { device_hash, email, trial_days, admin_key } = body;
+
+    // Simple admin authentication
+    if (admin_key !== 'metacube-admin-2024') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid admin key'
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!device_hash || !email) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash and email are required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Create or get user
+    const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: 'test-password-' + Math.random().toString(36).substring(7),
+      email_confirm: true
+    });
+
+    if (userError && !userError.message.includes('already been registered')) {
+      console.error('Error creating user:', userError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to create user: ' + userError.message
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    let userId = userData?.user?.id;
+
+    // If user already exists, get the user ID
+    if (!userId) {
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      const existingUser = authUsers.users.find(user => user.email === email);
+      if (existingUser) {
+        userId = existingUser.id;
+      }
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to get user ID'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Calculate trial end date
+    const trialDaysNum = parseInt(trial_days) || 3;
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + trialDaysNum);
+
+    // Create or update device
+    const { data: deviceData, error: deviceError } = await supabase
+      .from('devices')
+      .upsert({
+        user_id: userId,
+        device_hash: device_hash,
+        status: 'trial',
+        trial_ends_at: trialEndDate.toISOString(),
+        created_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      })
+      .select()
+      .single();
+
+    if (deviceError) {
+      console.error('Error creating/updating device:', deviceError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to create device: ' + deviceError.message
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Test data created successfully',
+        data: {
+          user_id: userId,
+          email: email,
+          device_hash: device_hash,
+          trial_ends_at: trialEndDate.toISOString(),
+          trial_days: trialDaysNum
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Admin create test data error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
 }
