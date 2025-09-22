@@ -127,16 +127,24 @@ async function handleLicenseVerify(request: Request, env: any) {
     // First, try to get device from database
     const { data: deviceData, error: deviceError } = await supabase
       .from('devices')
-      .select('*, users(*), subscriptions(*)')
+      .select('*')
       .eq('device_hash', device_hash)
       .single();
 
     if (deviceError && deviceError.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('Database error:', deviceError);
+      console.error('Error details:', {
+        message: deviceError.message,
+        code: deviceError.code,
+        details: deviceError.details,
+        hint: deviceError.hint
+      });
       return new Response(
         JSON.stringify({
           is_valid: false,
-          error: 'Database error occurred'
+          error: 'Database error occurred',
+          details: deviceError.message,
+          code: deviceError.code
         }),
         {
           status: 500,
@@ -264,9 +272,16 @@ async function handleLicenseVerify(request: Request, env: any) {
       timeRemainingSeconds = Math.max(0, Math.floor(timeRemaining / 1000));
     }
 
-    // Check if device has active subscription
-    const hasActiveSubscription = device.subscriptions &&
-      device.subscriptions.some((sub: any) => sub.status === 'active');
+    // Check if device has active subscription (need separate query since we removed join)
+    let hasActiveSubscription = false;
+    if (device) {
+      const { data: subscriptions } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('device_id', device.id);
+
+      hasActiveSubscription = subscriptions?.some((sub: any) => sub.status === 'active') || false;
+    }
 
     return new Response(
       JSON.stringify({
