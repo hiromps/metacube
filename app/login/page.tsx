@@ -16,6 +16,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [deviceHash, setDeviceHash] = useState<string | null>(null)
   const [autoLoginAttempted, setAutoLoginAttempted] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   // デバイスハッシュによる自動ログイン試行
   const attemptDeviceLogin = async (deviceHash: string) => {
@@ -78,7 +79,7 @@ function LoginForm() {
 
     try {
       console.log('📡 サインイン実行中...')
-      const result = await signIn(email, password)
+      const result = await signIn(email, password, rememberMe)
       console.log('✅ サインイン成功:', result)
 
       console.log('🔄 ダッシュボードへリダイレクト中...')
@@ -103,21 +104,32 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <svg className="absolute inset-0 w-full h-full">
+          <pattern id="loginGrid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+            <circle cx="25" cy="25" r="1" fill="#3b82f6" />
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#loginGrid)" />
+        </svg>
+      </div>
+
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-100">
+      <nav className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/">
               <div className="flex items-center space-x-2">
-                <span className="text-2xl font-bold text-blue-600">
-                  MetaCube
+                <span className="text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SMART</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GRAM</span>
                 </span>
-                <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="sm">v2.0</Badge>
+                <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30" size="sm">v2.0</Badge>
               </div>
             </Link>
             <Link href="/register">
-              <Button className="bg-blue-500 text-white hover:bg-blue-600" size="md">
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20" size="md">
                 新規登録
               </Button>
             </Link>
@@ -126,36 +138,36 @@ function LoginForm() {
       </nav>
 
       {/* Login Form */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-73px)]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-73px)] relative z-10">
         <div className="w-full max-w-md px-4 py-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              ログイン
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
+              SMARTGRAMにログイン
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-300">
               {!!deviceHash && !autoLoginAttempted
                 ? 'デバイスハッシュによる自動ログイン中...'
-                : 'アカウントにログインして続行'
+                : 'Instagram自動化を開始'
               }
             </p>
             {!!deviceHash && (
-              <div className="mt-2 text-sm text-blue-600">
+              <div className="mt-2 text-sm text-blue-400">
                 デバイス: {deviceHash}
               </div>
             )}
           </div>
 
-          <Card className="bg-white shadow-lg border border-gray-100">
+          <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20">
             <CardContent className="p-6">
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg text-sm">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
                     メールアドレス
                   </label>
                   <input
@@ -163,7 +175,7 @@ function LoginForm() {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
+                    className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition"
                     placeholder="email@example.com"
                     required
                     disabled={loading || (!!deviceHash && !autoLoginAttempted)}
@@ -171,7 +183,7 @@ function LoginForm() {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
                     パスワード
                   </label>
                   <input
@@ -179,7 +191,7 @@ function LoginForm() {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
+                    className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition"
                     placeholder="••••••••"
                     required
                     disabled={loading || (!!deviceHash && !autoLoginAttempted)}
@@ -190,25 +202,27 @@ function LoginForm() {
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 bg-white border-gray-300 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 bg-white/10 border-white/20 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
                     />
-                    <span className="ml-2 text-sm text-gray-600">ログイン状態を保持</span>
+                    <span className="ml-2 text-sm text-gray-300">ログイン状態を保持</span>
                   </label>
-                  <a href="#" className="text-sm text-blue-600 hover:text-blue-700 transition">
+                  <a href="#" className="text-sm text-blue-400 hover:text-blue-300 transition">
                     パスワードを忘れた？
                   </a>
                 </div>
 
                 <Button
                   type="submit"
-                  className="bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg transition-all"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all"
                   size="lg"
                   fullWidth
                   loading={loading || (!!deviceHash && !autoLoginAttempted)}
                 >
                   {loading || (!!deviceHash && !autoLoginAttempted)
                     ? (!!deviceHash && !autoLoginAttempted ? 'デバイス認証中...' : 'ログイン中...')
-                    : 'ログイン'
+                    : '🚀 SMARTGRAMを開始'
                   }
                 </Button>
               </form>
@@ -216,16 +230,16 @@ function LoginForm() {
               <div className="mt-6">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200"></div>
+                    <div className="w-full border-t border-white/20"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">または</span>
+                    <span className="px-2 bg-white/10 text-gray-300">または</span>
                   </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-3">
                   <Button
-                    className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur-sm"
                     size="md"
                     fullWidth
                   >
@@ -238,7 +252,7 @@ function LoginForm() {
                     Google
                   </Button>
                   <Button
-                    className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur-sm"
                     size="md"
                     fullWidth
                   >
@@ -250,10 +264,10 @@ function LoginForm() {
                 </div>
               </div>
 
-              <div className="mt-8 text-center border-t border-gray-100 pt-6">
-                <p className="text-sm text-gray-600">
+              <div className="mt-8 text-center border-t border-white/20 pt-6">
+                <p className="text-sm text-gray-300">
                   アカウントをお持ちでない方は{' '}
-                  <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium transition">
+                  <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition">
                     新規登録
                   </Link>
                 </p>
@@ -262,11 +276,11 @@ function LoginForm() {
           </Card>
 
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               ログインすることで、
-              <a href="#" className="text-blue-600 hover:underline">利用規約</a>
+              <Link href="/terms" className="text-blue-400 hover:underline">利用規約</Link>
               と
-              <a href="#" className="text-blue-600 hover:underline">プライバシーポリシー</a>
+              <Link href="/privacy" className="text-blue-400 hover:underline">プライバシーポリシー</Link>
               に同意したものとみなされます
             </p>
           </div>
@@ -278,7 +292,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center text-white">Loading...</div>}>
       <LoginForm />
     </Suspense>
   )
