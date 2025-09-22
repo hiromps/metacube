@@ -1,19 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseConfig } from './config'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || supabaseConfig.url
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || supabaseConfig.anonKey
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseConfig.serviceRoleKey
+// For static export, prioritize hardcoded config over environment variables
+// This ensures the app works on Cloudflare Pages without needing environment variables
+const supabaseUrl = supabaseConfig.url || process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = supabaseConfig.anonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseServiceRoleKey = supabaseConfig.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Debug environment variables
 if (typeof window !== 'undefined') {
   console.log('Supabase URL:', supabaseUrl)
   console.log('Supabase Anon Key exists:', !!supabaseAnonKey)
-  console.log('Using fallback config:', !process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('Config source:', supabaseConfig.url ? 'config.ts' : 'environment variables')
 }
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
+  console.error('Missing Supabase configuration')
+  throw new Error('Missing Supabase configuration. Please check config.ts or environment variables.')
 }
 
 // Client for browser/frontend
