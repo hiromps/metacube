@@ -180,49 +180,49 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // 自動いいねとスクロールアニメーション
-    const sequence = [
-      // 1番目の投稿
-      { delay: 2000, action: 'like', postIndex: 0 },
-      { delay: 4000, action: 'scroll', postIndex: 1 },
-      // 2番目の投稿
-      { delay: 6000, action: 'like', postIndex: 1 },
-      { delay: 8000, action: 'scroll', postIndex: 2 },
-      // 3番目の投稿
-      { delay: 10000, action: 'like', postIndex: 2 },
-      // 最初に戻る
-      { delay: 13000, action: 'reset', postIndex: 0 }
-    ];
+    const runAnimation = () => {
+      const sequence = [
+        // 1番目の投稿
+        { delay: 2000, action: 'like', postIndex: 0 },
+        { delay: 4000, action: 'scroll', postIndex: 1 },
+        // 2番目の投稿
+        { delay: 6000, action: 'like', postIndex: 1 },
+        { delay: 8000, action: 'scroll', postIndex: 2 },
+        // 3番目の投稿
+        { delay: 10000, action: 'like', postIndex: 2 },
+        // 最初に戻る
+        { delay: 13000, action: 'reset', postIndex: 0 }
+      ];
 
-    const timers = sequence.map(({ delay, action, postIndex }) => {
-      return setTimeout(() => {
-        if (action === 'like') {
-          setIsLiked(prev => {
-            if (!prev.includes(postIndex)) {
-              return [...prev, postIndex];
-            }
-            return prev;
-          });
-        } else if (action === 'scroll') {
-          setCurrentPost(postIndex);
-          setScrollPosition(-400 * postIndex);
-        } else if (action === 'reset') {
-          setIsLiked([]);
-          setCurrentPost(0);
-          setScrollPosition(0);
-        }
-      }, delay);
-    });
+      const timers = sequence.map(({ delay, action, postIndex }) => {
+        return setTimeout(() => {
+          if (action === 'like') {
+            setIsLiked(prev => {
+              if (!prev.includes(postIndex)) {
+                return [...prev, postIndex];
+              }
+              return prev;
+            });
+          } else if (action === 'scroll') {
+            setCurrentPost(postIndex);
+            setScrollPosition(-400 * postIndex);
+          } else if (action === 'reset') {
+            setIsLiked([]);
+            setCurrentPost(0);
+            setScrollPosition(0);
+            // 2秒後に次のサイクルを開始
+            setTimeout(() => runAnimation(), 2000);
+          }
+        }, delay);
+      });
 
-    // 繰り返しのタイマー
-    const repeatTimer = setTimeout(() => {
-      // リセット後に再度開始
-      window.location.reload();
-    }, 15000);
+      return timers;
+    };
+
+    const initialTimers = runAnimation();
 
     return () => {
-      timers.forEach(timer => clearTimeout(timer));
-      clearTimeout(repeatTimer);
+      initialTimers.forEach(timer => clearTimeout(timer));
     };
   }, []);
 
