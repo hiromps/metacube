@@ -226,10 +226,10 @@ export default function DashboardPage() {
 
   if (dataError || !userData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="bg-white rounded-lg shadow-lg max-w-md p-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-black">
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl max-w-md p-8">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || dataError || 'データが見つかりません'}</p>
+            <p className="text-red-400 mb-4">{error || dataError || 'データが見つかりません'}</p>
             <Link href="/login">
               <Button variant="gradient" size="md">
                 ログインページへ
@@ -242,25 +242,27 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             <Link href="/">
-              <h1 className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                MetaCube
-              </h1>
+              <div className="flex items-center gap-3">
+                <div className="text-2xl font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                  SMARTGRAM
+                </div>
+              </div>
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/guides">
-                <button className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                <button className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all border border-white/10">
                   📚 ガイド
                 </button>
               </Link>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all border border-white/10"
               >
                 🚪 ログアウト
               </button>
@@ -270,13 +272,13 @@ export default function DashboardPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-50 to-white py-8 sm:py-12">
+      <section className="bg-gradient-to-br from-black/50 via-blue-900/20 to-purple-900/20 py-8 sm:py-12">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-cyan-100 bg-clip-text text-transparent mb-2">
               ダッシュボード
             </h1>
-            <p className="text-gray-600 text-sm sm:text-base">
+            <p className="text-white/60 text-sm sm:text-base">
               アカウントステータスとライセンス管理
             </p>
           </div>
@@ -285,17 +287,17 @@ export default function DashboardPage() {
 
       <div className="container mx-auto px-4 max-w-6xl py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl backdrop-blur-sm">
             {error}
           </div>
         )}
 
         {/* Status Hero Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6 mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-1">アカウントステータス</h2>
-              <p className="text-gray-600">
+              <h2 className="text-xl sm:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
+              <p className="text-white/70">
                 {userData.device ?
                   (userData.isTrialActive ? `体験期間中 - ${userData.trialDaysRemaining}日残り` :
                    userData.isSubscriptionActive ? '有料会員' :
@@ -303,11 +305,11 @@ export default function DashboardPage() {
                   'デバイス未登録'}
               </p>
             </div>
-            <div className={`px-4 py-2 rounded-lg font-medium ${
-              userData.isTrialActive ? 'bg-blue-100 text-blue-700' :
-              userData.isSubscriptionActive ? 'bg-green-100 text-green-700' :
-              userData.device ? 'bg-yellow-100 text-yellow-700' :
-              'bg-gray-100 text-gray-700'
+            <div className={`px-4 py-2 rounded-lg font-medium border ${
+              userData.isTrialActive ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+              userData.isSubscriptionActive ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+              userData.device ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
+              'bg-white/10 text-white/70 border-white/20'
             }`}>
               {!userData.device && '📦 デバイス未登録'}
               {userData.device && !userData.isTrialActive && !userData.isSubscriptionActive && '📦 登録済み - 未アクティベート'}
@@ -316,8 +318,8 @@ export default function DashboardPage() {
             </div>
           </div>
           {timeLeft && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
-              <p className="text-2xl font-bold text-blue-600">
+            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-center backdrop-blur-sm">
+              <p className="text-2xl font-bold text-blue-300">
                 {timeLeft}
               </p>
             </div>
@@ -326,32 +328,32 @@ export default function DashboardPage() {
 
         {/* Content for Registered (Pre-trial) Status */}
         {userData.device && !userData.isTrialActive && !userData.isSubscriptionActive && (
-          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl shadow-sm border border-yellow-200 p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">🚀 体験期間を開始する準備</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-black/20 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-6 mb-8">
+            <h3 className="text-lg font-semibold text-white mb-2">🚀 体験期間を開始する準備</h3>
+            <p className="text-white/70 mb-4">
               支払い登録が完了しました。AutoTouchのmain.luaを実行すると、自動的に3日間の体験期間が開始されます。
             </p>
 
-            <div className="bg-white border border-gray-200 p-4 rounded-lg mb-4">
-              <h4 className="font-medium text-gray-800 mb-3">📋 次のステップ</h4>
-              <ol className="space-y-2 text-sm text-gray-700">
+            <div className="bg-black/20 border border-white/10 p-4 rounded-xl mb-4 backdrop-blur-sm">
+              <h4 className="font-medium text-white mb-3">📋 次のステップ</h4>
+              <ol className="space-y-2 text-sm text-white/80">
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-medium">1.</span>
+                  <span className="text-blue-400 font-medium">1.</span>
                   <span>iPhone 7/8でAutoTouchを起動</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-medium">2.</span>
+                  <span className="text-blue-400 font-medium">2.</span>
                   <span>main.luaスクリプトを実行</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 font-medium">3.</span>
+                  <span className="text-blue-400 font-medium">3.</span>
                   <span>自動的に3日間の体験期間が開始されます</span>
                 </li>
               </ol>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl backdrop-blur-sm">
+              <p className="text-sm text-blue-300">
                 <strong>💡 ヒント:</strong> 体験期間は最初のmain.lua実行時に自動的に開始されます。
                 準備が整ってから実行することをお勧めします。
               </p>
@@ -359,7 +361,7 @@ export default function DashboardPage() {
 
             <div className="mt-6 text-center">
               <Link href="/guides">
-                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all font-medium border border-blue-400/30">
                   📖 セットアップガイドを見る →
                 </button>
               </Link>
@@ -372,59 +374,59 @@ export default function DashboardPage() {
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600">ライセンス状態</p>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    userData.isTrialActive ? 'bg-blue-100 text-blue-700' :
-                    userData.isSubscriptionActive ? 'bg-green-100 text-green-700' :
-                    'bg-yellow-100 text-yellow-700'
+                  <p className="text-sm text-white/60">ライセンス状態</p>
+                  <span className={`px-2 py-1 rounded text-xs font-medium border ${
+                    userData.isTrialActive ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                    userData.isSubscriptionActive ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                    'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
                   }`}>
                     {userData.isTrialActive ? '体験版' :
                      userData.isSubscriptionActive ? '有効' : '登録済み'}
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-gray-800 mb-1">
+                <div className="text-2xl font-bold text-white mb-1">
                   {(userData.isTrialActive || userData.isSubscriptionActive) ? '✅ 有効' : '❌ 無効'}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-white/60">
                   期限: {userData.isTrialActive && userData.device?.trial_ends_at ? formatDate(userData.device.trial_ends_at) :
                          (!userData.isTrialActive && !userData.isSubscriptionActive) ? '未アクティベート' : '無制限'}
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600">サブスクリプション</p>
+                  <p className="text-sm text-white/60">サブスクリプション</p>
                   {userData.subscription && (
                     <span className="text-sm">
                       {userData.subscription.status === 'active' ? '✅' : '⏳'}
                     </span>
                   )}
                 </div>
-                <div className="text-2xl font-bold text-blue-600 mb-1">
+                <div className="text-2xl font-bold text-blue-400 mb-1">
                   ¥2,980
-                  <span className="text-sm font-normal text-gray-500">/月</span>
+                  <span className="text-sm font-normal text-white/50">/月</span>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-white/60">
                   {userData.isTrialActive ? '🎯 体験期間中' : '🔄 自動更新'}
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-                <p className="text-sm text-gray-600 mb-3">利用可能な機能</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+                <p className="text-sm text-white/60 mb-3">利用可能な機能</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-green-600">✅</span>
-                    <span className="text-sm text-gray-700">全ツール利用可能</span>
+                    <span className="text-green-400">✅</span>
+                    <span className="text-sm text-white/80">全ツール利用可能</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-green-600">✅</span>
-                    <span className="text-sm text-gray-700">全ガイド閲覧可能</span>
+                    <span className="text-green-400">✅</span>
+                    <span className="text-sm text-white/80">全ガイド閲覧可能</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-green-600">✅</span>
-                    <span className="text-sm text-gray-700">サポート利用可能</span>
+                    <span className="text-green-400">✅</span>
+                    <span className="text-sm text-white/80">サポート利用可能</span>
                   </div>
                 </div>
               </div>

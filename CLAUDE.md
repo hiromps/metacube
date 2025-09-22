@@ -16,27 +16,39 @@ git push origin main # Auto-deploys to Cloudflare Pages
 
 ## Architecture Overview
 
+### SMARTGRAM - Instagram Automation Tool
+
+This is a **SMARTGRAM** (Social Mobile Auto Reach Tool) web application with Instagram automation functionality, built as a license management system for AutoTouch-based iOS automation scripts.
+
 ### Deployment Architecture: Cloudflare Pages + Functions
 
 This project uses a **hybrid architecture** specifically designed for Cloudflare Pages:
 
-1. **Frontend**: Next.js 15 with static export (`output: 'export'`)
+1. **Frontend**: Next.js 15.5.2 with static export (`output: 'export'`)
    - Static HTML pages served from `/out` directory
    - Client-side rendering with React 19
-   - Pages: `/`, `/login`, `/register`, `/dashboard`
+   - Pages: `/` (landing), `/login`, `/register`, `/dashboard`, `/terms`, `/privacy`, `/admin`
+   - Dark theme with futuristic design and animated iPhone 8 mockup
 
 2. **API Layer**: Cloudflare Functions (NOT Next.js API Routes)
    - All APIs handled by `functions/api/[[path]].ts` (catch-all route)
    - TypeScript-based Functions for dynamic processing
    - Endpoints:
-     - `/api/license/verify` - License validation
-     - `/api/device/register` - Device registration
-     - `/api/paypal/success|cancel|webhook` - PayPal callbacks
+     - `/api/license/verify` - License validation for AutoTouch scripts
+     - `/api/device/register` - Device registration with trial period
+     - `/api/paypal/success|cancel|webhook` - PayPal subscription callbacks
 
 3. **Critical Configuration Files**:
    - `wrangler.toml`: Sets `pages_build_output_dir = "out"` (NOT `.next`)
    - `public/_redirects`: Handles SPA routing (pages fallback to index.html)
    - `next.config.mjs`: Must have `output: 'export'` for static generation
+
+### Authentication & Session Management
+
+- **Supabase Authentication**: Email/password with custom session storage
+- **Remember Me Feature**: Uses localStorage (persistent) vs sessionStorage (temporary)
+- **Session Restoration**: Custom logic in `lib/auth/client.ts` for cross-session persistence
+- **Configuration Priority**: `lib/supabase/config.ts` over environment variables for Cloudflare Pages compatibility
 
 ### API Integration Pattern
 
@@ -60,17 +72,34 @@ fetch('/api/license/verify', {
 })
 ```
 
+### AutoTouch Integration (iOS Automation)
+
+- **Target Platform**: iPhone 7/8 with Jailbreak + AutoTouch
+- **Lua Scripts**: Located in `scripts/` directory
+  - `main.lua`: License verification and tool selection
+  - Tool scripts: `timeline.lua`, etc. for Instagram automation
+- **License Flow**: Device hash → Web registration → PayPal subscription → License validation
+
 ### Database & Authentication
 
 - **Supabase**: PostgreSQL + Auth
-  - Tables: `users`, `devices`, `subscriptions`
+  - Tables: `users`, `devices`, `subscriptions`, `licenses`
   - Row Level Security (RLS) enabled
   - Authentication via `@supabase/supabase-js`
+  - Custom session management for remember me functionality
 
 - **PayPal Integration**:
   - Monthly subscription: ¥2,980
-  - 3-day free trial
+  - 14-day free trial (simplified from device registration)
   - Webhook handlers in Cloudflare Functions
+
+### UI/UX Design System
+
+- **Theme**: Dark futuristic design with gradients and glassmorphism
+- **Branding**: SMARTGRAM with animated acronym expansion
+- **Mobile Mockup**: CSS-based iPhone 8 with realistic Instagram interface
+- **Animations**: Auto-like, scroll, and user interaction demonstrations
+- **Components**: Custom UI components in `app/components/ui/`
 
 ### Testing APIs
 
