@@ -22,13 +22,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Client for browser/frontend
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Admin client for server-side operations
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+// Admin client for server-side operations (only create if service role key exists)
+export const supabaseAdmin = supabaseServiceRoleKey
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null
 
 // Database types
 export interface Device {
