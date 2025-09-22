@@ -10,12 +10,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/app/components/ui/Badge'
 import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
+import { useUserData, UserData } from '@/app/hooks/useUserData'
 
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const { userData, loading, error: dataError, refetch } = useUserData()
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [changingDevice, setChangingDevice] = useState(false)
@@ -29,12 +29,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (userProfile?.trialEndsAt) {
+      if (userData?.device?.trial_ends_at) {
         updateTimeLeft()
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [userProfile])
+  }, [userData])
 
   const checkAuth = async () => {
     try {
@@ -44,132 +44,36 @@ export default function DashboardPage() {
         router.push('/login')
         return
       }
-
-      // Get user status using the new API
-      let response: Response
-      let data: any
-
-      // In development, use mock data if API is not available
-      try {
-        response = await fetch(`/api/user/status?user_id=${user.id}`)
-
-        // Check if response is HTML (404 page)
-        const contentType = response.headers.get('content-type')
-        if (contentType && contentType.includes('text/html')) {
-          throw new Error('API endpoint not found - using mock data')
-        }
-
-        data = await response.json()
-      } catch (fetchError) {
-        console.warn('API not available, using mock data:', fetchError)
-
-        // Mock data for development with registered device FFMZ3GTSJC6J
-        const isTrialActive = false; // Change to true to simulate activated trial
-        const mockActivationTime = isTrialActive ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() : null;
-        const mockTrialEndTime = isTrialActive ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null;
-
-        data = {
-          user_id: user.id,
-          email: user.email || '',
-          status: isTrialActive ? UserStatus.TRIAL : UserStatus.REGISTERED,
-          device_id: 'mock-device-id',
-          device_hash: 'FFMZ3GTSJC6J', // Registered device hash
-          trial_activated: isTrialActive,
-          trial_activated_at: mockActivationTime,
-          first_execution_at: mockActivationTime,
-          trial_ends_at: mockTrialEndTime,
-          subscription_id: 'mock-subscription',
-          paypal_subscription_id: 'I-MOCK123456789',
-          subscription_status: isTrialActive ? 'trial' : 'active', // Set to active for registered device
-          status_description: isTrialActive ? 'Trial - 2 days left' : 'Registered - Trial will start on first main.lua execution',
-          has_access_to_content: true,
-          has_access_to_tools: isTrialActive,
-          time_remaining_seconds: isTrialActive ? 172800 : null
-        }
-        response = { ok: true } as Response
-      }
-
-      if (!response.ok && response.status === 404) {
-        router.push('/register')
-        return
-      }
-
-      // Map the response to UserProfile with time synchronization
-      const profile: UserProfile = {
-        id: data.user_id,
-        email: data.email,
-        status: data.status as UserStatus,
-        deviceId: data.device_id,
-        deviceHash: data.device_hash,
-        trialActivatedAt: data.trial_activated_at,
-        firstExecutionAt: data.first_execution_at,
-        trialEndsAt: data.trial_ends_at,
-        subscriptionId: data.subscription_id,
-        paypalSubscriptionId: data.paypal_subscription_id,
-        subscriptionStatus: data.subscription_status,
-        statusDescription: data.status_description,
-        hasAccessToContent: data.has_access_to_content,
-        hasAccessToTools: data.has_access_to_tools,
-        timeRemainingSeconds: data.time_remaining_seconds
-      }
-
-      setUserProfile(profile)
-
     } catch (error: any) {
       console.error('Auth check error:', error)
       setError(error.message)
-    } finally {
-      setLoading(false)
+      router.push('/login')
     }
   }
 
   const updateTimeLeft = () => {
-    if (!userProfile) return
-
-    let targetDate: Date | null = null
-    let activatedDate: Date | null = null
-    let label = ''
-
-    if (userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt) {
-      targetDate = new Date(userProfile.trialEndsAt)
-      activatedDate = userProfile.trialActivatedAt ? new Date(userProfile.trialActivatedAt) : null
-      label = '体験期間残り'
-    }
-
-    if (!targetDate) {
+    if (!userData?.device?.trial_ends_at || !userData.isTrialActive) {
       setTimeLeft('')
       return
     }
 
+    const targetDate = new Date(userData.device.trial_ends_at)
     const now = new Date()
     const diff = targetDate.getTime() - now.getTime()
 
     if (diff <= 0) {
-      setTimeLeft(`${label}: 期限切れ`)
+      setTimeLeft('体験期間: 期限切れ')
       return
     }
 
-    // Calculate exact remaining time (synced with first execution)
+    // Calculate exact remaining time
     const totalSeconds = Math.floor(diff / 1000)
     const days = Math.floor(totalSeconds / 86400)
     const hours = Math.floor((totalSeconds % 86400) / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
 
-    // Show activation time for transparency
-    let timeDisplay = `${label}: ${days}日 ${hours}時間 ${minutes}分 ${seconds}秒`
-
-    if (activatedDate) {
-      const activationStr = activatedDate.toLocaleString('ja-JP', {
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric'
-      })
-      timeDisplay += ` (開始: ${activationStr})`
-    }
-
-    setTimeLeft(timeDisplay)
+    setTimeLeft(`体験期間残り: ${days}日 ${hours}時間 ${minutes}分 ${seconds}秒`)
   }
 
 
@@ -198,7 +102,7 @@ export default function DashboardPage() {
       }
 
       // Cancel PayPal subscription
-      if (userProfile?.paypalSubscriptionId) {
+      if (userData?.subscription?.paypal_subscription_id) {
         try {
           const response = await fetch('/api/paypal/cancel', {
             method: 'POST',
@@ -206,7 +110,7 @@ export default function DashboardPage() {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              subscription_id: userProfile.paypalSubscriptionId
+              subscription_id: userData.subscription.paypal_subscription_id
             })
           })
 
@@ -219,7 +123,7 @@ export default function DashboardPage() {
       }
 
       alert('解約が完了しました')
-      await checkAuth() // Refresh data
+      refetch() // Refresh data
 
     } catch (error: any) {
       console.error('Cancellation error:', error)
@@ -235,7 +139,7 @@ export default function DashboardPage() {
       return
     }
 
-    if (newDeviceHash === userProfile?.deviceHash) {
+    if (newDeviceHash === userData?.device?.device_hash) {
       setError('新しいデバイスハッシュは現在のものと異なる必要があります')
       return
     }
@@ -254,9 +158,9 @@ export default function DashboardPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          old_device_hash: userProfile?.deviceHash,
+          old_device_hash: userData?.device?.device_hash,
           new_device_hash: newDeviceHash.trim(),
-          email: userProfile?.email
+          email: userData?.email
         })
       })
 
@@ -270,7 +174,7 @@ export default function DashboardPage() {
         alert('デバイス変更が完了しました。新しいデバイスでご利用ください。')
         setNewDeviceHash('')
         setShowDeviceChangeForm(false)
-        await checkAuth() // Refresh data
+        refetch() // Refresh data
       } else {
         throw new Error(result.error || 'デバイス変更に失敗しました')
       }
@@ -320,12 +224,12 @@ export default function DashboardPage() {
     return <LoadingScreen message="ダッシュボードを読み込み中..." />
   }
 
-  if (!userProfile) {
+  if (dataError || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="bg-white rounded-lg shadow-lg max-w-md p-8">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || 'データが見つかりません'}</p>
+            <p className="text-red-600 mb-4">{error || dataError || 'データが見つかりません'}</p>
             <Link href="/login">
               <Button variant="gradient" size="md">
                 ログインページへ
@@ -391,20 +295,24 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-1">アカウントステータス</h2>
-              <p className="text-gray-600">{userProfile.statusDescription}</p>
+              <p className="text-gray-600">
+                {userData.device ?
+                  (userData.isTrialActive ? `体験期間中 - ${userData.trialDaysRemaining}日残り` :
+                   userData.isSubscriptionActive ? '有料会員' :
+                   '登録済み - 体験期間未開始') :
+                  'デバイス未登録'}
+              </p>
             </div>
             <div className={`px-4 py-2 rounded-lg font-medium ${
-              userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' :
-              userProfile.status === UserStatus.ACTIVE ? 'bg-green-100 text-green-700' :
-              userProfile.status === UserStatus.EXPIRED ? 'bg-gray-100 text-gray-700' :
-              userProfile.status === UserStatus.SUSPENDED ? 'bg-red-100 text-red-700' :
+              userData.isTrialActive ? 'bg-blue-100 text-blue-700' :
+              userData.isSubscriptionActive ? 'bg-green-100 text-green-700' :
+              userData.device ? 'bg-yellow-100 text-yellow-700' :
               'bg-gray-100 text-gray-700'
             }`}>
-              {userProfile.status === UserStatus.REGISTERED && '📦 登録済み - 未アクティベート'}
-              {userProfile.status === UserStatus.TRIAL && '🎯 体験期間'}
-              {userProfile.status === UserStatus.ACTIVE && '✨ 有料会員'}
-              {userProfile.status === UserStatus.EXPIRED && '⏰ 期限切れ'}
-              {userProfile.status === UserStatus.SUSPENDED && '⚠️ 停止中'}
+              {!userData.device && '📦 デバイス未登録'}
+              {userData.device && !userData.isTrialActive && !userData.isSubscriptionActive && '📦 登録済み - 未アクティベート'}
+              {userData.isTrialActive && '🎯 体験期間'}
+              {userData.isSubscriptionActive && '✨ 有料会員'}
             </div>
           </div>
           {timeLeft && (
@@ -417,7 +325,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Content for Registered (Pre-trial) Status */}
-        {userProfile.status === UserStatus.REGISTERED && (
+        {userData.device && !userData.isTrialActive && !userData.isSubscriptionActive && (
           <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl shadow-sm border border-yellow-200 p-6 mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">🚀 体験期間を開始する準備</h3>
             <p className="text-gray-600 mb-4">
@@ -460,7 +368,7 @@ export default function DashboardPage() {
         )}
 
         {/* Dashboard Content for Registered/Trial/Active Status */}
-        {(userProfile.status === UserStatus.REGISTERED || userProfile.status === UserStatus.TRIAL || userProfile.status === UserStatus.ACTIVE) && (
+        {userData.device && (
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -468,29 +376,29 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-600">ライセンス状態</p>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    userProfile.status === UserStatus.TRIAL ? 'bg-blue-100 text-blue-700' :
-                    userProfile.status === UserStatus.ACTIVE ? 'bg-green-100 text-green-700' :
+                    userData.isTrialActive ? 'bg-blue-100 text-blue-700' :
+                    userData.isSubscriptionActive ? 'bg-green-100 text-green-700' :
                     'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {userProfile.status === UserStatus.TRIAL ? '体験版' :
-                     userProfile.status === UserStatus.ACTIVE ? '有効' : '登録済み'}
+                    {userData.isTrialActive ? '体験版' :
+                     userData.isSubscriptionActive ? '有効' : '登録済み'}
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
-                  {userProfile.hasAccessToTools ? '✅ 有効' : '❌ 無効'}
+                  {(userData.isTrialActive || userData.isSubscriptionActive) ? '✅ 有効' : '❌ 無効'}
                 </div>
                 <p className="text-sm text-gray-600">
-                  期限: {userProfile.status === UserStatus.TRIAL && userProfile.trialEndsAt ? formatDate(userProfile.trialEndsAt) :
-                         userProfile.status === UserStatus.REGISTERED ? '未アクティベート' : '無制限'}
+                  期限: {userData.isTrialActive && userData.device?.trial_ends_at ? formatDate(userData.device.trial_ends_at) :
+                         (!userData.isTrialActive && !userData.isSubscriptionActive) ? '未アクティベート' : '無制限'}
                 </p>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-600">サブスクリプション</p>
-                  {userProfile.subscriptionStatus && (
+                  {userData.subscription && (
                     <span className="text-sm">
-                      {userProfile.subscriptionStatus === 'active' ? '✅' : '⏳'}
+                      {userData.subscription.status === 'active' ? '✅' : '⏳'}
                     </span>
                   )}
                 </div>
@@ -499,7 +407,7 @@ export default function DashboardPage() {
                   <span className="text-sm font-normal text-gray-500">/月</span>
                 </div>
                 <p className="text-sm text-gray-600">
-                  {userProfile.status === UserStatus.TRIAL ? '🎯 体験期間中' : '🔄 自動更新'}
+                  {userData.isTrialActive ? '🎯 体験期間中' : '🔄 自動更新'}
                 </p>
               </div>
 
@@ -529,12 +437,12 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">メールアドレス</p>
-                    <p className="text-gray-800 font-medium">{userProfile.email}</p>
+                    <p className="text-gray-800 font-medium">{userData.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">現在のデバイス</p>
                     <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
-                      {userProfile.deviceHash || '未設定'}
+                      {userData.device?.device_hash || '未設定'}
                     </p>
                   </div>
                 </div>
@@ -542,7 +450,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm text-gray-600 mb-1">PayPal サブスクリプションID</p>
                     <p className="font-mono text-xs text-gray-500">
-                      {userProfile.paypalSubscriptionId || 'なし'}
+                      {userData.subscription?.paypal_subscription_id || 'なし'}
                     </p>
                   </div>
                   <div>
@@ -566,19 +474,19 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm text-gray-600 mb-1">設定済みデバイスハッシュ</p>
                     <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
-                      {userProfile.deviceHash || '未設定'}
+                      {userData.device?.device_hash || '未設定'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">初回実行日時</p>
                     <p className="text-gray-800">
-                      {userProfile.firstExecutionAt ? formatDate(userProfile.firstExecutionAt) : '未実行'}
+                      未実行
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">デバイス登録日時</p>
                     <p className="text-gray-800">
-                      {formatDate(new Date().toISOString())}
+                      {userData.device?.created_at ? formatDate(userData.device.created_at) : '未登録'}
                     </p>
                   </div>
                 </div>
@@ -586,10 +494,8 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm text-gray-600 mb-1">スクリプト実行状態</p>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        userProfile.firstExecutionAt ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {userProfile.firstExecutionAt ? '✅ 実行済み' : '⏳ 未実行'}
+                      <span className="px-3 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-700">
+                        ⏳ 未実行
                       </span>
                     </div>
                   </div>
@@ -597,9 +503,9 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-600 mb-1">Trial開始状態</p>
                     <div className="flex items-center gap-2">
                       <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        userProfile.trialActivated ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                        userData.isTrialActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {userProfile.trialActivated ? '🎯 開始済み' : '📦 未開始'}
+                        {userData.isTrialActive ? '🎯 開始済み' : '📦 未開始'}
                       </span>
                     </div>
                   </div>
@@ -607,16 +513,16 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-600 mb-1">利用可能ツール</p>
                     <div className="flex items-center gap-2">
                       <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        userProfile.hasAccessToTools ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        (userData.isTrialActive || userData.isSubscriptionActive) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
-                        {userProfile.hasAccessToTools ? '🛠️ 全ツール利用可能' : '🚫 ツール利用不可'}
+                        {(userData.isTrialActive || userData.isSubscriptionActive) ? '🛠️ 全ツール利用可能' : '🚫 ツール利用不可'}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {!userProfile.trialActivated && (
+              {!userData.isTrialActive && (
                 <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
                   <p className="text-sm text-blue-800">
                     <strong>💡 次のステップ:</strong> AutoTouchでmain.luaを実行すると、3日間の体験期間が自動的に開始されます。
@@ -635,7 +541,7 @@ export default function DashboardPage() {
                     契約が有効な間は、別のデバイスに変更することができます。
                     デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
                   </p>
-                  {userProfile.hasAccessToTools ? (
+                  {(userData.isTrialActive || userData.isSubscriptionActive) ? (
                     <button
                       onClick={() => setShowDeviceChangeForm(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -701,7 +607,7 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600 mb-4">契約の管理</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                 <div className="space-y-3">
-                  {userProfile.subscriptionStatus === 'active' && (
+                  {userData.subscription?.status === 'active' && (
                     <button
                       onClick={handleCancelSubscription}
                       disabled={cancelling}
@@ -723,7 +629,7 @@ export default function DashboardPage() {
         )}
 
         {/* Expired Status */}
-        {userProfile.status === UserStatus.EXPIRED && (
+        {(!userData.device || (!userData.isTrialActive && !userData.isSubscriptionActive && userData.trialDaysRemaining !== null && userData.trialDaysRemaining <= 0)) && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
             <h3 className="text-xl font-semibold text-gray-800 mb-2">契約が期限切れです</h3>
             <p className="text-gray-600 mb-6">サービスを継続するには再登録が必要です</p>
