@@ -498,7 +498,7 @@ export default function Home() {
             </div>
 
             {/* Right Side - Visual Area */}
-            <div className="relative mt-8 lg:mt-0">
+            <div id="demo" className="relative mt-8 lg:mt-0">
               <div className="relative w-full max-w-[220px] md:max-w-[260px] mx-auto">
                 {/* iPhone 8 Mockup */}
                 <div className="relative">
@@ -755,7 +755,7 @@ export default function Home() {
           </div>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 mb-20">
             {stats.map((stat, index) => (
               <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
                 <Card className="bg-white/10 backdrop-blur-md shadow-lg border border-white/20 text-center hover:bg-white/20 transition-all">
