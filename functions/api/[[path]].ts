@@ -129,11 +129,21 @@ async function handleLicenseVerify(request: Request, env: any) {
     const supabase = getSupabaseClient(env);
 
     // First, try to get device from database
+    console.log('License verification for device hash:', device_hash);
     const { data: deviceData, error: deviceError } = await supabase
       .from('devices')
       .select('*')
       .eq('device_hash', device_hash)
       .single();
+
+    console.log('Device query result:', { deviceData, deviceError });
+
+    // Check if we have any devices at all for debugging
+    const { data: allDevices } = await supabase
+      .from('devices')
+      .select('device_hash, status')
+      .limit(10);
+    console.log('Sample devices in database:', allDevices);
 
     if (deviceError && deviceError.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('Database error:', deviceError);
@@ -245,6 +255,7 @@ async function handleLicenseVerify(request: Request, env: any) {
 
     // Check if device exists but return appropriate response based on status
     if (!device) {
+      console.log('Device not found in database for hash:', device_hash);
       return new Response(
         JSON.stringify({
           is_valid: false,
@@ -1107,6 +1118,12 @@ async function handleDeviceRegister(request: Request, env: any) {
     }
 
     // Register device with registered status (free registration)
+    console.log('Attempting device registration with:', {
+      user_id: final_user_id,
+      device_hash: device_hash,
+      email: email
+    });
+
     const { data: deviceData, error: deviceError } = await supabase.rpc('register_device_with_setup', {
       p_user_id: final_user_id,
       p_device_hash: device_hash,
@@ -1114,6 +1131,7 @@ async function handleDeviceRegister(request: Request, env: any) {
     });
 
     if (deviceError) {
+      console.error('Device registration RPC error:', deviceError);
       return new Response(
         JSON.stringify({
           success: false,
@@ -1128,6 +1146,8 @@ async function handleDeviceRegister(request: Request, env: any) {
         }
       );
     }
+
+    console.log('Device registration successful:', deviceData);
 
     return new Response(
       JSON.stringify({

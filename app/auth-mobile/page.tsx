@@ -95,7 +95,12 @@ function AuthMobileContent() {
         throw new Error(registerData.error || 'Registration failed')
       }
 
+      console.log('Registration successful:', registerData)
       setStatus('✅ デバイス登録完了 - 再認証中...')
+
+      // デバッグ: 登録されたメールアドレスを確認
+      console.log('Registered email:', tempEmail)
+      console.log('Device hash for re-auth:', deviceHash)
 
         // 登録完了後、再度認証を実行
         setTimeout(async () => {
@@ -111,6 +116,7 @@ function AuthMobileContent() {
 
           if (reAuthResponse.ok) {
             const reAuthData = await reAuthResponse.json()
+            console.log('Re-authentication response:', reAuthData)
             setResult(reAuthData)
 
             if (reAuthData.is_valid) {
@@ -118,9 +124,16 @@ function AuthMobileContent() {
               await saveResultToFile(reAuthData)
               await notifyAutoTouch(reAuthData)
             } else {
-              setStatus('❌ 再認証失敗')
-              await saveResultToFile({ error: 'Re-authentication failed after registration' })
+              console.error('Re-authentication failed:', reAuthData)
+              setStatus(`❌ 再認証失敗: ${reAuthData.status || 'unknown'}`)
+              await saveResultToFile({
+                error: 'Re-authentication failed after registration',
+                details: reAuthData
+              })
             }
+          } else {
+            console.error('Re-authentication request failed:', reAuthResponse.status)
+            setStatus(`❌ 再認証リクエスト失敗: ${reAuthResponse.status}`)
           }
         }, 2000) // 2秒待機後に再認証
     } catch (error) {
