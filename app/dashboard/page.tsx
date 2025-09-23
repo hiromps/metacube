@@ -227,7 +227,7 @@ export default function DashboardPage() {
 
   if (dataError || !userData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-black">
+      <div className="min-h-screen flex items-center justify-center" style={{background: '#1f2937'}}>
         <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl max-w-md p-8">
           <div className="text-center">
             <p className="text-red-400 mb-4">{error || dataError || 'データが見つかりません'}</p>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
+    <div className="min-h-screen" style={{background: '#1f2937'}}>
       {/* Navigation */}
       <nav className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 md:py-4">
@@ -344,7 +344,7 @@ export default function DashboardPage() {
         )}
 
         {/* Status Hero Card */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-6 md:mb-8">
+        <div className="bg-gradient-to-br from-blue-900/40 via-purple-900/30 to-indigo-900/40 backdrop-blur-xl border border-blue-400/20 rounded-2xl p-4 md:p-6 mb-6 md:mb-8 shadow-xl shadow-blue-500/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
             <div>
               <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
@@ -425,7 +425,7 @@ export default function DashboardPage() {
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
+              <div className="bg-gradient-to-br from-blue-800/30 via-blue-700/20 to-cyan-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-5 shadow-lg shadow-blue-500/10">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs md:text-sm text-white/60">ライセンス状態</p>
                   <span className={`px-2 py-1 rounded text-xs font-medium border ${
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
+              <div className="bg-gradient-to-br from-purple-800/30 via-purple-700/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-5 shadow-lg shadow-purple-500/10">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs md:text-sm text-white/60">サブスクリプション</p>
                   {userData.subscription && (
@@ -464,7 +464,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
+              <div className="bg-gradient-to-br from-indigo-800/30 via-indigo-700/20 to-blue-800/30 backdrop-blur-xl border border-indigo-400/30 rounded-2xl p-4 md:p-5 shadow-lg shadow-indigo-500/10">
                 <p className="text-xs md:text-sm text-white/60 mb-3">利用可能な機能</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -484,7 +484,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Account Information */}
-            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+            <div className="bg-gradient-to-br from-cyan-800/30 via-blue-800/20 to-teal-800/30 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-cyan-500/10">
               <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">アカウント情報</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-3 md:space-y-4">
@@ -520,7 +520,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Main.lua Script Information */}
-            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+            <div className="bg-gradient-to-br from-violet-800/30 via-purple-800/20 to-fuchsia-800/30 backdrop-blur-xl border border-violet-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-violet-500/10">
               <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📜 main.lua スクリプト情報</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-3 md:space-y-4">
@@ -585,7 +585,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Device Management */}
-            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+            <div className="bg-gradient-to-br from-emerald-800/30 via-teal-800/20 to-cyan-800/30 backdrop-blur-xl border border-emerald-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-emerald-500/10">
               <h3 className="text-lg md:text-xl font-semibold text-white mb-2">デバイス管理</h3>
               <p className="text-xs md:text-sm text-white/60 mb-3 md:mb-4">登録デバイスの変更</p>
               {!showDeviceChangeForm ? (
@@ -658,7 +658,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Actions */}
-            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6">
+            <div className="bg-gradient-to-br from-rose-800/30 via-pink-800/20 to-red-800/30 backdrop-blur-xl border border-rose-400/30 rounded-2xl p-4 md:p-6 shadow-lg shadow-rose-500/10">
               <h3 className="text-lg md:text-xl font-semibold text-white mb-2">アクション</h3>
               <p className="text-xs md:text-sm text-white/60 mb-3 md:mb-4">契約の管理</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -687,7 +687,7 @@ export default function DashboardPage() {
 
         {/* Expired Status */}
         {(!userData.device || (!userData.isTrialActive && !userData.isSubscriptionActive && userData.trialDaysRemaining !== null && userData.trialDaysRemaining <= 0)) && (
-          <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8">
+          <div className="bg-gradient-to-br from-orange-800/30 via-red-800/20 to-amber-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-orange-500/10">
             <h3 className="text-lg md:text-xl font-semibold text-white mb-2">契約が期限切れです</h3>
             <p className="text-white/60 mb-4 md:mb-6 text-sm md:text-base">サービスを継続するには再登録が必要です</p>
             <div className="text-center">
@@ -709,25 +709,25 @@ export default function DashboardPage() {
           <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4 text-center">クイックアクセス</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <Link href="/">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-slate-700/30 via-gray-700/20 to-zinc-700/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-gradient-to-br hover:from-blue-700/20 hover:via-slate-700/20 hover:to-gray-700/20 transition-all cursor-pointer shadow-lg shadow-slate-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">🏠</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">ホーム</p>
               </div>
             </Link>
             <Link href="/guides">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-green-700/30 via-emerald-700/20 to-teal-700/30 backdrop-blur-xl border border-green-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-green-400/50 hover:bg-gradient-to-br hover:from-green-700/30 hover:via-emerald-700/30 hover:to-teal-700/30 transition-all cursor-pointer shadow-lg shadow-green-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">📚</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">ガイド</p>
               </div>
             </Link>
             <a href="mailto:support@metacube.app">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-amber-700/30 via-yellow-700/20 to-orange-700/30 backdrop-blur-xl border border-amber-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-amber-400/50 hover:bg-gradient-to-br hover:from-amber-700/30 hover:via-yellow-700/30 hover:to-orange-700/30 transition-all cursor-pointer shadow-lg shadow-amber-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">📧</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">サポート</p>
               </div>
             </a>
             <Link href="/register">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+              <div className="bg-gradient-to-br from-purple-700/30 via-violet-700/20 to-indigo-700/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-purple-400/50 hover:bg-gradient-to-br hover:from-purple-700/30 hover:via-violet-700/30 hover:to-indigo-700/30 transition-all cursor-pointer shadow-lg shadow-purple-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">🎯</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">プラン</p>
               </div>
