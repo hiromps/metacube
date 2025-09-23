@@ -1033,19 +1033,19 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* 緊急性メッセージ */}
-                      {plan.urgency && (
+                      {/* 緊急性メッセージ - 一時的にコメントアウト */}
+                      {/* {plan.urgency && (
                         <div className="bg-orange-500/20 border border-orange-400/30 rounded-lg p-2 mt-3">
                           <p className="text-orange-300 text-xs font-semibold">{plan.urgency}</p>
                         </div>
-                      )}
+                      )} */}
 
-                      {/* 権威性 */}
-                      {plan.authority && (
+                      {/* 権威性 - 一時的にコメントアウト */}
+                      {/* {plan.authority && (
                         <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-2 mt-2">
                           <p className="text-blue-300 text-xs font-semibold">✅ {plan.authority}</p>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -1056,13 +1056,13 @@ export default function Home() {
                       <div className="text-green-200 text-xs">{plan.costSavings}</div>
                     </div>
 
-                    {/* 返報性 - 無料価値提供 */}
-                    {plan.freeValue && (
+                    {/* 返報性 - 無料価値提供 - 一時的にコメントアウト */}
+                    {/* {plan.freeValue && (
                       <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3 mb-4">
                         <div className="text-blue-300 text-sm font-semibold">🎁 無料特典</div>
                         <div className="text-blue-200 text-xs">{plan.freeValue}</div>
                       </div>
-                    )}
+                    )} */}
 
                     <ul className="space-y-3">
                       {plan.features.map((feature, i) => (
