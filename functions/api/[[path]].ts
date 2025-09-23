@@ -182,8 +182,8 @@ async function handleLicenseVerify(request: Request, env: any) {
           is_valid: false,
           status: 'unregistered',
           license_type: null, // AutoTouchスタイル
-          error: 'Device not registered',
-          message: 'Please register your device first',
+          error: 'デバイスが登録されていません',
+          message: 'まずデバイスを登録してください',
           registration_url: 'https://smartgram.jp/register'
         }),
         {
@@ -265,8 +265,8 @@ async function handleLicenseVerify(request: Request, env: any) {
           is_valid: false,
           status: 'unregistered',
           license_type: null,
-          error: 'Device not registered',
-          message: 'Please register your device first',
+          error: 'デバイスが登録されていません',
+          message: 'まずデバイスを登録してください',
           registration_url: 'https://smartgram.jp/register'
         }),
         {
@@ -313,7 +313,7 @@ async function handleLicenseVerify(request: Request, env: any) {
         device_hash: device_hash,
         device_model: 'iPhone 7/8',
         registered_at: device.created_at,
-        message: isValid ? 'License is valid' : (device.status === 'registered' ? 'Device registered - Trial will start on first execution' : 'License has expired'),
+        message: isValid ? 'ライセンスは有効です' : (device.status === 'registered' ? 'デバイス登録済み - 初回実行時に体験版が開始されます' : 'ライセンスの有効期限が切れています'),
         trial_activated: device.trial_activated,
         trial_activated_at: device.trial_activated_at,
         first_execution_at: device.first_execution_at
@@ -743,7 +743,7 @@ async function handleUserStatus(request: Request, env: any) {
         subscription_id: null,
         paypal_subscription_id: null,
         subscription_status: 'unregistered',
-        status_description: 'No device registered - Please register your device first',
+        status_description: 'デバイス未登録 - まずデバイスを登録してください',
         has_access_to_content: false,
         has_access_to_tools: false,
         time_remaining_seconds: null
