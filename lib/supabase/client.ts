@@ -20,7 +20,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Client for browser/frontend
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    // デフォルトはセッション持続、個別のログイン時に上書き可能
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined
+  }
+})
 
 // Admin client for server-side operations (only create if service role key exists)
 export const supabaseAdmin = supabaseServiceRoleKey
