@@ -68,9 +68,10 @@ function AuthMobileContent() {
   // デバイス登録処理
   const handleDeviceRegistration = async (deviceHash: string) => {
     try {
-      // シンプルな登録方式：バックエンドで自動的にuser作成/取得
-      const tempEmail = `device_${deviceHash.substring(0, 8)}@smartgram.temp`
-      const tempPassword = `temp_${deviceHash.substring(0, 12)}`
+      // 有効なメールアドレス形式で生成（Supabase認証対応）
+      const sanitizedHash = deviceHash.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const tempEmail = `auto.device.${sanitizedHash.substring(0, 12)}@smartgram.jp`
+      const tempPassword = `SmartGram2024_${sanitizedHash.substring(0, 16)}`
 
       const registerResponse = await fetch('/api/device/register', {
         method: 'POST',
