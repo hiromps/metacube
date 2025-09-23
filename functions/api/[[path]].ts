@@ -1274,18 +1274,54 @@ async function handleDeviceChange(request: Request, env: any) {
       );
     }
 
-    // Find user by email first
-    const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-    const user = authData?.users?.find(u => u.email === email);
+    // Get user from Authorization header
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
 
-    if (!user) {
+    if (!token) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'User not found with this email'
+          error: 'Authorization token required'
         }),
         {
-          status: 404,
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Verify user with token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid or expired token'
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Verify email matches the authenticated user
+    if (user.email !== email) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Email does not match authenticated user'
+        }),
+        {
+          status: 403,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'

@@ -153,10 +153,14 @@ export default function DashboardPage() {
     setError('')
 
     try {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession()
+
       const response = await fetch('/api/device/change', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
           old_device_hash: userData?.device?.device_hash,
@@ -165,7 +169,19 @@ export default function DashboardPage() {
         })
       })
 
-      const result = await response.json()
+      // Get response text first to handle potential HTML responses
+      const responseText = await response.text();
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Response parse error:', parseError);
+        console.error('Response status:', response.status);
+        console.error('Response headers:', [...response.headers.entries()]);
+        console.error('Response text:', responseText);
+        throw new Error(`サーバーレスポンスが無効です (Status: ${response.status})`);
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'デバイス変更に失敗しました')
