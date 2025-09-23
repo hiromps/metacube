@@ -1274,42 +1274,19 @@ async function handleDeviceChange(request: Request, env: any) {
       );
     }
 
-    // Find user by email using users table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (userError || !userData) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'User not found with this email'
-        }),
-        {
-          status: 404,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    // Check if old device exists and belongs to the user
+    // Find device by device_hash and email - check devices table directly
     const { data: oldDevice, error: oldDeviceError } = await supabase
       .from('devices')
       .select('*')
       .eq('device_hash', old_device_hash)
-      .eq('user_id', userData.id)
+      .eq('email', email)
       .single();
 
     if (oldDeviceError || !oldDevice) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Current device not found or not registered to this user'
+          error: 'Current device not found or not registered to this email address'
         }),
         {
           status: 404,
@@ -1389,7 +1366,6 @@ async function handleDeviceChange(request: Request, env: any) {
         updated_at: new Date().toISOString()
       })
       .eq('id', oldDevice.id)
-      .eq('user_id', userData.id)
       .select()
       .single();
 
