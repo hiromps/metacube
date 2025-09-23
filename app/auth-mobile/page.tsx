@@ -186,16 +186,67 @@ function AuthMobileContent() {
       const resultData = encodeURIComponent(JSON.stringify(data))
       const schemeURL = `autotools://auth-result?data=${resultData}`
 
-      // URLスキームを開く
-      window.location.href = schemeURL
+      console.log('Attempting to open URL scheme:', schemeURL)
 
-      // フォールバック: 5秒後にAutoTouchアプリを開く
-      setTimeout(() => {
-        window.location.href = 'autotools://open'
-      }, 5000)
+      // URLスキームを開く（エラーハンドリング付き）
+      const openScheme = (url: string) => {
+        return new Promise((resolve, reject) => {
+          const iframe = document.createElement('iframe')
+          iframe.style.display = 'none'
+          iframe.src = url
+          document.body.appendChild(iframe)
+
+          // 成功/失敗の判定タイマー
+          const timer = setTimeout(() => {
+            document.body.removeChild(iframe)
+            reject(new Error('URL scheme timeout'))
+          }, 3000)
+
+          iframe.onload = () => {
+            clearTimeout(timer)
+            document.body.removeChild(iframe)
+            resolve(url)
+          }
+
+          iframe.onerror = () => {
+            clearTimeout(timer)
+            document.body.removeChild(iframe)
+            reject(new Error('URL scheme failed'))
+          }
+        })
+      }
+
+      try {
+        await openScheme(schemeURL)
+        console.log('✅ URL scheme successfully opened')
+
+        // 成功時のみAutoTouchアプリを開く
+        setTimeout(async () => {
+          try {
+            await openScheme('autotools://open')
+            console.log('✅ AutoTouch app opened')
+          } catch (error) {
+            console.log('⚠️ AutoTouch app open failed (normal in browser)')
+            setStatus('📋 結果をコピーしました - AutoTouchに戻ってください')
+          }
+        }, 2000)
+
+      } catch (error) {
+        console.log('⚠️ URL scheme not available (normal in browser)')
+
+        // フォールバック: クリップボードに結果をコピー
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+          setStatus('📋 結果をクリップボードにコピーしました')
+          console.log('📋 Fallback: Result copied to clipboard')
+        } else {
+          setStatus('✅ 認証完了 - AutoTouchアプリに戻ってください')
+        }
+      }
 
     } catch (error) {
       console.error('URLスキーム通知エラー:', error)
+      setStatus('⚠️ 通知エラー - 手動でAutoTouchに戻ってください')
     }
   }
 
@@ -292,12 +343,38 @@ function AuthMobileContent() {
                 <p className="font-medium">📝 次の手順:</p>
                 <p>認証が完了したら、AutoTouchアプリに戻ってください。</p>
                 <p>自動的にアプリが開かない場合は、下のボタンをタップしてください。</p>
+
+                {/* デバッグ情報 */}
+                <div className="mt-4 pt-4 border-t border-white/10 text-sm">
+                  <p className="text-white/70">
+                    💡 <strong>テスト環境の場合:</strong> URLスキームエラーは正常です。<br/>
+                    実際のiPhone + AutoTouch環境でのみ動作します。
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Action Button */}
             <button
-              onClick={() => window.location.href = 'autotools://open'}
+              onClick={async () => {
+                try {
+                  const iframe = document.createElement('iframe')
+                  iframe.style.display = 'none'
+                  iframe.src = 'autotools://open'
+                  document.body.appendChild(iframe)
+
+                  setTimeout(() => {
+                    document.body.removeChild(iframe)
+                  }, 3000)
+
+                  console.log('Attempting to open AutoTouch app')
+                } catch (error) {
+                  console.log('AutoTouch app not available (normal in browser)')
+
+                  // フォールバック: 手動でアプリを開く指示
+                  setStatus('📱 手動でAutoTouchアプリを開いてください')
+                }
+              }}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
               📱 AutoTouchアプリを開く
