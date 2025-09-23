@@ -970,14 +970,14 @@ export default function Home() {
                     </Badge>
                   </div>
 
-                  {/* 希少性インジケーター */}
-                  {plan.scarcity && (
+                  {/* 希少性インジケーター - 一時的にコメントアウト */}
+                  {/* {plan.scarcity && (
                     <div className="absolute -top-2 right-2">
                       <div className="bg-red-500/90 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
                         {plan.scarcity}
                       </div>
                     </div>
-                  )}
+                  )} */}
 
                   <CardHeader className="text-center pt-8">
                     {plan.popular && (
