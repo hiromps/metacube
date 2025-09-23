@@ -237,6 +237,78 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDownloadPackage = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('認証が必要です')
+      }
+
+      const response = await fetch('/api/download/package', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'ダウンロードに失敗しました')
+      }
+
+      // ファイルダウンロード処理
+      const blob = await response.blob()
+      const packageType = response.headers.get('X-Package-Type') || 'unknown'
+      const packageVersion = response.headers.get('X-Package-Version')
+      const uploadDate = response.headers.get('X-Upload-Date')
+
+      // ファイル名を決定
+      let fileName = 'smartgram.ate'
+      const contentDisposition = response.headers.get('Content-Disposition')
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/)
+        if (match) {
+          fileName = match[1]
+        }
+      }
+
+      // ダウンロード実行
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      // パッケージタイプに応じたメッセージ
+      let message = '🔒 セキュア.ateパッケージをダウンロードしました！\n\n'
+
+      if (packageType === 'custom') {
+        message += '🎯 管理者カスタム.ateパッケージ\n'
+        if (packageVersion) message += `バージョン: ${packageVersion}\n`
+        if (uploadDate) message += `作成日: ${new Date(uploadDate).toLocaleString()}\n`
+        message += '\n✅ コード保護済み（.ateファイル形式）\n'
+        message += '✅ 完全ローカル認証（API通信不要）\n\n'
+        message += 'Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置してください。'
+      } else {
+        message += '🔧 自動生成.ateパッケージ\n'
+        message += '✅ コード保護済み（.ateファイル形式）\n'
+        message += '✅ 完全ローカル認証（API通信不要）\n\n'
+        message += 'Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置してください。'
+      }
+
+      alert(message)
+
+    } catch (error: any) {
+      console.error('Download package error:', error)
+      setError(error.message || 'ダウンロードに失敗しました')
+    }
+  }
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
@@ -533,6 +605,61 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {/* Download Package Section */}
+            {userData.device && (
+              <div className="bg-gradient-to-br from-orange-800/30 via-yellow-800/20 to-amber-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-orange-500/10">
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">📦 専用パッケージダウンロード</h3>
+                <div className="space-y-4">
+                  <div className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
+                    <p className="text-white/80 text-sm md:text-base mb-3">
+                      あなた専用のsmartgram.ateファイルをダウンロードできます。このファイルには以下が含まれています：
+                    </p>
+                    <ul className="space-y-1 text-sm text-white/70 mb-4">
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✅</span>
+                        <span>あなたのデバイスハッシュが事前設定済み</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✅</span>
+                        <span>現在のプラン情報（{userData.plan?.display_name || 'プラン情報なし'}）</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✅</span>
+                        <span>完全ローカル認証システム（API通信不要）</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-400">✅</span>
+                        <span>プラン制限機能が適用済み</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-blue-400">🔒</span>
+                        <span>コード保護済み（.ateファイル形式）</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                    <h4 className="font-medium text-blue-300 mb-2 text-sm md:text-base">📋 設置方法</h4>
+                    <ol className="space-y-1 text-xs md:text-sm text-white/70">
+                      <li>1. 下のボタンからダウンロード</li>
+                      <li>2. Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置</li>
+                      <li>3. main.luaを実行してツールを起動</li>
+                    </ol>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleDownloadPackage}
+                      className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-xl border border-white/20 px-6 py-3"
+                      size="lg"
+                    >
+                      📦 専用パッケージをダウンロード
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Account Information */}
             <div className="bg-gradient-to-br from-cyan-800/30 via-blue-800/20 to-teal-800/30 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-cyan-500/10">

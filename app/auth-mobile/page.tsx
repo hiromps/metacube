@@ -153,40 +153,180 @@ function AuthMobileContent() {
   // 結果をファイルに保存（AutoTouchが読み取り可能な場所）
   const saveResultToFile = async (data: any) => {
     try {
-      // File System Access APIまたはダウンロード経由でファイル保存
-      // (制限があるため、代替手段を使用)
+      // AutoTouch用の認証結果フォーマット
+      const authResult = {
+        success: data.is_valid || false,
+        device_hash: data.device_hash || searchParams.get('device_hash'),
+        status: data.status || 'unknown',
+        timestamp: new Date().toISOString(),
+        expires_at: data.expires_at || (os.time() + (24 * 60 * 60)), // 24時間後
+        source: 'smartgram-auth-mobile-webview',
+        is_valid: data.is_valid || false,
+        authenticated_at: Math.floor(Date.now() / 1000) // Unix timestamp
+      };
 
-      // クリップボードに結果をコピー
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(JSON.stringify(data))
-        console.log('結果をクリップボードにコピーしました')
+      // 設定ファイル用のデータも準備
+      const configUpdate = {
+        auth_status: data.is_valid ? 'completed' : 'failed',
+        last_auth_check: Math.floor(Date.now() / 1000),
+        last_auth_data: data.is_valid ? authResult : null
+      };
+
+      console.log('🔄 Saving auth result for AutoTouch:', authResult);
+
+      // 1. ブラウザのダウンロード機能でファイル保存（自動実行）
+      try {
+        const jsonContent = JSON.stringify(authResult, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        // 自動ダウンロード用のリンクを作成
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = 'auth_result.json';  // AutoTouchが待機するファイル名
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+
+        console.log('✅ 認証結果ファイルのダウンロードを開始しました');
+      } catch (downloadError) {
+        console.error('❌ ダウンロード失敗:', downloadError);
       }
 
-      // LocalStorageに保存
-      localStorage.setItem('smartgram_auth_result', JSON.stringify(data))
+      // 2. サーバー経由でもファイル保存を試行（バックアップ）
+      try {
+        const saveResponse = await fetch('/api/save-auth-result', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(authResult.result)
+        });
 
-      // サーバー経由でファイル保存を試行
-      await fetch('/api/save-auth-result', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-      }).catch(err => console.log('Server save failed:', err))
+        if (saveResponse.ok) {
+          const saveData = await saveResponse.json();
+          console.log('✅ Server save successful:', saveData);
+        } else {
+          console.log('⚠️ Server save failed:', saveResponse.status);
+        }
+      } catch (serverError) {
+        console.log('⚠️ Server save error:', serverError);
+      }
+
+      // 2. ダウンロード方式でファイル生成（AutoTouch環境用）
+      try {
+        const fileName = 'smartgram_auth_result.json';
+        const fileContent = JSON.stringify(authResult, null, 2);
+
+        // ファイルダウンロードを自動実行
+        const blob = new Blob([fileContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = fileName;
+        downloadLink.style.display = 'none';
+
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        URL.revokeObjectURL(url);
+        console.log('✅ File download triggered:', fileName);
+      } catch (downloadError) {
+        console.log('⚠️ Download method failed:', downloadError);
+      }
+
+      // 3. LocalStorageに保存
+      localStorage.setItem('smartgram_auth_result', JSON.stringify(authResult));
+      console.log('✅ Result saved to localStorage');
+
+      // 4. クリップボードに結果をコピー
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(JSON.stringify(authResult, null, 2));
+        console.log('✅ Result copied to clipboard');
+      }
+
+      // 5. カスタムイベントを発火（AutoTouch環境のWebView用）
+      try {
+        const customEvent = new CustomEvent('smartgram-auth-complete', {
+          detail: authResult
+        });
+        window.dispatchEvent(customEvent);
+        console.log('✅ Custom event dispatched');
+      } catch (eventError) {
+        console.log('⚠️ Custom event failed:', eventError);
+      }
 
     } catch (error) {
-      console.error('結果保存エラー:', error)
+      console.error('❌ 結果保存エラー:', error);
     }
   }
 
   // URLスキーム経由でAutoTouchに通知
   const notifyAutoTouch = async (data: any) => {
     try {
-      // カスタムURLスキーム（AutoTouchアプリ用）
-      const resultData = encodeURIComponent(JSON.stringify(data))
-      const schemeURL = `autotools://auth-result?data=${resultData}`
+      console.log('🔄 Starting AutoTouch notification process...')
 
-      console.log('Attempting to open URL scheme:', schemeURL)
+      // 1. 最優先: 特別なクリップボード形式でデータ保存（複数回試行）
+      const specialClipboardData = `SMARTGRAM_AUTH_RESULT:${JSON.stringify(data)}`
+
+      // クリップボード保存を3回試行（確実性向上）
+      for (let i = 0; i < 3; i++) {
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(specialClipboardData)
+            console.log(`✅ Special clipboard format saved (attempt ${i + 1}):`, specialClipboardData.substring(0, 50) + '...')
+
+            // 保存確認
+            const verification = await navigator.clipboard.readText()
+            if (verification === specialClipboardData) {
+              console.log('✅ Clipboard save verified successfully')
+              break
+            } else {
+              console.log(`⚠️ Clipboard verification failed (attempt ${i + 1})`)
+            }
+          }
+        } catch (clipError) {
+          console.log(`⚠️ Clipboard save failed (attempt ${i + 1}):`, clipError)
+          if (i < 2) {
+            await new Promise(resolve => setTimeout(resolve, 100)) // 100ms待機
+          }
+        }
+      }
+
+      // フォールバック: 古いクリップボードAPI
+      try {
+        if (!navigator.clipboard && document.execCommand) {
+          const textArea = document.createElement('textarea')
+          textArea.value = specialClipboardData
+          textArea.style.position = 'fixed'
+          textArea.style.opacity = '0'
+          document.body.appendChild(textArea)
+          textArea.select()
+          const success = document.execCommand('copy')
+          document.body.removeChild(textArea)
+
+          if (success) {
+            console.log('✅ Fallback clipboard save successful')
+          } else {
+            console.log('⚠️ Fallback clipboard save failed')
+          }
+        }
+      } catch (fallbackError) {
+        console.log('⚠️ Fallback clipboard method failed:', fallbackError)
+      }
+
+      // 2. URLスキーム試行（複数パターン）
+      const resultData = encodeURIComponent(JSON.stringify(data))
+      const urlSchemes = [
+        `autotools://auth-result?data=${resultData}`,
+        `autotouch://auth-result?data=${resultData}`,
+        `smartgram://auth-result?data=${resultData}`
+      ]
+
+      console.log('🔗 Trying URL schemes:', urlSchemes.length)
 
       // URLスキームを開く（エラーハンドリング付き）
       const openScheme = (url: string) => {
@@ -200,7 +340,7 @@ function AuthMobileContent() {
           const timer = setTimeout(() => {
             document.body.removeChild(iframe)
             reject(new Error('URL scheme timeout'))
-          }, 3000)
+          }, 2000)  // 短縮（2秒）
 
           iframe.onload = () => {
             clearTimeout(timer)
@@ -216,50 +356,63 @@ function AuthMobileContent() {
         })
       }
 
-      try {
-        await openScheme(schemeURL)
-        console.log('✅ URL scheme successfully opened')
-
-        // 成功時のみAutoTouchアプリを開く
-        setTimeout(async () => {
-          try {
-            // AutoTouchアプリの正確なスキーム
-            await openScheme('autotools://open')
-            console.log('✅ AutoTouch app opened via URL scheme')
-          } catch (error) {
-            // フォールバック: JavaScript経由でアプリ起動を試行
-            try {
-              const windowWithWebkit = window as any;
-              if (windowWithWebkit.webkit && windowWithWebkit.webkit.messageHandlers) {
-                // iOS WebView環境での代替方法
-                console.log('Attempting app activation via WebKit')
-                // Note: appActivate("me.autotouch.AutoTouch.ios8") はLua側で実行
-              }
-            } catch (webkitError) {
-              console.log('⚠️ WebKit activation failed')
-            }
-
-            console.log('⚠️ AutoTouch app open failed (normal in browser)')
-            setStatus('📋 結果をコピーしました - AutoTouchに戻ってください')
-          }
-        }, 2000)
-
-      } catch (error) {
-        console.log('⚠️ URL scheme not available (normal in browser)')
-
-        // フォールバック: クリップボードに結果をコピー
-        if (navigator.clipboard) {
-          await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
-          setStatus('📋 結果をクリップボードにコピーしました')
-          console.log('📋 Fallback: Result copied to clipboard')
-        } else {
-          setStatus('✅ 認証完了 - AutoTouchアプリに戻ってください')
+      let schemeSuccess = false
+      for (const scheme of urlSchemes) {
+        try {
+          await openScheme(scheme)
+          console.log('✅ URL scheme success:', scheme.split('://')[0])
+          schemeSuccess = true
+          break
+        } catch (error) {
+          console.log('⚠️ URL scheme failed:', scheme.split('://')[0])
         }
       }
 
+      // 3. AutoTouchアプリ起動試行
+      if (schemeSuccess) {
+        setTimeout(async () => {
+          const appSchemes = ['autotools://open', 'autotouch://open']
+          for (const appScheme of appSchemes) {
+            try {
+              await openScheme(appScheme)
+              console.log('✅ AutoTouch app opened via:', appScheme)
+              break
+            } catch (error) {
+              console.log('⚠️ App open failed:', appScheme)
+            }
+          }
+        }, 1000)
+      }
+
+      // 4. 状態表示とユーザー指示
+      if (schemeSuccess) {
+        setStatus('✅ 認証完了 - AutoTouchアプリに戻ってください')
+      } else {
+        setStatus('📋 認証完了 - 結果をコピーしました')
+      }
+
+      // 5. WebKit環境での代替通知
+      try {
+        const windowWithWebkit = window as any;
+        if (windowWithWebkit.webkit && windowWithWebkit.webkit.messageHandlers) {
+          console.log('🍎 WebKit environment detected')
+
+          // WebKitのメッセージハンドラーを試行
+          if (windowWithWebkit.webkit.messageHandlers.smartgram) {
+            windowWithWebkit.webkit.messageHandlers.smartgram.postMessage(data)
+            console.log('✅ WebKit message handler success')
+          }
+        }
+      } catch (webkitError) {
+        console.log('⚠️ WebKit method failed:', webkitError)
+      }
+
+      // 6. 最終的なフォールバック
+      console.log('📝 Final status: Authentication completed with multiple notification methods')
+
     } catch (error) {
-      console.error('URLスキーム通知エラー:', error)
-      setStatus('⚠️ 通知エラー - 手動でAutoTouchに戻ってください')
+      console.error('❌ AutoTouch notification error:', error)
+      setStatus('⚠️ 認証完了 - 手動でAutoTouchに戻ってください')
     }
   }
 
@@ -313,6 +466,34 @@ function AuthMobileContent() {
             {result && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-6">
                 <h3 className="text-xl font-bold mb-4 text-white">認証結果</h3>
+
+                {/* AutoTouch向けの詳細指示 */}
+                {status.includes('認証成功') && (
+                  <div className="bg-green-500/20 rounded-lg p-4 mb-4 text-left">
+                    <h4 className="text-lg font-bold text-green-300 mb-3">📱 AutoTouch向けの次の手順</h4>
+                    <div className="space-y-2 text-sm text-white/90">
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-300 font-bold">1.</span>
+                        <span>自動ダウンロードされた <code className="bg-white/20 px-1 rounded">auth_result.json</code> ファイルを確認</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-300 font-bold">2.</span>
+                        <span>ファイルを以下のパスに移動してください：</span>
+                      </div>
+                      <div className="bg-black/40 rounded p-2 ml-6 font-mono text-xs text-green-300">
+                        /var/jb/var/mobile/Library/AutoTouch/Scripts/Smartgram/auth_result.json
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-300 font-bold">3.</span>
+                        <span>AutoTouchアプリに戻り、main.luaを再実行してください</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-300 font-bold">4.</span>
+                        <span>認証が自動で完了し、ツール選択画面が表示されます</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3 text-left">
                   <div className="flex justify-between items-center">
                     <span className="text-white/80">ステータス:</span>
@@ -367,37 +548,72 @@ function AuthMobileContent() {
               </div>
             </div>
 
-            {/* Action Button */}
-            <button
-              onClick={async () => {
-                try {
-                  // Method 1: URL scheme で試行
-                  const iframe = document.createElement('iframe')
-                  iframe.style.display = 'none'
-                  iframe.src = 'autotools://open'
-                  document.body.appendChild(iframe)
+            {/* Action Buttons */}
+            <div className="space-y-4">
+              {/* 結果を手動でコピー */}
+              {result && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const resultText = `SMARTGRAM_AUTH_RESULT:${JSON.stringify(result)}`
+                      if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(resultText)
+                        setStatus('✅ 認証結果をクリップボードにコピーしました')
+                      } else {
+                        // フォールバック
+                        const textArea = document.createElement('textarea')
+                        textArea.value = resultText
+                        textArea.style.position = 'fixed'
+                        textArea.style.opacity = '0'
+                        document.body.appendChild(textArea)
+                        textArea.select()
+                        document.execCommand('copy')
+                        document.body.removeChild(textArea)
+                        setStatus('✅ 認証結果をクリップボードにコピーしました')
+                      }
+                    } catch (error) {
+                      console.error('Copy failed:', error)
+                      setStatus('❌ コピーに失敗しました')
+                    }
+                  }}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  📋 認証結果をコピー
+                </button>
+              )}
 
-                  setTimeout(() => {
-                    document.body.removeChild(iframe)
-                  }, 3000)
+              {/* AutoTouchアプリを開く */}
+              <button
+                onClick={async () => {
+                  try {
+                    // Method 1: URL scheme で試行
+                    const iframe = document.createElement('iframe')
+                    iframe.style.display = 'none'
+                    iframe.src = 'autotools://open'
+                    document.body.appendChild(iframe)
 
-                  console.log('Attempting to open AutoTouch app via URL scheme')
+                    setTimeout(() => {
+                      document.body.removeChild(iframe)
+                    }, 3000)
 
-                  // Method 2: ユーザーに手動起動を促す
-                  setTimeout(() => {
-                    setStatus('📱 AutoTouchアプリを手動で開いてmain.luaを実行してください')
-                    console.log('💡 Tip: AutoTouchアプリでappActivate("me.autotouch.AutoTouch.ios8")が実行されます')
-                  }, 2000)
+                    console.log('Attempting to open AutoTouch app via URL scheme')
 
-                } catch (error) {
-                  console.log('AutoTouch app not available (normal in browser)')
-                  setStatus('📱 手動でAutoTouchアプリを開いてください')
-                }
-              }}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              📱 AutoTouchアプリを開く
-            </button>
+                    // Method 2: ユーザーに手動起動を促す
+                    setTimeout(() => {
+                      setStatus('📱 AutoTouchアプリを手動で開いてmain.luaを実行してください')
+                      console.log('💡 Tip: AutoTouchアプリでappActivate("me.autotouch.AutoTouch.ios8")が実行されます')
+                    }, 2000)
+
+                  } catch (error) {
+                    console.log('AutoTouch app not available (normal in browser)')
+                    setStatus('📱 手動でAutoTouchアプリを開いてください')
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                📱 AutoTouchアプリを開く
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   handleUsageIncrement,
   handleFeatureCheck
 } from './multiplan-handlers'
+import { handleDownloadPackage } from './download-package'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -78,6 +79,11 @@ export async function onRequest(context: any) {
     return handleUsageIncrement(request, env);
   } else if (path === 'feature/check') {
     return handleFeatureCheck(request, env);
+  } else if (path === 'download/package') {
+    return handleDownloadPackage(request, env);
+  } else if (path === 'admin/upload-package') {
+    console.log('Routing to admin upload package handler');
+    return handleAdminUploadPackageInternal(request, env);
   }
 
   // 404 for unknown API routes
@@ -2328,4 +2334,142 @@ async function handleGetUserEmailByDevice(request: Request, env: any) {
       }
     );
   }
+}
+
+// 管理者専用: ユーザーパッケージアップロードAPI
+interface UploadPackageRequest {
+  user_id: string
+  device_hash: string
+  file_name: string
+  file_content: string // base64エンコード済み
+  file_size: number
+  notes?: string
+}
+
+async function handleAdminUploadPackageInternal(request: Request, env?: any): Promise<Response> {
+  console.log('handleAdminUploadPackageInternal called');
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const uploadData: UploadPackageRequest = await request.json()
+    console.log('Upload data received:', { user_id: uploadData.user_id, device_hash: uploadData.device_hash, file_name: uploadData.file_name });
+
+    if (!uploadData.user_id || !uploadData.device_hash || !uploadData.file_content) {
+      return new Response(JSON.stringify({
+        error: '必須フィールドが不足しています'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // ユーザーが存在するか確認
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(uploadData.user_id)
+    if (userError || !userData.user) {
+      console.error('User not found:', userError);
+      return new Response(JSON.stringify({ error: 'ユーザーが見つかりません' }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
+    // 既存のパッケージを無効化（新しいバージョンのため）
+    await supabase
+      .from('user_packages')
+      .update({ is_active: false })
+      .eq('user_id', uploadData.user_id)
+      .eq('device_hash', uploadData.device_hash)
+
+    // 新しいパッケージを保存
+    const { data: packageData, error: packageError } = await supabase
+      .from('user_packages')
+      .insert({
+        user_id: uploadData.user_id,
+        device_hash: uploadData.device_hash,
+        file_name: uploadData.file_name,
+        file_content: uploadData.file_content,
+        file_size: uploadData.file_size,
+        uploaded_by: 'admin',
+        notes: uploadData.notes || '管理者によりアップロード',
+        version: generateVersionString(),
+        is_active: true
+      })
+      .select()
+      .single()
+
+    if (packageError) {
+      console.error('Package insert error:', packageError)
+      return new Response(JSON.stringify({
+        error: 'パッケージの保存に失敗しました',
+        details: packageError.message
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
+    // 成功レスポンス
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'パッケージをアップロードしました',
+      package_id: packageData.id,
+      version: packageData.version,
+      user_email: userData.user.email
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Upload package error:', error)
+    return new Response(JSON.stringify({
+      error: 'アップロードに失敗しました',
+      details: error.message
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+  }
+}
+
+function generateVersionString(): string {
+  const now = new Date()
+  return `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}.${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`
 }

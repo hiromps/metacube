@@ -998,6 +998,8 @@ AutoIGv2/
 - `usleep()` はマイクロ秒単位
 - `findImage()` の region パラメータは `{x1, y1, x2, y2}` 形式
 - `touchDown()`, `touchMove()`, `touchUp()` でタッチID管理必須
+- **HTTP関数は利用不可**: `httpsGet`, `httpGet`, `httpsPost`, `httpPost` すべて利用できない
+- **ネットワーク通信不可**: AutoTouch環境ではHTTPリクエストができないため、オフライン認証システムを使用
 
 ### Instagram API 制限対策
 - ランダム待機時間導入
@@ -1389,6 +1391,34 @@ end
    - 認証状態の可視化
 
 ## 🚀 AutoTouch ランチャー実装（main.lua）
+
+### オフライン認証システム
+
+AutoTouch環境ではHTTP関数が利用できないため、オフライン認証システムを実装：
+
+```lua
+-- 認証済みデバイスリスト
+local authorizedDevices = {
+    "FFMZ3GTSJC6J",  -- 認証済みデバイス
+    "TEST123ABCD",   -- テスト用デバイス
+}
+
+-- オフライン認証（サーバー不要）
+function tryOfflineAuthentication(deviceHash)
+    for _, authorizedDevice in ipairs(authorizedDevices) do
+        if deviceHash == authorizedDevice then
+            return jsonAuthResponse  -- 認証成功
+        end
+    end
+    return nil  -- 認証失敗
+end
+```
+
+### 認証フロー
+1. `main.lua`実行 → デバイスハッシュ取得
+2. オフライン認証 → 認証済みデバイスリストと照合
+3. 認証成功 → ツール選択ダイアログ表示
+4. ツール選択 → 選択したツールを実行
 
 ### 完成版の仕様と実装方法
 
