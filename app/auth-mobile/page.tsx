@@ -18,6 +18,9 @@ function AuthMobileContent() {
           throw new Error('デバイスハッシュが指定されていません')
         }
 
+        // デバイスハッシュを統一形式にする（大文字）
+        const normalizedDeviceHash = deviceHash.toUpperCase()
+
         setStatus('Smartgram APIに接続中...')
 
         // API接続
@@ -27,7 +30,7 @@ function AuthMobileContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            device_hash: deviceHash
+            device_hash: normalizedDeviceHash
           })
         })
 
@@ -49,7 +52,7 @@ function AuthMobileContent() {
         } else if (data.status === 'unregistered') {
           // 未登録デバイスの場合、自動登録を試行
           setStatus('🔄 デバイス登録中...')
-          await handleDeviceRegistration(deviceHash)
+          await handleDeviceRegistration(normalizedDeviceHash)
         } else {
           setStatus('❌ 認証失敗')
           await saveResultToFile({ error: data.message || 'Authentication failed' })
@@ -73,6 +76,9 @@ function AuthMobileContent() {
       const tempEmail = `auto.device.${sanitizedHash.substring(0, 12)}@smartgram.jp`
       const tempPassword = `SmartGram2024_${sanitizedHash.substring(0, 16)}`
 
+      // デバイスハッシュは登録時と検索時で同じ形式にする（小文字統一）
+      const normalizedDeviceHash = deviceHash.toUpperCase()
+
       const registerResponse = await fetch('/api/device/register', {
         method: 'POST',
         headers: {
@@ -81,7 +87,7 @@ function AuthMobileContent() {
         body: JSON.stringify({
           email: tempEmail,
           password: tempPassword, // バックエンドで自動的にuser_id生成
-          device_hash: deviceHash
+          device_hash: normalizedDeviceHash
         })
       })
 
@@ -100,7 +106,8 @@ function AuthMobileContent() {
 
       // デバッグ: 登録されたメールアドレスを確認
       console.log('Registered email:', tempEmail)
-      console.log('Device hash for re-auth:', deviceHash)
+      console.log('Device hash for re-auth:', normalizedDeviceHash)
+      console.log('Original device hash:', deviceHash)
 
         // 登録完了後、再度認証を実行
         setTimeout(async () => {
@@ -110,7 +117,7 @@ function AuthMobileContent() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              device_hash: deviceHash
+              device_hash: normalizedDeviceHash
             })
           })
 

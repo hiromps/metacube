@@ -128,12 +128,16 @@ async function handleLicenseVerify(request: Request, env: any) {
     // Get device from Supabase
     const supabase = getSupabaseClient(env);
 
+    // Normalize device hash for consistent lookup (uppercase)
+    const normalizedDeviceHash = device_hash.toUpperCase();
+
     // First, try to get device from database
     console.log('License verification for device hash:', device_hash);
+    console.log('Normalized device hash:', normalizedDeviceHash);
     const { data: deviceData, error: deviceError } = await supabase
       .from('devices')
       .select('*')
-      .eq('device_hash', device_hash)
+      .eq('device_hash', normalizedDeviceHash)
       .single();
 
     console.log('Device query result:', { deviceData, deviceError });
@@ -1117,16 +1121,20 @@ async function handleDeviceRegister(request: Request, env: any) {
       );
     }
 
+    // Normalize device hash for consistent storage (uppercase)
+    const normalizedDeviceHash = device_hash.toUpperCase();
+
     // Register device with registered status (free registration)
     console.log('Attempting device registration with:', {
       user_id: final_user_id,
       device_hash: device_hash,
+      normalized_device_hash: normalizedDeviceHash,
       email: email
     });
 
     const { data: deviceData, error: deviceError } = await supabase.rpc('register_device_with_setup', {
       p_user_id: final_user_id,
-      p_device_hash: device_hash,
+      p_device_hash: normalizedDeviceHash,
       p_email: email
     });
 
