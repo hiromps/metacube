@@ -2,6 +2,10 @@
 /login /login/index.html 200
 /register /register/index.html 200
 /dashboard /dashboard/index.html 200
+/terms /terms/index.html 200
+/privacy /privacy/index.html 200
+/guides /guides/index.html 200
+/admin /admin/index.html 200
 
-# Default fallback for other routes (excluding API)
-/* /index.html 200
+# Default fallback for pages only (NOT API routes)
+/!(api)/* /index.html 200

@@ -156,18 +156,35 @@ export default function DashboardPage() {
       // Get current session token
       const { data: { session } } = await supabase.auth.getSession()
 
+      console.log('Session info:', {
+        hasSession: !!session,
+        hasToken: !!session?.access_token,
+        email: userData?.email
+      });
+
+      const requestData = {
+        old_device_hash: userData?.device?.device_hash,
+        new_device_hash: newDeviceHash.trim(),
+        email: userData?.email
+      };
+
+      console.log('Request data:', requestData);
+
       const response = await fetch('/api/device/change', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({
-          old_device_hash: userData?.device?.device_hash,
-          new_device_hash: newDeviceHash.trim(),
-          email: userData?.email
-        })
+        body: JSON.stringify(requestData)
       })
+
+      console.log('Response details:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      });
 
       // Get response text first to handle potential HTML responses
       const responseText = await response.text();
@@ -176,10 +193,14 @@ export default function DashboardPage() {
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Response parse error:', parseError);
+        console.error('=== JSON Parse Error ===');
+        console.error('Parse error:', parseError);
         console.error('Response status:', response.status);
-        console.error('Response headers:', [...response.headers.entries()]);
-        console.error('Response text:', responseText);
+        console.error('Response statusText:', response.statusText);
+        console.error('Response URL:', response.url);
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
+        console.error('Response text (first 500 chars):', responseText.substring(0, 500));
+        console.error('Response text (full):', responseText);
         throw new Error(`サーバーレスポンスが無効です (Status: ${response.status})`);
       }
 
