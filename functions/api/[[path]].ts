@@ -166,7 +166,7 @@ async function handleLicenseVerify(request: Request, env: any) {
           license_type: null, // AutoTouchスタイル
           error: 'Device not registered',
           message: 'Please register your device first',
-          registration_url: 'https://smartgram-el5.pages.dev/register'
+          registration_url: 'https://smartgram.jp/register'
         }),
         {
           status: 200,
@@ -248,7 +248,7 @@ async function handleLicenseVerify(request: Request, env: any) {
           license_type: null,
           error: 'Device not registered',
           message: 'Please register your device first',
-          registration_url: 'https://smartgram-el5.pages.dev/register'
+          registration_url: 'https://smartgram.jp/register'
         }),
         {
           status: 200,

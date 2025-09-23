@@ -1,10 +1,10 @@
 -- Story Viewer - Instagram自動ストーリー視聴ツール
--- MetaCube License Management System
+-- smartgram License Management System
 
 print("🚀 Story Viewer START")
 
--- MetaCubeライセンス確認
-function checkMetaCubeLicense()
+-- smartgramライセンス確認
+function checksmartgramLicense()
     if getLicenseDetails then
         local license = getLicenseDetails()
         if not license or not license.is_valid then
@@ -15,7 +15,7 @@ function checkMetaCubeLicense()
             })
             return false
         end
-        print("✅ MetaCubeライセンス確認済み")
+        print("✅ smartgramライセンス確認済み")
         return true
     else
         print("⚠️ ライセンス関数が見つかりません")
@@ -87,7 +87,7 @@ end
 
 -- メイン実行
 function main()
-    if not checkMetaCubeLicense() then
+    if not checksmartgramLicense() then
         return
     end
 

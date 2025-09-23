@@ -1,5 +1,5 @@
 -- ================================
--- MetaCube Main Script with License Manager
+-- smartgram Main Script with License Manager
 -- Version: 2.0.0
 -- ================================
 
@@ -7,8 +7,8 @@ local json = require("json")
 local http = require("http")
 
 -- Configuration
-local API_BASE_URL = "https://metacube-el5.pages.dev/api"
-local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
+local API_BASE_URL = "https://smartgram.jp/api"
+local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_cache"
 local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
 
 -- 設定ファイルを読み込み
@@ -120,7 +120,7 @@ function showRegistrationScreen(deviceHash)
     dialog("デバイスハッシュ: " .. deviceHash .. "\n\n" ..
            "このデバイスは未登録です。\n" ..
            "以下のURLで登録してください:\n\n" ..
-           "https://metacube-el5.pages.dev/register\n\n" ..
+           "https://smartgram.jp/register\n\n" ..
            "登録時にデバイスハッシュを入力してください。\n" ..
            "支払い完了後、このスクリプトを再実行すると\n" ..
            "自動的に3日間の体験期間が開始されます。", 0)
@@ -132,13 +132,13 @@ function showExpiredScreen()
     dialog("体験期間が終了しました。\n\n" ..
            "継続利用するには有料プランへの\n" ..
            "アップグレードが必要です。\n\n" ..
-           "https://metacube-el5.pages.dev/dashboard", 0)
+           "https://smartgram.jp/dashboard", 0)
     return false
 end
 
 -- ライセンスチェック
 function checkLicense()
-    toast("MetaCube License Manager", 1)
+    toast("smartgram License Manager", 1)
 
     -- デバイスハッシュ取得
     local deviceHash = getDeviceHash()
@@ -210,7 +210,7 @@ function main()
     end
 
     -- 初期化
-    utils.log("info", "MetaCube Starting...")
+    utils.log("info", "smartgram Starting...")
     utils.log("info", "Plan: " .. config.plan)
 
     -- Instagramアプリを起動
@@ -458,7 +458,7 @@ end
 -- ================================
 -- 終了処理
 -- ================================
-utils.log("info", "MetaCube stopped")
+utils.log("info", "smartgram stopped")
 if config.notifications.on_complete then
-    alert("MetaCube: 処理が完了しました")
+    alert("smartgram: 処理が完了しました")
 end

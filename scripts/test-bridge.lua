@@ -5,8 +5,8 @@ print("🔧 HTTP Bridge Communication Test")
 print("=" .. string.rep("=", 40))
 
 -- Configuration
-local requestFile = "/tmp/metacube_request.json"
-local responseFile = "/tmp/metacube_response.json"
+local requestFile = "/tmp/smartgram_request.json"
+local responseFile = "/tmp/smartgram_response.json"
 local deviceHash = "FFMZ3GTSJC6J"
 
 -- Test 1: Check file I/O capabilities
@@ -62,7 +62,7 @@ local requestSuccess = pcall(function()
     local file = io.open(requestFile, "w")
     if file then
         local requestData = string.format([[{
-  "url": "https://metacube-el5.pages.dev/api/license/verify",
+  "url": "https://smartgram.jp/api/license/verify",
   "method": "POST",
   "body": "{\"device_hash\":\"%s\"}",
   "timestamp": %d,

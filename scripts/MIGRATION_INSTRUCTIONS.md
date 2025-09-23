@@ -15,7 +15,7 @@ The application is failing with "Could not find the function public.register_dev
 3. Click **New Query**
 
 ### Step 2: Execute the Migration
-Copy and paste the contents from: `C:\Users\Public\Documents\myproject\MetaCube\scripts\execute-migration-09.sql`
+Copy and paste the contents from: `C:\Users\Public\Documents\myproject\smartgram\scripts\execute-migration-09.sql`
 
 Or run the SQL directly from the command line if you have access.
 

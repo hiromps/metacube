@@ -7,19 +7,19 @@
       "NODE_VERSION": "18",
       "NPM_VERSION": "9",
       "NEXT_TELEMETRY_DISABLED": "1",
-      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+      "NEXT_PUBLIC_APP_URL": "https://smartgram.jp"
     }
   },
   "env": {
     "production": {
       "NODE_ENV": "production",
       "NEXT_TELEMETRY_DISABLED": "1",
-      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+      "NEXT_PUBLIC_APP_URL": "https://smartgram.jp"
     },
     "preview": {
       "NODE_ENV": "preview",
       "NEXT_TELEMETRY_DISABLED": "1",
-      "NEXT_PUBLIC_APP_URL": "https://metacube-el5.pages.dev"
+      "NEXT_PUBLIC_APP_URL": "https://smartgram.jp"
     }
   },
   "compatibility_flags": ["nodejs_compat"]

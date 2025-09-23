@@ -1,5 +1,5 @@
 -- ================================
--- MetaCube ベーシックプラン設定
+-- smartgram ベーシックプラン設定
 -- ================================
 
 return {
@@ -39,7 +39,7 @@ return {
     logging = {
         enabled = true,
         level = "info",
-        file_path = "metacube_log.txt",
+        file_path = "smartgram_log.txt",
     },
 
     notifications = {

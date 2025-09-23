@@ -5,7 +5,7 @@ async function updateTrialDate() {
   try {
     console.log('Updating trial_ends_at to:', targetDate);
 
-    const response = await fetch('https://metacube-el5.pages.dev/api/admin/update-device', {
+    const response = await fetch('https://smartgram.jp/api/admin/update-device', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -27,7 +27,7 @@ async function updateTrialDate() {
       console.log('✅ Successfully updated trial_ends_at');
 
       // Verify the update
-      const verifyResponse = await fetch('https://metacube-el5.pages.dev/api/license/verify', {
+      const verifyResponse = await fetch('https://smartgram.jp/api/license/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -203,7 +203,7 @@ function testMode() {
     log('Running in test mode...');
 
     const testRequest = {
-        url: 'https://smartgram-el5.pages.dev/api/license/verify',
+        url: 'https://smartgram.jp/api/license/verify',
         method: 'POST',
         body: '{"device_hash":"TEST123456789"}',
         headers: {

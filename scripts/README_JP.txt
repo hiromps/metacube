@@ -1,8 +1,8 @@
 ========================================
-    MetaCube インストールガイド
+    smartgram インストールガイド
 ========================================
 
-このたびはMetaCubeをご購入いただき、ありがとうございます。
+このたびはsmartgramをご購入いただき、ありがとうございます。
 このガイドに従って、簡単に設定を完了できます。
 
 ========================================
@@ -18,7 +18,7 @@
 📦 ファイル構成
 ========================================
 
-MetaCube/
+smartgram/
 ├── main.lua           # メインスクリプト
 ├── config.lua         # 設定ファイル（要編集）
 ├── functions/         # 機能モジュール
@@ -37,7 +37,7 @@ MetaCube/
 1. iPhoneをPCに接続
 2. iFunboxまたはiMazingを開く
 3. AutoTouch > Scripts フォルダを開く
-4. MetaCubeフォルダごとコピー
+4. smartgramフォルダごとコピー
 
 または
 
@@ -153,13 +153,13 @@ A:
 ご不明な点は、以下までお問い合わせください：
 
 📧 メールサポート（ベーシック）
-   support@metacube.app
+   support@smartgram.app
 
 💬 LINEサポート（スタンダード・プレミアム）
-   LINE ID: @metacube
+   LINE ID: @smartgram
 
 🌐 ヘルプセンター
-   https://metacube.app/help
+   https://smartgram.app/help
 
 ========================================
 📝 更新履歴
@@ -172,7 +172,7 @@ Version 1.0.0 (2024/01/21)
 
 ========================================
 
-MetaCubeをご利用いただき、ありがとうございます。
+smartgramをご利用いただき、ありがとうございます。
 あなたのInstagramの成長を全力でサポートします！
 
-© 2024 MetaCube. All rights reserved.
+© 2024 smartgram. All rights reserved.

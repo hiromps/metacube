@@ -190,7 +190,7 @@ SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
 ### ライセンス認証設定
 \`\`\`lua
 -- config.lua内
-LICENSE_SERVER = "https://smartgram-el5.pages.dev/api"
+LICENSE_SERVER = "https://smartgram.jp/api"
 CACHE_DURATION = 86400  -- 24時間
 \`\`\`
 

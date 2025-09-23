@@ -12,7 +12,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-API_BASE="https://metacube-el5.pages.dev/api"
+API_BASE="https://smartgram.jp/api"
 
 echo -e "${YELLOW}1. Testing device registration endpoint...${NC}"
 REGISTER_RESPONSE=$(curl -s -X POST "$API_BASE/device/register" \
@@ -101,4 +101,4 @@ echo ""
 echo "Next steps:"
 echo "1. If tests failed: Execute migration in Supabase SQL Editor"
 echo "2. If tests passed: API is working correctly"
-echo "3. Check the web application at: https://metacube-el5.pages.dev"
+echo "3. Check the web application at: https://smartgram.jp"

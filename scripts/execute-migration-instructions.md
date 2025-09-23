@@ -8,7 +8,7 @@
 
 ## Step 2: Execute the Migration SQL
 
-1. **Copy the entire SQL content** from `C:\Users\Public\Documents\myproject\MetaCube\scripts\execute-migration-09.sql`
+1. **Copy the entire SQL content** from `C:\Users\Public\Documents\myproject\smartgram\scripts\execute-migration-09.sql`
 2. **Paste it into the SQL Editor**
 3. **Click "Run"** to execute the migration
 

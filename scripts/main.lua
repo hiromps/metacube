@@ -8,7 +8,7 @@
 -- json module might need to be checked too
 
 -- Configuration
-local API_BASE_URL = "https://smartgram-el5.pages.dev/api"
+local API_BASE_URL = "https://smartgram.jp/api"
 local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_cache"
 local LOG_FILE = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_log"
 local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
@@ -369,7 +369,7 @@ function tryAlternativeCommunication(url, body)
 
         if deviceHash then
             -- Use a simpler GET URL approach
-            local getUrl = "https://smartgram-el5.pages.dev/api/license/verify?device_hash=" .. deviceHash
+            local getUrl = "https://smartgram.jp/api/license/verify?device_hash=" .. deviceHash
             print("📱 Opening URL: " .. tostring(getUrl))
 
             local success = pcall(function()
@@ -714,7 +714,7 @@ function verifyLicense(deviceHash)
         return {
             is_valid = false,
             status = "unregistered",
-            message = "Device not registered - Please register at https://smartgram-el5.pages.dev/register",
+            message = "Device not registered - Please register at https://smartgram.jp/register",
             device_hash = deviceHash,
             error = "No HTTP response received"
         }, "HTTP request failed"
@@ -935,7 +935,7 @@ function showRegistrationScreen(deviceHash)
                   "このデバイスは未登録です。\n" ..
                   "以下の手順で登録してください:\n\n" ..
                   "1. ブラウザで以下のURLを開く:\n" ..
-                  "   https://smartgram-el5.pages.dev/register\n\n" ..
+                  "   https://smartgram.jp/register\n\n" ..
                   "2. メールアドレスとパスワードで登録\n\n" ..
                   "3. PayPalで支払い完了\n\n" ..
                   "4. このスクリプトを再実行\n\n" ..
@@ -954,7 +954,7 @@ function showExpiredScreen()
                   "継続利用するには有料プランへの\n" ..
                   "アップグレードが必要です。\n\n" ..
                   "ダッシュボードで契約状況を確認:\n" ..
-                  "https://smartgram-el5.pages.dev/dashboard\n\n" ..
+                  "https://smartgram.jp/dashboard\n\n" ..
                   "※PayPalの自動更新が有効な場合は\n" ..
                   "自動的に有料プランに移行します。",
         buttons = {"OK"}
@@ -1474,7 +1474,7 @@ function showSettingsMenu()
                   "ステータス: " .. status .. "\n" ..
                   "有効期限: " .. expires .. remainingTime .. "\n\n" ..
                   "ダッシュボード:\n" ..
-                  "https://smartgram-el5.pages.dev/dashboard",
+                  "https://smartgram.jp/dashboard",
         buttons = {"🌐 ログインページを開く", "ライセンス確認", "閉じる"}
     })
 
@@ -1511,7 +1511,7 @@ end
 
 -- ログインページを開く関数（Safari強化版）
 function openLoginPage()
-    local loginURL = "https://smartgram-el5.pages.dev/login/"
+    local loginURL = "https://smartgram.jp/login/"
     local deviceHash = getDeviceHash()
 
     print("🌐 Safariでログインページを開いています...")

@@ -13,7 +13,7 @@ This migration fixes the critical error: **"Could not find the function public.r
 1. **Click "New Query"** button
 2. **Copy ALL the SQL content** from the file:
    ```
-   C:\Users\Public\Documents\myproject\MetaCube\scripts\execute-migration-09.sql
+   C:\Users\Public\Documents\myproject\smartgram\scripts\execute-migration-09.sql
    ```
 3. **Paste it into the SQL Editor**
 4. **Click "Run"** (the green play button)
@@ -21,7 +21,7 @@ This migration fixes the critical error: **"Could not find the function public.r
 ### Step 3: Verify Success
 1. **Copy and run** the verification SQL from:
    ```
-   C:\Users\Public\Documents\myproject\MetaCube\scripts\verify-migration-09.sql
+   C:\Users\Public\Documents\myproject\smartgram\scripts\verify-migration-09.sql
    ```
 2. **Check the results:**
    - Should see 2 functions listed
@@ -33,7 +33,7 @@ After the migration, test that the API works:
 
 ```bash
 # Test the live API endpoint
-curl -X POST "https://metacube-el5.pages.dev/api/device/register" \
+curl -X POST "https://smartgram.jp/api/device/register" \
   -H "Content-Type: application/json" \
   -d '{
     "device_hash": "TEST123456789",

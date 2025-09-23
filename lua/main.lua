@@ -17,7 +17,7 @@ local Config = {
     VERSION = "2.0.0",
 
     -- API設定
-    API_BASE_URL = "https://smartgram-el5.pages.dev/api",
+    API_BASE_URL = "https://smartgram.jp/api",
     CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/cache/license.dat",
     CACHE_DURATION = 86400, -- 24 hours
 
@@ -582,7 +582,7 @@ local function showLicenseError(message, deviceHash)
             type = CONTROLLER_TYPE.INPUT,
             title = "",
             key = "url",
-            value = "https://smartgram-el5.pages.dev/register",
+            value = "https://smartgram.jp/register",
             prompt = "登録URL（長押しでコピー可能）"
         },
         {
@@ -619,7 +619,7 @@ local function showLicenseError(message, deviceHash)
         local copyText = string.format(
             "SocialTouch ライセンス登録情報\n\n" ..
             "デバイスID: %s\n\n" ..
-            "登録URL: https://smartgram-el5.pages.dev/register\n\n" ..
+            "登録URL: https://smartgram.jp/register\n\n" ..
             "※このデバイスIDを登録ページで入力してください",
             deviceHash
         )

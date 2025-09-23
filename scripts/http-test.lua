@@ -81,8 +81,8 @@ else
 end
 
 -- Test 4: Test our target API
-print("\n🎯 Test 4: MetaCube API Test")
-local apiUrl = "https://metacube-el5.pages.dev/api/license/verify"
+print("\n🎯 Test 4: smartgram API Test")
+local apiUrl = "https://smartgram.jp/api/license/verify"
 local deviceHash = "TEST123456789"  -- Test device hash
 local apiData = '{"device_hash":"' .. deviceHash .. '"}'
 
@@ -95,7 +95,7 @@ local success3, response3 = pcall(function()
 end)
 
 if success3 and response3 and response3 ~= "" then
-    print("✅ MetaCube API responded")
+    print("✅ smartgram API responded")
     print("Response length:", string.len(response3))
     print("Response preview:", string.sub(response3, 1, 300) .. "...")
 
@@ -114,7 +114,7 @@ if success3 and response3 and response3 ~= "" then
         print("⚠️ Response doesn't appear to be JSON")
     end
 else
-    print("❌ MetaCube API test failed")
+    print("❌ smartgram API test failed")
     print("Success:", success3)
     print("Response:", tostring(response3))
 end
@@ -127,7 +127,7 @@ local testDomains = {
     "https://www.google.com",
     "https://httpbin.org/get",
     "https://api.github.com",
-    "https://metacube-el5.pages.dev"
+    "https://smartgram.jp"
 }
 
 for i, domain in ipairs(testDomains) do
@@ -154,12 +154,12 @@ local apiConnectivity = (success3 and response3 and response3 ~= "")
 print("HTTP POST available:", httpPostAvailable and "✅ YES" or "❌ NO")
 print("HTTP GET available:", httpGetAvailable and "✅ YES" or "❌ NO")
 print("Basic connectivity:", basicConnectivity and "✅ YES" or "❌ NO")
-print("MetaCube API:", apiConnectivity and "✅ YES" or "❌ NO")
+print("smartgram API:", apiConnectivity and "✅ YES" or "❌ NO")
 
 if httpPostAvailable and httpGetAvailable and basicConnectivity then
     print("\n🎉 CONCLUSION: HTTP functions appear to be working!")
     if not apiConnectivity then
-        print("⚠️ However, MetaCube API may have issues - check server status")
+        print("⚠️ However, smartgram API may have issues - check server status")
     end
 else
     print("\n❌ CONCLUSION: HTTP functions have issues")

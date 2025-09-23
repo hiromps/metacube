@@ -1,7 +1,7 @@
-# MetaCube HTTP Bridge Setup
+# smartgram HTTP Bridge Setup
 
 ## Problem
-AutoTouch in this environment doesn't have HTTP functions (`httpPost`, `httpGet`) available, which prevents direct API communication with the MetaCube server.
+AutoTouch in this environment doesn't have HTTP functions (`httpPost`, `httpGet`) available, which prevents direct API communication with the smartgram server.
 
 ## Solution
 Use an external HTTP bridge script that communicates with AutoTouch via files.
@@ -15,7 +15,7 @@ Use an external HTTP bridge script that communicates with AutoTouch via files.
 ### 2. Start the HTTP Bridge
 ```bash
 # Navigate to the scripts directory
-cd /path/to/MetaCube/scripts
+cd /path/to/smartgram/scripts
 
 # Run the HTTP bridge
 node http-bridge.js
@@ -35,13 +35,13 @@ node http-bridge.js --test
 ```
 AutoTouch (main.lua)
     ↓ Creates request file
-    📄 /tmp/metacube_request.json
+    📄 /tmp/smartgram_request.json
     ↓ HTTP Bridge reads file
 HTTP Bridge (http-bridge.js)
     ↓ Makes HTTP request
-    🌐 MetaCube API
+    🌐 smartgram API
     ↓ Writes response file
-    📄 /tmp/metacube_response.json
+    📄 /tmp/smartgram_response.json
     ↓ AutoTouch reads response
 AutoTouch (main.lua)
     ✅ Processes API response
@@ -49,9 +49,9 @@ AutoTouch (main.lua)
 
 ## Files Created
 
-- `/tmp/metacube_request.json` - Request data from AutoTouch
-- `/tmp/metacube_response.json` - Response data from API
-- `/tmp/metacube_bridge.log` - Bridge activity log
+- `/tmp/smartgram_request.json` - Request data from AutoTouch
+- `/tmp/smartgram_response.json` - Response data from API
+- `/tmp/smartgram_bridge.log` - Bridge activity log
 
 ## Troubleshooting
 
@@ -70,19 +70,19 @@ node http-bridge.js --test
 ### AutoTouch Communication Issues
 ```bash
 # Check if files are being created
-ls -la /tmp/metacube_*
+ls -la /tmp/smartgram_*
 
 # Check bridge logs
-tail -f /tmp/metacube_bridge.log
+tail -f /tmp/smartgram_bridge.log
 
 # Test file creation manually
-echo '{"test": "data"}' > /tmp/metacube_request.json
+echo '{"test": "data"}' > /tmp/smartgram_request.json
 ```
 
 ### API Connection Issues
 ```bash
 # Test direct API access
-curl -X POST https://metacube-el5.pages.dev/api/license/verify \
+curl -X POST https://smartgram.jp/api/license/verify \
   -H "Content-Type: application/json" \
   -d '{"device_hash":"TEST123456789"}'
 ```
@@ -103,7 +103,7 @@ AutoTouch logs will show:
 - File creation and response waiting
 - Bridge communication status
 
-Bridge logs (`/tmp/metacube_bridge.log`) show:
+Bridge logs (`/tmp/smartgram_bridge.log`) show:
 - Request processing
 - HTTP request/response details
 - Error messages
@@ -118,7 +118,7 @@ For production use:
 
 ## Security Notes
 
-- The bridge only processes MetaCube API requests
+- The bridge only processes smartgram API requests
 - Request/response files are cleaned up automatically
 - No sensitive data is logged (device hashes are partially masked)
 - Files are created in `/tmp` with standard permissions
