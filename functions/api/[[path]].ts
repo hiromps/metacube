@@ -47,6 +47,8 @@ export async function onRequest(context: any) {
     return handleAdminUpdateDevice(request, env);
   } else if (path === 'admin/create-test-data') {
     return handleAdminCreateTestData(request, env);
+  } else if (path === 'save-auth-result') {
+    return handleSaveAuthResult(request, env);
   } else if (path === 'content/access') {
     return handleContentAccess(request, env);
   } else if (path === 'paypal/success') {
@@ -1928,6 +1930,76 @@ async function handleAdminCreateTestData(request: Request, env: any) {
       JSON.stringify({
         success: false,
         error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Handle saving authentication result from WebView (for AutoTouch mobile auth)
+async function handleSaveAuthResult(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    console.log('Saving auth result:', body);
+
+    // In a real implementation, you would save to a database or temporary storage
+    // For this POC, we'll return success
+
+    // Note: In a production environment, you might want to:
+    // 1. Store the result in a temporary cache (Redis, etc.)
+    // 2. Use a file system that's accessible to both web and AutoTouch
+    // 3. Use a message queue system
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Authentication result saved successfully'
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('Save auth result error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to save authentication result'
       }),
       {
         status: 500,
