@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function AuthMobilePage() {
+function AuthMobileContent() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState('認証中...')
   const [result, setResult] = useState<any>(null)
@@ -169,5 +169,25 @@ export default function AuthMobilePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthMobilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">📱 Smartgram 認証</h1>
+            <div className="text-lg mb-2">読み込み中...</div>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthMobileContent />
+    </Suspense>
   )
 }
