@@ -212,7 +212,9 @@ export default function DashboardPage() {
         alert('デバイス変更が完了しました。新しいデバイスでご利用ください。')
         setNewDeviceHash('')
         setShowDeviceChangeForm(false)
-        refetch() // Refresh data
+
+        // Force page reload to refresh all data and clear cache
+        window.location.reload()
       } else {
         throw new Error(result.error || 'デバイス変更に失敗しました')
       }
