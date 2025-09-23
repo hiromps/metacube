@@ -11,6 +11,7 @@ import { Badge } from '@/app/components/ui/Badge'
 import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
+import { PlanInfoCard } from '@/app/components/PlanInfoCard'
 
 
 export default function DashboardPage() {
@@ -520,6 +521,17 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Plan Information */}
+            <div className="mb-4 md:mb-6">
+              <PlanInfoCard
+                planInfo={userData.plan}
+                onUpgrade={() => {
+                  // プラン変更機能は後で実装
+                  alert('プラン変更機能は準備中です')
+                }}
+              />
             </div>
 
             {/* Account Information */}

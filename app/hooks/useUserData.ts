@@ -16,10 +16,21 @@ export interface UserSubscription {
   created_at: string;
 }
 
+export interface PlanInfo {
+  id: string;
+  name: string;
+  display_name: string;
+  price: number;
+  billing_cycle: string;
+  features: Record<string, boolean>;
+  limitations: Record<string, any>;
+}
+
 export interface UserData {
   email: string;
   device: UserDevice | null;
   subscription: UserSubscription | null;
+  plan: PlanInfo | null;
   trialDaysRemaining: number | null;
   isTrialActive: boolean;
   isSubscriptionActive: boolean;
@@ -101,10 +112,35 @@ export function useUserData() {
 
         const isSubscriptionActive = subscription?.status === 'active';
 
+        // Get plan information if device exists
+        let plan = null;
+        if (device) {
+          const { data: devicePlan, error: planError } = await supabase
+            .from('device_plan_view')
+            .select('plan_id, plan_name, plan_display_name, plan_price, plan_features, plan_limitations')
+            .eq('device_id', device.id)
+            .single();
+
+          if (planError && planError.code !== 'PGRST116') {
+            console.warn('プラン情報の取得に失敗:', planError);
+          } else if (devicePlan) {
+            plan = {
+              id: devicePlan.plan_id,
+              name: devicePlan.plan_name,
+              display_name: devicePlan.plan_display_name,
+              price: devicePlan.plan_price,
+              billing_cycle: 'monthly', // デフォルト値、後で拡張可能
+              features: devicePlan.plan_features || {},
+              limitations: devicePlan.plan_limitations || {}
+            };
+          }
+        }
+
         setUserData({
           email: user.email || '',
           device,
           subscription,
+          plan,
           trialDaysRemaining,
           isTrialActive,
           isSubscriptionActive

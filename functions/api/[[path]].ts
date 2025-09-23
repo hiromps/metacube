@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  handlePlansList,
+  handlePlanChange,
+  handleUsageCheck,
+  handleUsageIncrement,
+  handleFeatureCheck
+} from './multiplan-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -59,6 +66,18 @@ export async function onRequest(context: any) {
     return handlePayPalWebhook(request, env);
   } else if (path === 'device/user-email') {
     return handleGetUserEmailByDevice(request, env);
+  } else if (path === 'plans/list') {
+    return handlePlansList(request, env);
+  } else if (path === 'plans/upgrade') {
+    return handlePlanChange(request, env);
+  } else if (path === 'plans/downgrade') {
+    return handlePlanChange(request, env);
+  } else if (path === 'usage/check') {
+    return handleUsageCheck(request, env);
+  } else if (path === 'usage/increment') {
+    return handleUsageIncrement(request, env);
+  } else if (path === 'feature/check') {
+    return handleFeatureCheck(request, env);
   }
 
   // 404 for unknown API routes
@@ -302,11 +321,23 @@ async function handleLicenseVerify(request: Request, env: any) {
       hasActiveSubscription = subscriptions?.some((sub: any) => sub.status === 'active') || false;
     }
 
+    // Get plan information using the device_plan_view
+    let planInfo = null;
+    if (device) {
+      const { data: devicePlan } = await supabase
+        .from('device_plan_view')
+        .select('plan_name, plan_display_name, plan_features, plan_limitations, plan_price')
+        .eq('device_id', device.id)
+        .single();
+
+      planInfo = devicePlan;
+    }
+
     return new Response(
       JSON.stringify({
         is_valid: isValid,
         status: device.status,
-        license_type: device.status === 'trial' ? 'TRIAL' : (device.status === 'active' || hasActiveSubscription ? 'PRO' : null),
+        license_type: planInfo?.plan_name?.toUpperCase() || (device.status === 'trial' ? 'TRIAL' : (device.status === 'active' || hasActiveSubscription ? 'PRO' : null)),
         expires_at: expiresAt,
         trial_ends_at: device.trial_ends_at,
         time_remaining_seconds: timeRemainingSeconds,
@@ -316,7 +347,31 @@ async function handleLicenseVerify(request: Request, env: any) {
         message: isValid ? 'ライセンスは有効です' : (device.status === 'registered' ? 'デバイス登録済み - 初回実行時に体験版が開始されます' : 'ライセンスの有効期限が切れています'),
         trial_activated: device.trial_activated,
         trial_activated_at: device.trial_activated_at,
-        first_execution_at: device.first_execution_at
+        first_execution_at: device.first_execution_at,
+        // 新しいプラン情報
+        plan_info: planInfo ? {
+          name: planInfo.plan_name,
+          display_name: planInfo.plan_display_name,
+          price: planInfo.plan_price,
+          features: planInfo.plan_features,
+          limitations: planInfo.plan_limitations
+        } : null,
+        // 機能別アクセス権限
+        features: planInfo?.plan_features || {},
+        // AutoTouchスクリプト用の機能フラグ
+        script_access: planInfo?.plan_features ? {
+          timeline_lua: planInfo.plan_features.timeline_lua === true,
+          follow_lua: planInfo.plan_features.follow_lua === true,
+          unfollow_lua: planInfo.plan_features.unfollow_lua === true,
+          hashtaglike_lua: planInfo.plan_features.hashtaglike_lua === true,
+          activelike_lua: planInfo.plan_features.activelike_lua === true
+        } : {
+          timeline_lua: false,
+          follow_lua: false,
+          unfollow_lua: false,
+          hashtaglike_lua: false,
+          activelike_lua: false
+        }
       }),
       {
         status: 200,
