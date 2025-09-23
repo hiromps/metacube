@@ -676,8 +676,8 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-xs md:text-sm text-white/60">
                   <p className="mb-1">お困りの場合は</p>
-                  <a href="mailto:support@metacube.app" className="text-blue-400 hover:text-blue-300 transition">
-                    support@metacube.app
+                  <a href="mailto:support@smartgram.app" className="text-blue-400 hover:text-blue-300 transition">
+                    support@smartgram.app
                   </a>
                 </div>
               </div>
@@ -720,7 +720,7 @@ export default function DashboardPage() {
                 <p className="text-white/80 font-medium text-sm md:text-base">ガイド</p>
               </div>
             </Link>
-            <a href="mailto:support@metacube.app">
+            <a href="mailto:support@smartgram.app">
               <div className="bg-gradient-to-br from-amber-700/30 via-yellow-700/20 to-orange-700/30 backdrop-blur-xl border border-amber-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-amber-400/50 hover:bg-gradient-to-br hover:from-amber-700/30 hover:via-yellow-700/30 hover:to-orange-700/30 transition-all cursor-pointer shadow-lg shadow-amber-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">📧</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">サポート</p>

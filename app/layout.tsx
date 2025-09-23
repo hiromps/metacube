@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MetaCube - AutoTouchライセンス管理",
+  title: "Smartgram - AutoTouchライセンス管理",
   description: "AutoTouch用のInstagram自動化ツール。3日間の無料体験付き、月額2,980円。",
 };
 

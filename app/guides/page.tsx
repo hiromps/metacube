@@ -190,7 +190,7 @@ SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
 ### ライセンス認証設定
 \`\`\`lua
 -- config.lua内
-LICENSE_SERVER = "https://metacube-el5.pages.dev/api"
+LICENSE_SERVER = "https://smartgram-el5.pages.dev/api"
 CACHE_DURATION = 86400  -- 24時間
 \`\`\`
 
@@ -245,7 +245,7 @@ CACHE_DURATION = 86400  -- 24時間
 3. 形式例: F2LXJ7XXHG7F
 
 ### 2. Webダッシュボード
-1. https://metacube.app/dashboard にログイン
+1. https://smartgram.app/dashboard にログイン
 2. セットアップ期間中であることを確認
 3. 「体験期間をアクティベート」セクションへ
 
@@ -333,7 +333,7 @@ CACHE_DURATION = 86400  -- 24時間
           has_access: true,
           can_use_tools: false,
           status: UserStatus.REGISTERED,
-          status_description: 'Registered - Trial starts on first main.lua execution',
+          status_description: '登録済み - main.lua初回実行時に体験開始',
           trial_activated_at: null,
           trial_ends_at: null
         }
@@ -413,25 +413,28 @@ CACHE_DURATION = 86400  -- 24時間
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{background: '#1f2937'}}>
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             <Link href="/">
-              <h1 className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                MetaCube
-              </h1>
+              <div className="flex items-center space-x-1 md:space-x-2">
+                <span className="text-lg md:text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SMART</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GRAM</span>
+                </span>
+              </div>
             </Link>
             <div className="flex gap-3">
               <Link href="/dashboard">
-                <button className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                <button className="px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all backdrop-blur-sm">
                   📊 ダッシュボード
                 </button>
               </Link>
               {access?.status === UserStatus.VISITOR && (
                 <Link href="/login">
-                  <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <button className="px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all border border-white/20">
                     ログイン
                   </button>
                 </Link>
@@ -442,14 +445,14 @@ CACHE_DURATION = 86400  -- 24時間
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-50 to-white py-8 sm:py-12">
+      <section className="bg-gradient-to-br from-blue-900/40 via-purple-900/30 to-indigo-900/40 backdrop-blur-xl py-8 sm:py-12">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
               セットアップガイド
             </h1>
-            <p className="text-gray-600 text-sm sm:text-base">
-              SocialTouchの導入から活用まで完全サポート
+            <p className="text-gray-300 text-sm sm:text-base">
+              SMARTGRAMの導入から活用まで完全サポート
             </p>
           </div>
         </div>
@@ -457,23 +460,23 @@ CACHE_DURATION = 86400  -- 24時間
 
       <div className="container mx-auto px-4 max-w-7xl py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg backdrop-blur-sm">
             {error}
           </div>
         )}
 
         {/* Status Banner */}
         {access && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="bg-gradient-to-br from-cyan-800/30 via-blue-800/20 to-teal-800/30 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-4 mb-6 shadow-lg shadow-cyan-500/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">現在のアクセスレベル</p>
-                <p className="text-lg font-semibold text-gray-800">
+                <p className="text-sm text-white/60">現在のアクセスレベル</p>
+                <p className="text-lg font-semibold text-white">
                   {access.hasAccess ? '✅ フルアクセス' : '🔒 制限付きアクセス'}
                 </p>
               </div>
-              <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                access.hasAccess ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+              <span className={`px-3 py-1 rounded-lg text-sm font-medium border ${
+                access.hasAccess ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30'
               }`}>
                 {access.statusDescription}
               </span>
@@ -484,9 +487,9 @@ CACHE_DURATION = 86400  -- 24時間
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-24">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="font-semibold text-gray-800">ガイド一覧</h2>
+            <div className="bg-gradient-to-br from-violet-800/30 via-purple-800/20 to-fuchsia-800/30 backdrop-blur-xl border border-violet-400/30 rounded-2xl sticky top-24 shadow-lg shadow-violet-500/10">
+              <div className="p-4 border-b border-violet-400/30">
+                <h2 className="font-semibold text-white">ガイド一覧</h2>
               </div>
               <nav className="p-2">
                 {guides.map((guide) => {
@@ -497,17 +500,17 @@ CACHE_DURATION = 86400  -- 24時間
                       onClick={() => setSelectedGuide(guide.id)}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
                         selectedGuide === guide.id
-                          ? 'bg-blue-50 border-l-4 border-blue-600'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-blue-500/20 border-l-4 border-blue-400'
+                          : 'hover:bg-white/10'
                       } ${!hasAccess ? 'opacity-50' : ''}`}
                       disabled={!hasAccess && guide.requiresAccess}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-gray-800 text-sm">
+                          <p className="font-medium text-white text-sm">
                             {guide.title}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-white/60 mt-1">
                             {guide.description}
                           </p>
                         </div>
@@ -554,7 +557,7 @@ CACHE_DURATION = 86400  -- 24時間
                     契約を開始して、全てのガイドとツールにアクセスしましょう
                   </p>
                   <Link href="/register">
-                    <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-medium border border-white/20 shadow-xl">
                       今すぐ始める（7日間セットアップ + 3日間体験）
                     </button>
                   </Link>

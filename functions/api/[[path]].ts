@@ -166,7 +166,7 @@ async function handleLicenseVerify(request: Request, env: any) {
           license_type: null, // AutoTouchスタイル
           error: 'Device not registered',
           message: 'Please register your device first',
-          registration_url: 'https://metacube-el5.pages.dev/register'
+          registration_url: 'https://smartgram-el5.pages.dev/register'
         }),
         {
           status: 200,
@@ -248,7 +248,7 @@ async function handleLicenseVerify(request: Request, env: any) {
           license_type: null,
           error: 'Device not registered',
           message: 'Please register your device first',
-          registration_url: 'https://metacube-el5.pages.dev/register'
+          registration_url: 'https://smartgram-el5.pages.dev/register'
         }),
         {
           status: 200,
@@ -1622,7 +1622,7 @@ async function handleAdminUpdateDevice(request: Request, env: any) {
     const { user_id, new_device_hash, admin_key } = body;
 
     // Simple admin authentication
-    if (admin_key !== 'metacube-admin-2024') {
+    if (admin_key !== 'smartgram-admin-2024') {
       return new Response(
         JSON.stringify({
           success: false,
@@ -1749,7 +1749,7 @@ async function handleAdminCreateTestData(request: Request, env: any) {
     const { device_hash, email, trial_days, admin_key } = body;
 
     // Simple admin authentication
-    if (admin_key !== 'metacube-admin-2024') {
+    if (admin_key !== 'smartgram-admin-2024') {
       return new Response(
         JSON.stringify({
           success: false,

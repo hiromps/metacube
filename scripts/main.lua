@@ -1,5 +1,5 @@
 -- ================================
--- MetaCube License Manager for AutoTouch
+-- Smartgram License Manager for AutoTouch
 -- Version: 3.0.0
 -- 支払い後、初回実行時に自動的に体験期間開始
 -- ================================
@@ -8,9 +8,9 @@
 -- json module might need to be checked too
 
 -- Configuration
-local API_BASE_URL = "https://metacube-el5.pages.dev/api"
-local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
-local LOG_FILE = "/var/mobile/Library/AutoTouch/Scripts/.metacube_log"
+local API_BASE_URL = "https://smartgram-el5.pages.dev/api"
+local CACHE_FILE = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_cache"
+local LOG_FILE = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_log"
 local CACHE_DURATION = 24 * 60 * 60 -- 24 hours
 local ACTIVATION_COOLDOWN = 24 * 60 * 60 -- 24 hours between activations (AutoTouch style)
 
@@ -44,7 +44,7 @@ function getLicense()
     return nil
 end
 
--- MetaCubeライセンス状態取得（詳細版）
+-- Smartgramライセンス状態取得（詳細版）
 function getLicenseDetails()
     local cache = loadCache()
     if not cache then
@@ -200,7 +200,7 @@ function loadCache()
     local file = io.open(CACHE_FILE, "r")
     if not file then
         -- 代替パスを試行
-        local fallbackCacheFile = "/tmp/metacube_cache"
+        local fallbackCacheFile = "/tmp/smartgram_cache"
         file = io.open(fallbackCacheFile, "r")
         if file then
             CACHE_FILE = fallbackCacheFile  -- パスを更新
@@ -289,7 +289,7 @@ function saveCache(data)
         return true
     else
         -- 代替パスを試行
-        local fallbackCacheFile = "/tmp/metacube_cache"
+        local fallbackCacheFile = "/tmp/smartgram_cache"
         local fallbackFile = io.open(fallbackCacheFile, "w")
         if fallbackFile then
             fallbackFile:write(jsonString)
@@ -369,7 +369,7 @@ function tryAlternativeCommunication(url, body)
 
         if deviceHash then
             -- Use a simpler GET URL approach
-            local getUrl = "https://metacube-el5.pages.dev/api/license/verify?device_hash=" .. deviceHash
+            local getUrl = "https://smartgram-el5.pages.dev/api/license/verify?device_hash=" .. deviceHash
             print("📱 Opening URL: " .. tostring(getUrl))
 
             local success = pcall(function()
@@ -403,8 +403,8 @@ function tryAlternativeCommunication(url, body)
     print("Method A2: Trying file-based communication with HTTP bridge...")
     local success = pcall(function()
         -- Create a request file that will be picked up by the HTTP bridge
-        local requestFile = "/tmp/metacube_request.json"
-        local responseFile = "/tmp/metacube_response.json"
+        local requestFile = "/tmp/smartgram_request.json"
+        local responseFile = "/tmp/smartgram_response.json"
 
         -- Clean up any existing response file
         local cleanup = io.open(responseFile, "r")
@@ -478,7 +478,7 @@ function tryAlternativeCommunication(url, body)
     -- Method 3: Pasteboard (clipboard) communication
     if copyText then
         print("Method A3: Trying pasteboard communication...")
-        local clipboardData = "METACUBE_REQUEST:" .. body
+        local clipboardData = "SMARTGRAM_REQUEST:" .. body
         local success = pcall(function()
             copyText(clipboardData)
         end)
@@ -714,7 +714,7 @@ function verifyLicense(deviceHash)
         return {
             is_valid = false,
             status = "unregistered",
-            message = "Device not registered - Please register at https://metacube-el5.pages.dev/register",
+            message = "Device not registered - Please register at https://smartgram-el5.pages.dev/register",
             device_hash = deviceHash,
             error = "No HTTP response received"
         }, "HTTP request failed"
@@ -935,7 +935,7 @@ function showRegistrationScreen(deviceHash)
                   "このデバイスは未登録です。\n" ..
                   "以下の手順で登録してください:\n\n" ..
                   "1. ブラウザで以下のURLを開く:\n" ..
-                  "   https://metacube-el5.pages.dev/register\n\n" ..
+                  "   https://smartgram-el5.pages.dev/register\n\n" ..
                   "2. メールアドレスとパスワードで登録\n\n" ..
                   "3. PayPalで支払い完了\n\n" ..
                   "4. このスクリプトを再実行\n\n" ..
@@ -954,7 +954,7 @@ function showExpiredScreen()
                   "継続利用するには有料プランへの\n" ..
                   "アップグレードが必要です。\n\n" ..
                   "ダッシュボードで契約状況を確認:\n" ..
-                  "https://metacube-el5.pages.dev/dashboard\n\n" ..
+                  "https://smartgram-el5.pages.dev/dashboard\n\n" ..
                   "※PayPalの自動更新が有効な場合は\n" ..
                   "自動的に有料プランに移行します。",
         buttons = {"OK"}
@@ -983,7 +983,7 @@ function showTrialActivatedMessage(data)
                   endDate .. "\n\n" ..
                   "体験期間終了後は自動的に\n" ..
                   "月額プランに移行します。\n\n" ..
-                  "それでは、MetaCubeを\n" ..
+                  "それでは、Smartgramを\n" ..
                   "お楽しみください！",
         buttons = {"開始"}
     })
@@ -1013,7 +1013,7 @@ function showToolMenu()
         -- タイトル
         {
             type = CONTROLLER_TYPE.LABEL,
-            text = "🛠️ MetaCube ツール選択 🛠️"
+            text = "🛠️ Smartgram ツール選択 🛠️"
         },
 
         -- ライセンス状態表示
@@ -1141,7 +1141,7 @@ function showToolMenu()
         -- フォールバック: 従来のシンプルダイアログ
         print("⚠️ 高度ダイアログが失敗しました。シンプルダイアログにフォールバックします")
         result = dialog({
-            title = "MetaCube ツール選択",
+            title = "Smartgram ツール選択",
             message = "認証完了！使用するツールを選択:",
             buttons = {
                 "Timeline Tool",
@@ -1168,7 +1168,7 @@ function showToolMenu()
     if type(result) ~= "number" or result == 0 then
         print("⚠️ 無効なダイアログ結果です。シンプルダイアログにフォールバックします")
         result = dialog({
-            title = "MetaCube ツール選択",
+            title = "Smartgram ツール選択",
             message = "認証完了！使用するツールを選択:",
             buttons = {
                 "Timeline Tool",
@@ -1240,7 +1240,7 @@ function executeSelectedTool(toolFile)
 
     -- AutoTouchのrootDir()関数を使用して正確なパスを取得
     local rootPath = rootDir and rootDir() or "/var/mobile/Library/AutoTouch/Scripts"
-    local absolutePath = rootPath .. "/MetaCube.at/functions/" .. toolFile
+    local absolutePath = rootPath .. "/Smartgram.at/functions/" .. toolFile
 
     print("Root path:", rootPath)
     print("Absolute path:", absolutePath)
@@ -1316,7 +1316,7 @@ function performReAuthentication()
     showToast("🔄 再認証中...")
 
     -- キャッシュファイルを削除して強制的に再認証
-    local cacheFile = "/var/mobile/Library/AutoTouch/Scripts/.metacube_cache"
+    local cacheFile = "/var/mobile/Library/AutoTouch/Scripts/.smartgram_cache"
     local success, err = pcall(function()
         os.remove(cacheFile)
     end)
@@ -1468,13 +1468,13 @@ function showSettingsMenu()
 
     print("🔧 設定ダイアログを表示します（シンプル形式）")
     local settingsResult = dialog({
-        title = "⚙️ MetaCube ライセンス情報",
+        title = "⚙️ Smartgram ライセンス情報",
         message = "デバイスハッシュ:\n" .. deviceHash .. "\n\n" ..
                   "ライセンス: " .. licenseDisplay .. "\n" ..
                   "ステータス: " .. status .. "\n" ..
                   "有効期限: " .. expires .. remainingTime .. "\n\n" ..
                   "ダッシュボード:\n" ..
-                  "https://metacube-el5.pages.dev/dashboard",
+                  "https://smartgram-el5.pages.dev/dashboard",
         buttons = {"🌐 ログインページを開く", "ライセンス確認", "閉じる"}
     })
 
@@ -1486,7 +1486,7 @@ function showSettingsMenu()
         print("⚠️ 設定ダイアログの結果が無効です。デフォルト処理を実行します")
         -- デフォルト処理: 詳細な設定情報を再表示
         local retryResult = dialog({
-            title = "⚙️ MetaCube ライセンス情報 (再試行)",
+            title = "⚙️ Smartgram ライセンス情報 (再試行)",
             message = "デバイスハッシュ: " .. deviceHash .. "\n" ..
                       "ライセンス: " .. licenseDisplay .. "\n" ..
                       "ステータス: " .. status .. "\n\n" ..
@@ -1511,7 +1511,7 @@ end
 
 -- ログインページを開く関数（Safari強化版）
 function openLoginPage()
-    local loginURL = "https://metacube-el5.pages.dev/login/"
+    local loginURL = "https://smartgram-el5.pages.dev/login/"
     local deviceHash = getDeviceHash()
 
     print("🌐 Safariでログインページを開いています...")
@@ -1604,7 +1604,7 @@ end
 
 -- ライセンスチェック
 function checkLicense()
-    print("🚀 MetaCube License Manager START")
+    print("🚀 Smartgram License Manager START")
 
     -- デバイスハッシュ取得
     local deviceHash = getDeviceHash()
@@ -1724,7 +1724,7 @@ function main()
     -- 認証成功を明確に表示（AutoTouch環境対応）
     local dialogResult = dialog({
         title = "✅ " .. licenseDisplay,
-        message = "MetaCube ライセンス認証が完了しました。" .. timeInfo .. "\n\n使用するツールを選択してください。",
+        message = "Smartgram ライセンス認証が完了しました。" .. timeInfo .. "\n\n使用するツールを選択してください。",
         buttons = {"ツール選択へ"}
     })
 

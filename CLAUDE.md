@@ -103,7 +103,7 @@ fetch('/api/license/verify', {
 
 ### Testing APIs
 
-Use the built-in test page: https://metacube-el5.pages.dev/api-test.html
+Use the built-in test page: https://smartgram-el5.pages.dev/api-test.html
 
 ## Deployment Process
 
@@ -113,7 +113,7 @@ Use the built-in test page: https://metacube-el5.pages.dev/api-test.html
    - Runs `npm run build` (Next.js static export)
    - Outputs to `/out` directory
    - Deploys Functions from `/functions`
-4. **Live in 2-5 minutes** at metacube-el5.pages.dev
+4. **Live in 2-5 minutes** at smartgram-el5.pages.dev
 
 ## Common Issues & Solutions
 

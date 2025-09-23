@@ -1,10 +1,10 @@
 -- Timeline Tool - Instagram自動いいねツール
--- MetaCube License Management System
+-- Smartgram License Management System
 
 print("🚀 Timeline Tool START")
 
--- MetaCubeライセンス確認
-function checkMetaCubeLicense()
+-- Smartgramライセンス確認
+function checkSmartgramLicense()
     -- main.luaのライセンス確認関数を利用
     if getLicenseDetails then
         local license = getLicenseDetails()
@@ -16,7 +16,7 @@ function checkMetaCubeLicense()
             })
             return false
         end
-        print("✅ MetaCubeライセンス確認済み")
+        print("✅ Smartgramライセンス確認済み")
         return true
     else
         print("⚠️ ライセンス関数が見つかりません")
@@ -106,7 +106,7 @@ end
 -- メイン実行
 function main()
     -- ライセンス確認
-    if not checkMetaCubeLicense() then
+    if not checkSmartgramLicense() then
         return
     end
 

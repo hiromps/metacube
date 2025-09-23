@@ -1,8 +1,8 @@
-# MetaCube ビジネスプラン計画書
+# Smartgram ビジネスプラン計画書
 
 ## 📋 エグゼクティブサマリー
 
-**事業名**: MetaCube（メタキューブ）
+**事業名**: Smartgram（スマートグラム）
 **事業形態**: Instagram自動化ツール教材販売
 **ターゲット市場**: 日本国内のInstagramユーザー（個人事業主、インフルエンサー、小規模ビジネス）
 **収益モデル**: サブスクリプション + 教材販売のハイブリッドモデル
@@ -44,7 +44,7 @@
 | 海外ツールA | $39/月 | 多機能 | 英語のみ、サポート弱い |
 | 海外ツールB | $29/月 | 安価 | 日本市場未対応 |
 | 国内ツールC | ¥5,000/月 | 日本語対応 | PC必須、設定複雑 |
-| **MetaCube** | ¥2,980-9,800/月 | iPhone専用、教材付き | iPhone 7/8限定 |
+| **Smartgram** | ¥2,980-9,800/月 | iPhone専用、教材付き | iPhone 7/8限定 |
 
 ### 2.3 ターゲット顧客
 **主要ターゲット（全体の80%）**
@@ -380,12 +380,12 @@
 - 業界平均解約率: 月15%
 
 ### C. 連絡先
-- Email: info@metacube.app
-- LINE: @metacube
-- Web: https://metacube.app
+- Email: info@smartgram.app
+- LINE: @smartgram
+- Web: https://smartgram.app
 
 ---
 
 **最終更新日**: 2024年1月21日
-**作成者**: MetaCube Team
+**作成者**: Smartgram Team
 **バージョン**: 1.0

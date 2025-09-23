@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { admin_key } = body;
 
-    if (admin_key !== 'metacube-admin-2024') {
+    if (admin_key !== 'smartgram-admin-2024') {
       return NextResponse.json({ success: false, error: 'Invalid admin key' }, { status: 401 });
     }
 

@@ -1,10 +1,10 @@
 -- DM Reply - Instagram DM自動返信ツール
--- MetaCube License Management System
+-- Smartgram License Management System
 
 print("🚀 DM Reply START")
 
--- MetaCubeライセンス確認
-function checkMetaCubeLicense()
+-- Smartgramライセンス確認
+function checkSmartgramLicense()
     if getLicenseDetails then
         local license = getLicenseDetails()
         if not license or not license.is_valid then
@@ -15,7 +15,7 @@ function checkMetaCubeLicense()
             })
             return false
         end
-        print("✅ MetaCubeライセンス確認済み")
+        print("✅ Smartgramライセンス確認済み")
         return true
     else
         print("⚠️ ライセンス関数が見つかりません")
@@ -107,7 +107,7 @@ end
 
 -- メイン実行
 function main()
-    if not checkMetaCubeLicense() then
+    if not checkSmartgramLicense() then
         return
     end
 

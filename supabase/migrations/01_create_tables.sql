@@ -1,4 +1,4 @@
--- Create basic tables for MetaCube license management system
+-- Create basic tables for Smartgram license management system
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
