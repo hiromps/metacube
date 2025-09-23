@@ -46,6 +46,10 @@ function AuthMobileContent() {
 
           // URLスキーム経由でAutoTouchに結果を送信
           await notifyAutoTouch(data)
+        } else if (data.status === 'unregistered') {
+          // 未登録デバイスの場合、自動登録を試行
+          setStatus('🔄 デバイス登録中...')
+          await handleDeviceRegistration(deviceHash)
         } else {
           setStatus('❌ 認証失敗')
           await saveResultToFile({ error: data.message || 'Authentication failed' })
@@ -60,6 +64,70 @@ function AuthMobileContent() {
 
     authenticateDevice()
   }, [searchParams])
+
+  // デバイス登録処理
+  const handleDeviceRegistration = async (deviceHash: string) => {
+    try {
+      // デバイス登録用の一時的なメールアドレス生成
+      const tempEmail = `device_${deviceHash.substring(0, 8)}@smartgram.temp`
+      const tempPassword = `temp_${deviceHash.substring(0, 12)}`
+
+      const registerResponse = await fetch('/api/device/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: tempEmail,
+          password: tempPassword,
+          device_hash: deviceHash
+        })
+      })
+
+      if (!registerResponse.ok) {
+        throw new Error(`Registration failed: ${registerResponse.status}`)
+      }
+
+      const registerData = await registerResponse.json()
+
+      if (registerData.success) {
+        setStatus('✅ デバイス登録完了 - 再認証中...')
+
+        // 登録完了後、再度認証を実行
+        setTimeout(async () => {
+          const reAuthResponse = await fetch('/api/license/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              device_hash: deviceHash
+            })
+          })
+
+          if (reAuthResponse.ok) {
+            const reAuthData = await reAuthResponse.json()
+            setResult(reAuthData)
+
+            if (reAuthData.is_valid) {
+              setStatus('✅ 認証成功 (登録完了)')
+              await saveResultToFile(reAuthData)
+              await notifyAutoTouch(reAuthData)
+            } else {
+              setStatus('❌ 再認証失敗')
+              await saveResultToFile({ error: 'Re-authentication failed after registration' })
+            }
+          }
+        }, 2000) // 2秒待機後に再認証
+      } else {
+        throw new Error(registerData.error || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Device registration error:', error)
+      setStatus('❌ 登録エラー: ' + (error as Error).message)
+      await saveResultToFile({ error: (error as Error).message })
+    }
+  }
 
   // 結果をファイルに保存（AutoTouchが読み取り可能な場所）
   const saveResultToFile = async (data: any) => {
