@@ -14,7 +14,6 @@ function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [deviceHash, setDeviceHash] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -26,11 +25,6 @@ function RegisterForm() {
   const urlError = searchParams.get('error')
 
   const validateForm = () => {
-    if (!deviceHash || deviceHash.length < 3) {
-      setError('デバイスIDを入力してください')
-      return false
-    }
-
     if (!email || !email.includes('@')) {
       setError('有効なメールアドレスを入力してください')
       return false
@@ -74,24 +68,8 @@ function RegisterForm() {
         throw new Error('認証に失敗しました。')
       }
 
-      // Now register the device with the authenticated user
-      const response = await fetch('/api/device/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          device_hash: deviceHash,
-          email,
-          user_id: authData.user.id
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'デバイス登録に失敗しました')
-      }
+      // Registration successful - no device registration needed at this point
+      // Device will be registered when the user first runs the AutoTouch script
 
       // Registration successful, proceed to free trial
       setError('')  // Clear any previous errors
@@ -119,21 +97,32 @@ function RegisterForm() {
   // Payment step removed - going directly to free registration
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <svg className="absolute inset-0 w-full h-full">
+          <pattern id="registerGrid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+            <circle cx="25" cy="25" r="1" fill="#3b82f6" />
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#registerGrid)" />
+        </svg>
+      </div>
+
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-100">
-        <div className="container mx-auto px-4 py-4">
+      <nav className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 relative z-10">
+        <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex justify-between items-center">
             <Link href="/">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl font-bold text-blue-600">
-                  MetaCube
+              <div className="flex items-center space-x-1 md:space-x-2">
+                <span className="text-lg md:text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SMART</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GRAM</span>
                 </span>
-                <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="sm">v2.0</Badge>
+                <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30 text-xs md:text-sm" size="sm">v2.0</Badge>
               </div>
             </Link>
             <Link href="/login">
-              <Button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50" size="md">
+              <Button className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm text-sm md:text-base" size="md">
                 ログイン
               </Button>
             </Link>
@@ -142,24 +131,24 @@ function RegisterForm() {
       </nav>
 
       {/* Registration Form */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-73px)]">
-        <div className="w-full max-w-md px-4 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              デバイス登録
+      <div className="flex items-center justify-center min-h-[calc(100vh-73px)] relative z-10">
+        <div className="w-full max-w-md px-4 py-6 md:py-8">
+          <div className="text-center mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
+              SMARTGRAMアカウント作成
             </h1>
-            <p className="text-gray-600">
-              既存のアカウントでログインしてデバイスを登録
+            <p className="text-sm md:text-base text-gray-300 px-2">
+              アカウント作成後、デバイス登録はAutoTouchスクリプト実行時に自動で行われます
             </p>
-            <Badge className="bg-green-100 text-green-700 border-green-200 mt-2" size="md">
-              無料で利用開始
+            <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-400/30 mt-2" size="md">
+              14日間無料体験
             </Badge>
           </div>
 
-          <Card className="bg-white shadow-lg border border-gray-100">
-            <CardContent className="p-6">
+          <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20">
+            <CardContent className="p-4 md:p-6">
               {urlError && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg text-sm">
+                <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm">
                   {urlError === 'cancelled' && '決済がキャンセルされました'}
                   {urlError === 'missing_device' && 'デバイス情報が見つかりません'}
                   {urlError === 'device_not_found' && 'デバイスが登録されていません'}
@@ -168,33 +157,14 @@ function RegisterForm() {
               )}
 
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg text-sm">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label htmlFor="deviceHash" className="block text-sm font-medium text-gray-700 mb-2">
-                    デバイスID
-                  </label>
-                  <input
-                    type="text"
-                    id="deviceHash"
-                    value={deviceHash}
-                    onChange={(e) => setDeviceHash(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
-                    placeholder="例: DEMO-DEVICE-001"
-                    required
-                    disabled={loading}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    AutoTouchのmain.luaで表示されるデバイスID
-                  </p>
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-white mb-1 md:mb-2">
                     メールアドレス
                   </label>
                   <input
@@ -202,7 +172,7 @@ function RegisterForm() {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition text-sm md:text-base"
                     placeholder="email@example.com"
                     required
                     disabled={loading}
@@ -210,7 +180,7 @@ function RegisterForm() {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-white mb-1 md:mb-2">
                     パスワード
                   </label>
                   <input
@@ -218,7 +188,7 @@ function RegisterForm() {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition text-sm md:text-base"
                     placeholder="6文字以上"
                     minLength={6}
                     required
@@ -227,7 +197,7 @@ function RegisterForm() {
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-1 md:mb-2">
                     パスワード（確認）
                   </label>
                   <input
@@ -235,7 +205,7 @@ function RegisterForm() {
                     id="confirmPassword"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition"
+                    className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition text-sm md:text-base"
                     placeholder="パスワードを再入力"
                     minLength={6}
                     required
@@ -249,29 +219,29 @@ function RegisterForm() {
                     name="terms"
                     type="checkbox"
                     required
-                    className="w-4 h-4 bg-white border-gray-300 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-0 mt-1"
+                    className="w-4 h-4 bg-white/10 border-white/20 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-0 mt-1"
                   />
-                  <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">
-                    <a href="#" className="text-blue-600 hover:text-blue-700">利用規約</a>と
-                    <a href="#" className="text-blue-600 hover:text-blue-700">プライバシーポリシー</a>に同意します
+                  <label htmlFor="terms" className="ml-2 block text-xs md:text-sm text-gray-300">
+                    <Link href="/terms" className="text-blue-400 hover:text-blue-300">利用規約</Link>と
+                    <Link href="/privacy" className="text-blue-400 hover:text-blue-300">プライバシーポリシー</Link>に同意します
                   </label>
                 </div>
 
                 <Button
                   type="submit"
-                  className="bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg transition-all"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all"
                   size="lg"
                   fullWidth
                   loading={loading}
                 >
-                  {loading ? '登録処理中...' : '無料で登録'}
+                  {loading ? '登録処理中...' : '🚀 SMARTGRAMを開始'}
                 </Button>
               </form>
 
               <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-300">
                   既にアカウントをお持ちですか？{' '}
-                  <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium transition">
+                  <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition">
                     ログイン
                   </Link>
                 </p>
@@ -280,40 +250,28 @@ function RegisterForm() {
           </Card>
 
           {/* Feature Info */}
-          <Card className="mt-6 bg-white shadow-md border border-gray-100">
-            <CardContent className="py-4">
-              <h3 className="text-sm font-semibold mb-3 text-gray-800 flex items-center">
-                <Badge className="bg-green-100 text-green-700 border-green-200 mr-2" size="sm">無料利用</Badge>
-                今すぐ開始
+          <Card className="mt-4 md:mt-6 bg-white/10 backdrop-blur-md shadow-xl border border-white/20">
+            <CardContent className="py-3 md:py-4 px-4 md:px-6">
+              <h3 className="text-xs md:text-sm font-semibold mb-2 md:mb-3 text-white flex items-center flex-wrap">
+                <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-400/30 mr-2 mb-1 text-xs" size="sm">簡単登録</Badge>
+                アカウント作成後の流れ
               </h3>
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    完全無料
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    すぐに利用開始
-                  </div>
+              <div className="grid grid-cols-1 gap-2 md:gap-3 text-xs">
+                <div className="flex items-start text-gray-300">
+                  <span className="bg-blue-500/20 text-blue-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] md:text-xs font-bold mr-2 md:mr-3 mt-0.5 flex-shrink-0">1</span>
+                  <span>アカウント作成完了</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    制限なし
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    iPhone 7/8専用
-                  </div>
+                <div className="flex items-start text-gray-300">
+                  <span className="bg-blue-500/20 text-blue-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] md:text-xs font-bold mr-2 md:mr-3 mt-0.5 flex-shrink-0">2</span>
+                  <span>AutoTouchスクリプトをダウンロード</span>
+                </div>
+                <div className="flex items-start text-gray-300">
+                  <span className="bg-blue-500/20 text-blue-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] md:text-xs font-bold mr-2 md:mr-3 mt-0.5 flex-shrink-0">3</span>
+                  <span>スクリプト実行時に自動でデバイス登録</span>
+                </div>
+                <div className="flex items-start text-gray-300">
+                  <span className="bg-green-500/20 text-green-400 rounded-full w-5 h-5 flex items-center justify-center text-[10px] md:text-xs font-bold mr-2 md:mr-3 mt-0.5 flex-shrink-0">✓</span>
+                  <span>Instagram自動化スタート！</span>
                 </div>
               </div>
             </CardContent>

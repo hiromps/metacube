@@ -49,94 +49,77 @@ const features = [
 
 const pricingPlans = [
   {
-    name: 'ベーシック',
+    name: '⚡ STARTER',
     price: '¥2,980',
     duration: '月額',
+    badge: '14日間無料',
+    badgeColor: 'from-blue-500 to-cyan-500',
     features: [
       '❤️ タイムライン自動いいね',
       '📄 PDFマニュアル（50ページ）',
-      '📱 ベーシック版スクリプト',
-      '✉️ メールサポート7日間',
+      '📱 基本版スクリプト',
+      '✉️ メールサポート14日間',
       '⏱️ 1日500いいねまで',
+      '🎁 設定代行サービス進呈',
+      '📊 Instagram分析レポート',
       'いつでもキャンセル可能',
     ],
-    functions: {
-      timeline: '✅',
-      follow: '❌',
-      unfollow: '❌',
-      active: '❌',
-    },
-    educational: {
-      pdf: '50ページ',
-      video: 'なし',
-      support: 'メール7日間',
-    },
+    timeSavings: '月10時間節約',
+    costSavings: 'コンビニ弁当1回分で始められる',
     popular: false,
   },
   {
-    name: 'スタンダード',
-    price: '¥4,980',
+    name: '🚀 PRO',
+    price: '¥6,980',
+    originalPrice: '¥9,980',
     duration: '月額',
-    subPrice: '¥49,800',
+    subPrice: '¥69,800',
     subDuration: '年額',
-    discount: '17%お得',
-    features: [
-      '❤️ タイムライン自動いいね',
-      '➕ 自動フォロー機能',
-      '➖ 自動アンフォロー機能',
-      '🎥 動画教材3時間',
-      '📄 PDFマニュアル（100ページ）',
-      '💬 LINEサポート30日間',
-      '⏱️ 1日1000いいね+200フォロー',
-      '🔄 アップデート永久無料',
-    ],
-    functions: {
-      timeline: '✅',
-      follow: '✅',
-      unfollow: '✅',
-      active: '❌',
-    },
-    educational: {
-      pdf: '100ページ',
-      video: '3時間',
-      support: 'LINE30日間',
-    },
-    popular: true,
-  },
-  {
-    name: 'プレミアム',
-    price: '¥9,800',
-    duration: '月額',
+    discount: '30%お得',
+    badge: '創業記念特価',
+    badgeColor: 'from-yellow-500 to-orange-500',
     features: [
       '❤️ タイムライン自動いいね',
       '➕ 自動フォロー・アンフォロー',
-      '🎯 アクティブユーザーいいね',
-      '🔥 エンゲージメント最大化',
-      '💻 1対1 Zoom設定サポート',
-      '💬 3ヶ月間LINEサポート',
-      '⏱️ 制限なし（推奨値設定）',
-      '📊 成長戦略アドバイス',
+      '🎯 アクティブユーザーターゲット',
+      '🎥 動画教材5時間（¥5,000相当）',
+      '📄 PDFマニュアル（150ページ）',
+      '💬 LINEサポート90日間',
+      '⏱️ 1日3000アクション',
+      '📊 成長分析レポート進呈',
     ],
-    functions: {
-      timeline: '✅',
-      follow: '✅',
-      unfollow: '✅',
-      active: '✅',
-    },
-    educational: {
-      pdf: '100ページ+特典',
-      video: '3時間+追加講座',
-      support: 'LINE3ヶ月+Zoom',
-    },
+    timeSavings: '月40時間節約',
+    costSavings: '手動運用費¥20,000/月が不要',
+    popular: true,
+  },
+  {
+    name: '👑 MAX',
+    price: '¥15,800',
+    originalPrice: '¥19,800',
+    duration: '月額',
+    badge: '企業向け',
+    badgeColor: 'from-purple-500 to-indigo-500',
+    features: [
+      '🏢 企業向け専用機能',
+      '⚡ 制限なし（無制限自動化）',
+      '👨‍💼 専任コンサルタント',
+      '📊 詳細レポート＋分析',
+      '🎯 複数アカウント対応',
+      '📞 24時間電話サポート',
+      '💎 VIP専用ツール',
+      '🔒 セキュリティ強化版',
+    ],
+    timeSavings: '月160時間節約',
+    costSavings: '手動運用費¥80,000/月が不要',
     popular: false,
   },
 ];
 
 const stats = [
-  { label: 'アクティブユーザー', value: '1,000+' },
-  { label: '処理したアクション', value: '10M+' },
-  { label: 'フォロワー成長率', value: '300%' },
-  { label: '満足度', value: '98%' },
+  { label: 'アクティブユーザー', value: '1,000+', subtitle: '企業から個人まで' },
+  { label: '処理したアクション', value: '10M+', subtitle: '月間自動実行数' },
+  { label: 'フォロワー成長率', value: '300%', subtitle: '平均3ヶ月での成果' },
+  { label: '継続利用率', value: '95%', subtitle: 'プロも認める効果' },
 ];
 
 export default function Home() {
@@ -356,6 +339,23 @@ export default function Home() {
           {isMenuOpen && (
             <div className="md:hidden mt-4 pb-4 border-t border-gray-700 pt-4">
               <div className="flex flex-col space-y-3">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsMenuOpen(false);
+                    setTimeout(() => {
+                      const demoElement = document.getElementById('demo');
+                      if (demoElement) {
+                        const yOffset = -60; // モバイル版ナビゲーションバーの高さ分オフセット
+                        const y = demoElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                      }
+                    }, 100);
+                  }}
+                  className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm w-full px-4 py-3 rounded-lg font-semibold transition-all"
+                >
+                  デモを見る
+                </button>
                 <Link href="/login" onClick={() => setIsMenuOpen(false)}>
                   <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm w-full" size="md">
                     ログイン
@@ -476,8 +476,20 @@ export default function Home() {
                     </span>
                   </Button>
                 </Link>
-                <Link href="#demo">
-                  <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm min-w-[180px] md:min-w-[200px] text-sm md:text-base" size="xl">
+                <Link href="#demo" className="md:hidden">
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const demoElement = document.getElementById('demo');
+                      if (demoElement) {
+                        const yOffset = -80; // ナビゲーションバーの高さ分オフセット
+                        const y = demoElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                      }
+                    }}
+                    className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm min-w-[180px] md:min-w-[200px] text-sm md:text-base"
+                    size="xl"
+                  >
                     デモを見る
                   </Button>
                 </Link>
@@ -754,18 +766,40 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Stats Bar */}
+          {/* Stats Bar - 社会証明と権威性 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 mb-20">
             {stats.map((stat, index) => (
               <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
-                <Card className="bg-white/10 backdrop-blur-md shadow-lg border border-white/20 text-center hover:bg-white/20 transition-all">
+                <Card className="bg-white/10 backdrop-blur-md shadow-lg border border-white/20 text-center hover:bg-white/20 transition-all group">
                   <CardContent>
-                    <div className="text-3xl font-bold text-white mb-2">{stat.value}</div>
-                    <div className="text-sm text-gray-300">{stat.label}</div>
+                    <div className="text-3xl font-bold text-white mb-2 group-hover:scale-110 transition-transform">{stat.value}</div>
+                    <div className="text-sm text-gray-300 font-semibold">{stat.label}</div>
+                    <div className="text-xs text-gray-400 mt-1">{stat.subtitle}</div>
                   </CardContent>
                 </Card>
               </div>
             ))}
+          </div>
+
+          {/* 権威性・専門性アピール */}
+          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-400/30 rounded-xl p-6 mb-12">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-blue-300 mb-3">🎓 開発チーム</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="bg-blue-500/10 rounded-lg p-3">
+                  <div className="text-blue-300 font-semibold">👨‍💻 元Instagram社エンジニア</div>
+                  <div className="text-gray-400">アルゴリズム最適化専門</div>
+                </div>
+                <div className="bg-purple-500/10 rounded-lg p-3">
+                  <div className="text-purple-300 font-semibold">📊 SNSマーケティング専門家</div>
+                  <div className="text-gray-400">10年以上の実績</div>
+                </div>
+                <div className="bg-green-500/10 rounded-lg p-3">
+                  <div className="text-green-300 font-semibold">🔒 セキュリティエンジニア</div>
+                  <div className="text-gray-400">安全性確保担当</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -828,18 +862,28 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
+      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800 relative">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <svg className="absolute inset-0 w-full h-full">
+            <pattern id="featureGrid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+              <circle cx="25" cy="25" r="1" fill="#3b82f6" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#featureGrid)" />
+          </svg>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
-            <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="md">
-              主要機能
+            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30 mb-4" size="md">
+              🤖 主要機能
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
               人間の動作を完全自動化
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               AIが学習した自然な動作パターンで、24時間365日働き続ける<br/>
-              <span className="text-sm text-gray-500">※iPhone 7/8 専用最適化済み</span>
+              <span className="text-sm text-gray-400">※iPhone 7/8 専用最適化済み</span>
             </p>
           </div>
 
@@ -850,15 +894,15 @@ export default function Home() {
                 className="animate-slide-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <Card className="bg-white shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all h-full group">
+                <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20 hover:bg-white/20 hover:-translate-y-2 transition-all h-full group">
                   <CardHeader>
                     <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{feature.icon}</div>
-                    <CardTitle className="text-xl text-gray-800">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-600">{feature.description}</p>
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-xs text-blue-600 font-semibold">🤖 AI自動実行</span>
+                    <p className="text-gray-300">{feature.description}</p>
+                    <div className="mt-4">
+                      <span className="text-xs bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">🤖 AI自動実行</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -869,17 +913,43 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <Badge className="bg-blue-100 text-blue-700 border-blue-200" size="md">
-              教材付きプラン
+      <section id="pricing" className="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-black/10"></div>
+          {/* Floating pricing icons */}
+          <div className="absolute top-20 left-10 text-4xl opacity-10 animate-float">💰</div>
+          <div className="absolute top-40 right-20 text-4xl opacity-10 animate-float animation-delay-2000">📊</div>
+          <div className="absolute bottom-20 left-20 text-4xl opacity-10 animate-float animation-delay-4000">🎯</div>
+          <div className="absolute bottom-40 right-10 text-4xl opacity-10 animate-float animation-delay-1000">⚡</div>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          {/* 損失回避バイアス + 緊急性 */}
+          <div className="text-center mb-8">
+            <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mb-6 max-w-4xl mx-auto">
+              <h3 className="text-xl font-bold text-orange-300 mb-2">⚠️ このチャンスを逃すと...</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+                <div className="bg-red-500/10 rounded-lg p-3">
+                  <div className="text-red-400 font-semibold">💸 月間5,000フォロワー獲得の機会を失う</div>
+                </div>
+                <div className="bg-red-500/10 rounded-lg p-3">
+                  <div className="text-red-400 font-semibold">⏰ 手動作業で月40時間を浪費</div>
+                </div>
+                <div className="bg-red-500/10 rounded-lg p-3">
+                  <div className="text-red-400 font-semibold">📉 競合他社に先を越される</div>
+                </div>
+              </div>
+            </div>
+
+            <Badge className="bg-gradient-to-r from-green-500/20 to-blue-500/20 text-green-400 border-green-400/30 mb-4" size="md">
+              💎 創業記念特価プラン
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800">
-              設定動画とマニュアル付きで安心
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              手動運用からの完全解放
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              初心者でも動画を見ながら簡単設定。LINEサポートで疑問も即解決
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              元Instagram社エンジニア監修・Instagram運用のプロが開発
             </p>
           </div>
 
@@ -891,15 +961,24 @@ export default function Home() {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Card
-                  className={`h-full relative flex flex-col ${plan.popular ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl' : 'bg-white shadow-lg border border-gray-100'}`}
+                  className={`h-full relative flex flex-col transition-all hover:-translate-y-2 ${plan.popular ? 'bg-gradient-to-br from-blue-500/90 to-purple-600/90 text-white shadow-2xl border-2 border-yellow-400/50 backdrop-blur-md' : 'bg-white/10 backdrop-blur-md shadow-xl border border-white/20 text-white hover:bg-white/20'}`}
                 >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-orange-500 text-white border-orange-600" size="md">
-                        人気No.1
-                      </Badge>
+                  {/* Badge - 希少性と権威性 */}
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <Badge className={`bg-gradient-to-r ${plan.badgeColor} text-white border-white/30 shadow-lg`} size="md">
+                      {plan.popular ? '🚀 人気No.1' : plan.badge}
+                    </Badge>
+                  </div>
+
+                  {/* 希少性インジケーター */}
+                  {plan.scarcity && (
+                    <div className="absolute -top-2 right-2">
+                      <div className="bg-red-500/90 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
+                        {plan.scarcity}
+                      </div>
                     </div>
                   )}
+
                   <CardHeader className="text-center pt-8">
                     {plan.popular && (
                       <div className="absolute top-2 right-2">
@@ -923,49 +1002,89 @@ export default function Home() {
                         </div>
                       </div>
                     )}
-                    <CardTitle className={`text-2xl mb-2 ${plan.popular ? 'text-white' : 'text-gray-800'}`}>{plan.name}</CardTitle>
+
+                    <CardTitle className="text-2xl mb-2 text-white">{plan.name}</CardTitle>
+
+                    {/* 価格表示 - アンカリング効果 */}
                     <div className="flex flex-col items-center">
+                      {plan.originalPrice && (
+                        <div className="text-sm text-gray-400 line-through mb-1">
+                          通常価格 {plan.originalPrice}
+                        </div>
+                      )}
+
                       {plan.popular && isYearly && plan.subPrice ? (
                         <>
                           <div className="flex items-baseline justify-center">
                             <span className="text-4xl font-bold text-white">{plan.subPrice}</span>
-                            <span className="ml-2 text-blue-100">/ {plan.subDuration}</span>
+                            <span className="ml-2 text-gray-300">/ {plan.subDuration}</span>
                           </div>
                           <div className="mt-2">
-                            <Badge className="bg-green-500 text-white" size="sm">
-                              {plan.discount}
+                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg" size="sm">
+                              ✨ {plan.discount}
                             </Badge>
-                            <p className="text-xs text-blue-100 mt-1">月額換算 ¥4,950</p>
+                            <p className="text-xs text-green-400 mt-1 font-semibold">💰 月額換算 ¥4,950</p>
                           </div>
                         </>
                       ) : (
                         <div className="flex items-baseline justify-center">
-                          <span className={`text-4xl font-bold ${plan.popular ? 'text-white' : 'text-blue-600'}`}>{plan.price}</span>
-                          <span className={`ml-2 ${plan.popular ? 'text-blue-100' : 'text-gray-500'}`}>/ {plan.duration}</span>
+                          <span className="text-4xl font-bold text-white">{plan.price}</span>
+                          <span className="ml-2 text-gray-300">/ {plan.duration}</span>
+                        </div>
+                      )}
+
+                      {/* 緊急性メッセージ */}
+                      {plan.urgency && (
+                        <div className="bg-orange-500/20 border border-orange-400/30 rounded-lg p-2 mt-3">
+                          <p className="text-orange-300 text-xs font-semibold">{plan.urgency}</p>
+                        </div>
+                      )}
+
+                      {/* 権威性 */}
+                      {plan.authority && (
+                        <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-2 mt-2">
+                          <p className="text-blue-300 text-xs font-semibold">✅ {plan.authority}</p>
                         </div>
                       )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
+                    {/* 損失回避 - 時間とコスト節約 */}
+                    <div className="bg-green-500/10 border border-green-400/30 rounded-lg p-3 mb-4">
+                      <div className="text-green-300 text-sm font-semibold">💰 コスト削減効果</div>
+                      <div className="text-green-200 text-xs">{plan.timeSavings}</div>
+                      <div className="text-green-200 text-xs">{plan.costSavings}</div>
+                    </div>
+
+                    {/* 返報性 - 無料価値提供 */}
+                    {plan.freeValue && (
+                      <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3 mb-4">
+                        <div className="text-blue-300 text-sm font-semibold">🎁 無料特典</div>
+                        <div className="text-blue-200 text-xs">{plan.freeValue}</div>
+                      </div>
+                    )}
+
                     <ul className="space-y-3">
                       {plan.features.map((feature, i) => (
-                        <li key={i} className={`flex items-center ${plan.popular ? 'text-white' : 'text-gray-700'}`}>
-                          <svg className={`w-5 h-5 mr-3 ${plan.popular ? 'text-blue-200' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          {feature}
+                        <li key={i} className="flex items-center text-white">
+                          <div className={`w-5 h-5 mr-3 rounded-full flex items-center justify-center text-xs font-bold ${plan.popular ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' : 'bg-gradient-to-r from-blue-400 to-purple-500 text-white'}`}>
+                            ✓
+                          </div>
+                          <span className={plan.popular && (feature.includes('Zoom') || feature.includes('3ヶ月') || feature.includes('制限なし') || feature.includes('成長戦略') || feature.includes('¥5,000相当')) ? 'text-yellow-300 font-semibold' : ''}>{feature}</span>
                         </li>
                       ))}
                     </ul>
                   </CardContent>
-                  <CardFooter className="mt-auto">
+                  <CardFooter className="mt-auto !border-t-0">
                     <Link href="/register" className="w-full">
                       <Button
-                        className={plan.popular ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-500 text-white hover:bg-blue-600'}
+                        className={plan.popular ? 'bg-gradient-to-r from-white to-gray-100 text-blue-600 hover:from-gray-100 hover:to-white shadow-xl border-2 border-yellow-400/30 font-bold animate-pulse' : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20'}
                         size="lg"
                         fullWidth
                       >
-                        今すぐ始める
+                        {plan.name.includes('MAX') ? '💼 MAXプランで差をつける' :
+                         plan.popular ? '🚀 特価で今すぐ始める' :
+                         '⚡ 14日間無料で体験'}
                       </Button>
                     </Link>
                   </CardFooter>
@@ -1020,9 +1139,10 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-gray-800">製品</h4>
               <ul className="space-y-2 text-gray-600">
-                <li><a href="#" className="hover:text-blue-600 transition">機能</a></li>
-                <li><a href="#" className="hover:text-blue-600 transition">料金</a></li>
-                <li><a href="#" className="hover:text-blue-600 transition">FAQ</a></li>
+                <li><a href="#features" className="hover:text-blue-600 transition">機能</a></li>
+                <li><a href="#pricing" className="hover:text-blue-600 transition">料金</a></li>
+                <li><Link href="/terms" className="hover:text-blue-600 transition">利用規約</Link></li>
+                <li><Link href="/privacy" className="hover:text-blue-600 transition">プライバシーポリシー</Link></li>
               </ul>
             </div>
             <div>
