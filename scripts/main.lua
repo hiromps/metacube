@@ -370,6 +370,16 @@ end
 function waitForWebViewResult(deviceHash)
     print("📲 認証結果を待機中...")
 
+    -- AutoTouchアプリに戻る（ユーザーが手動で操作しやすくするため）
+    local success, activateResult = pcall(function()
+        appActivate("me.autotouch.AutoTouch.ios8")
+        print("📱 AutoTouchアプリに戻りました")
+    end)
+
+    if not success then
+        print("⚠️ AutoTouchアプリの起動に失敗 (手動で戻ってください):", activateResult)
+    end
+
     -- 結果ファイルのパス（WebページがJavaScript経由で書き込む）
     local resultFile = "/tmp/smartgram_auth_result.json"
     local maxWaitTime = 30  -- 30秒まで待機

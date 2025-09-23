@@ -223,9 +223,21 @@ function AuthMobileContent() {
         // 成功時のみAutoTouchアプリを開く
         setTimeout(async () => {
           try {
+            // AutoTouchアプリの正確なスキーム
             await openScheme('autotools://open')
-            console.log('✅ AutoTouch app opened')
+            console.log('✅ AutoTouch app opened via URL scheme')
           } catch (error) {
+            // フォールバック: JavaScript経由でアプリ起動を試行
+            try {
+              if (window.webkit && window.webkit.messageHandlers) {
+                // iOS WebView環境での代替方法
+                console.log('Attempting app activation via WebKit')
+                // Note: appActivate("me.autotouch.AutoTouch.ios8") はLua側で実行
+              }
+            } catch (webkitError) {
+              console.log('⚠️ WebKit activation failed')
+            }
+
             console.log('⚠️ AutoTouch app open failed (normal in browser)')
             setStatus('📋 結果をコピーしました - AutoTouchに戻ってください')
           }
@@ -358,6 +370,7 @@ function AuthMobileContent() {
             <button
               onClick={async () => {
                 try {
+                  // Method 1: URL scheme で試行
                   const iframe = document.createElement('iframe')
                   iframe.style.display = 'none'
                   iframe.src = 'autotools://open'
@@ -367,11 +380,16 @@ function AuthMobileContent() {
                     document.body.removeChild(iframe)
                   }, 3000)
 
-                  console.log('Attempting to open AutoTouch app')
+                  console.log('Attempting to open AutoTouch app via URL scheme')
+
+                  // Method 2: ユーザーに手動起動を促す
+                  setTimeout(() => {
+                    setStatus('📱 AutoTouchアプリを手動で開いてmain.luaを実行してください')
+                    console.log('💡 Tip: AutoTouchアプリでappActivate("me.autotouch.AutoTouch.ios8")が実行されます')
+                  }, 2000)
+
                 } catch (error) {
                   console.log('AutoTouch app not available (normal in browser)')
-
-                  // フォールバック: 手動でアプリを開く指示
                   setStatus('📱 手動でAutoTouchアプリを開いてください')
                 }
               }}
