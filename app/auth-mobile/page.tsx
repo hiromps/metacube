@@ -199,82 +199,153 @@ function AuthMobileContent() {
     }
   }
 
-  const formatResult = (data: any) => {
-    if (!data) return null
-
-    return (
-      <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-        <h3 className="font-bold mb-2">認証結果:</h3>
-        <div className="space-y-1 text-sm">
-          <div>ステータス: {data.status}</div>
-          <div>有効: {data.is_valid ? 'はい' : 'いいえ'}</div>
-          {data.trial_ends_at && (
-            <div>体験期限: {new Date(data.trial_ends_at).toLocaleString('ja-JP')}</div>
-          )}
-          {data.time_remaining_seconds && (
-            <div>残り時間: {Math.floor(data.time_remaining_seconds / 3600)}時間</div>
-          )}
-          {data.message && (
-            <div>メッセージ: {data.message}</div>
-          )}
-        </div>
-      </div>
-    )
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto bg-white/10 backdrop-blur-md rounded-lg p-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">📱 Smartgram 認証</h1>
+    <section className="relative min-h-screen flex items-center pt-16 md:pt-20 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-black/20"></div>
+        {/* Neural Network Pattern */}
+        <svg className="absolute inset-0 w-full h-full opacity-10">
+          <pattern id="neural" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+            <circle cx="50" cy="50" r="1" fill="#3b82f6" />
+            <line x1="50" y1="50" x2="100" y2="50" stroke="#3b82f6" strokeWidth="0.5" />
+            <line x1="50" y1="50" x2="50" y2="100" stroke="#3b82f6" strokeWidth="0.5" />
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#neural)" />
+        </svg>
+        {/* Floating Tech Elements */}
+        <div className="absolute top-20 left-4 md:left-10 text-4xl md:text-6xl opacity-20 animate-float">🌐</div>
+        <div className="absolute top-40 right-4 md:right-20 text-4xl md:text-6xl opacity-20 animate-float animation-delay-2000">📱</div>
+        <div className="absolute bottom-20 left-4 md:left-20 text-4xl md:text-6xl opacity-20 animate-float animation-delay-4000">🤖</div>
+        <div className="absolute bottom-40 right-4 md:right-10 text-4xl md:text-6xl opacity-20 animate-float animation-delay-1000">🎯</div>
+        <div className="absolute top-60 left-1/2 text-4xl md:text-6xl opacity-20 animate-float animation-delay-3000">⚡</div>
+      </div>
 
+      <div className="container mx-auto px-4 text-center relative z-10">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+              📱 SMARTGRAM 認証
+            </h1>
+            <p className="text-xl text-white/90 mb-6">
+              デバイス認証システム
+            </p>
+          </div>
+
+          {/* Status Card */}
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl p-8 mb-6">
             <div className="mb-6">
-              <div className="text-lg mb-2">{status}</div>
+              <div className="text-2xl font-semibold mb-4 text-white">{status}</div>
 
               {status.includes('認証中') && (
-                <div className="flex justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
                 </div>
               )}
             </div>
 
-            {result && formatResult(result)}
+            {result && (
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-6">
+                <h3 className="text-xl font-bold mb-4 text-white">認証結果</h3>
+                <div className="space-y-3 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/80">ステータス:</span>
+                    <span className="text-white font-semibold">{result.status}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/80">有効:</span>
+                    <span className={`font-semibold ${result.is_valid ? 'text-green-400' : 'text-red-400'}`}>
+                      {result.is_valid ? 'はい' : 'いいえ'}
+                    </span>
+                  </div>
+                  {result.trial_ends_at && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-white/80">体験期限:</span>
+                      <span className="text-white font-semibold">
+                        {new Date(result.trial_ends_at).toLocaleString('ja-JP')}
+                      </span>
+                    </div>
+                  )}
+                  {result.time_remaining_seconds && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-white/80">残り時間:</span>
+                      <span className="text-blue-400 font-semibold">
+                        {Math.floor(result.time_remaining_seconds / 3600)}時間
+                      </span>
+                    </div>
+                  )}
+                  {result.message && (
+                    <div className="border-t border-white/10 pt-3">
+                      <span className="text-white/80">メッセージ:</span>
+                      <p className="text-white mt-1">{result.message}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-            <div className="mt-6 text-sm text-gray-300">
-              <p>認証が完了したら、AutoTouchアプリに戻ってください。</p>
-              <p className="mt-2">自動的にアプリが開かない場合は、手動でAutoTouchアプリを開いてください。</p>
+            {/* Instructions */}
+            <div className="bg-blue-500/10 backdrop-blur-sm rounded-xl border border-blue-400/20 p-6 mb-6">
+              <div className="text-white/90 space-y-2">
+                <p className="font-medium">📝 次の手順:</p>
+                <p>認証が完了したら、AutoTouchアプリに戻ってください。</p>
+                <p>自動的にアプリが開かない場合は、下のボタンをタップしてください。</p>
+              </div>
             </div>
 
-            <div className="mt-4">
-              <button
-                onClick={() => window.location.href = 'autotools://open'}
-                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm"
-              >
-                AutoTouchアプリを開く
-              </button>
-            </div>
+            {/* Action Button */}
+            <button
+              onClick={() => window.location.href = 'autotools://open'}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+            >
+              📱 AutoTouchアプリを開く
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
 export default function AuthMobilePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex items-center justify-center">
-        <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">📱 Smartgram 認証</h1>
-            <div className="text-lg mb-2">読み込み中...</div>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      <section className="relative min-h-screen flex items-center pt-16 md:pt-20 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
+        {/* Dynamic Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-black/20"></div>
+          <svg className="absolute inset-0 w-full h-full opacity-10">
+            <pattern id="neural-loading" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+              <circle cx="50" cy="50" r="1" fill="#3b82f6" />
+              <line x1="50" y1="50" x2="100" y2="50" stroke="#3b82f6" strokeWidth="0.5" />
+              <line x1="50" y1="50" x2="50" y2="100" stroke="#3b82f6" strokeWidth="0.5" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#neural-loading)" />
+          </svg>
+        </div>
+
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="max-w-2xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+                📱 SMARTGRAM 認証
+              </h1>
+              <p className="text-xl text-white/90 mb-6">
+                デバイス認証システム
+              </p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl p-8">
+              <div className="text-2xl font-semibold mb-4 text-white">読み込み中...</div>
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     }>
       <AuthMobileContent />
     </Suspense>
