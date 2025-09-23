@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [newDeviceHash, setNewDeviceHash] = useState('')
   const [showDeviceChangeForm, setShowDeviceChangeForm] = useState(false)
   const [timeLeft, setTimeLeft] = useState<string>('')
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -245,40 +246,90 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
       {/* Navigation */}
       <nav className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="flex justify-between items-center">
             <Link href="/">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                  SMARTGRAM
-                </div>
+              <div className="flex items-center space-x-1 md:space-x-2">
+                <span className="text-lg md:text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SMART</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GRAM</span>
+                </span>
+                <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30 text-xs md:text-sm" size="sm">v2.0</Badge>
               </div>
             </Link>
-            <div className="flex items-center gap-3">
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex space-x-4">
               <Link href="/guides">
-                <button className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all border border-white/10">
+                <Button className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm" size="md">
                   📚 ガイド
-                </button>
+                </Button>
               </Link>
-              <button
+              <Button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all border border-white/10"
+                className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+                size="md"
               >
                 🚪 ログアウト
+              </Button>
+            </div>
+
+            {/* Mobile Hamburger Menu */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="メニューを開く"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {isMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
               </button>
             </div>
           </div>
+
+          {/* Mobile Menu Dropdown */}
+          {isMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-gray-700 pt-4">
+              <div className="flex flex-col space-y-3">
+                <Link href="/guides" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="bg-white/10 border border-white/20 text-white hover:bg-white/20 text-sm w-full" size="md">
+                    📚 ガイド
+                  </Button>
+                </Link>
+                <Button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    handleLogout()
+                  }}
+                  className="bg-white/10 border border-white/20 text-white hover:bg-white/20 text-sm w-full"
+                  size="md"
+                >
+                  🚪 ログアウト
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-black/50 via-blue-900/20 to-purple-900/20 py-8 sm:py-12">
+      <section className="bg-gradient-to-br from-black/50 via-blue-900/20 to-purple-900/20 py-6 md:py-8 lg:py-12">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-cyan-100 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-cyan-100 bg-clip-text text-transparent mb-2">
               ダッシュボード
             </h1>
-            <p className="text-white/60 text-sm sm:text-base">
+            <p className="text-white/60 text-sm md:text-base px-2">
               アカウントステータスとライセンス管理
             </p>
           </div>
@@ -293,11 +344,11 @@ export default function DashboardPage() {
         )}
 
         {/* Status Hero Card */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6 mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
-              <p className="text-white/70">
+              <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
+              <p className="text-white/70 text-sm md:text-base">
                 {userData.device ?
                   (userData.isTrialActive ? `体験期間中 - ${userData.trialDaysRemaining}日残り` :
                    userData.isSubscriptionActive ? '有料会員' :
@@ -305,7 +356,7 @@ export default function DashboardPage() {
                   'デバイス未登録'}
               </p>
             </div>
-            <div className={`px-4 py-2 rounded-lg font-medium border ${
+            <div className={`px-3 md:px-4 py-2 rounded-lg font-medium border text-sm md:text-base ${
               userData.isTrialActive ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
               userData.isSubscriptionActive ? 'bg-green-500/20 text-green-300 border-green-500/30' :
               userData.device ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
@@ -318,8 +369,8 @@ export default function DashboardPage() {
             </div>
           </div>
           {timeLeft && (
-            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-center backdrop-blur-sm">
-              <p className="text-2xl font-bold text-blue-300">
+            <div className="mt-4 p-3 md:p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-center backdrop-blur-sm">
+              <p className="text-lg md:text-2xl font-bold text-blue-300">
                 {timeLeft}
               </p>
             </div>
@@ -373,10 +424,10 @@ export default function DashboardPage() {
         {userData.device && (
           <>
             {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-white/60">ライセンス状態</p>
+                  <p className="text-xs md:text-sm text-white/60">ライセンス状態</p>
                   <span className={`px-2 py-1 rounded text-xs font-medium border ${
                     userData.isTrialActive ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
                     userData.isSubscriptionActive ? 'bg-green-500/20 text-green-300 border-green-500/30' :
@@ -386,82 +437,82 @@ export default function DashboardPage() {
                      userData.isSubscriptionActive ? '有効' : '登録済み'}
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-white mb-1">
+                <div className="text-xl md:text-2xl font-bold text-white mb-1">
                   {(userData.isTrialActive || userData.isSubscriptionActive) ? '✅ 有効' : '❌ 無効'}
                 </div>
-                <p className="text-sm text-white/60">
+                <p className="text-xs md:text-sm text-white/60">
                   期限: {userData.isTrialActive && userData.device?.trial_ends_at ? formatDate(userData.device.trial_ends_at) :
                          (!userData.isTrialActive && !userData.isSubscriptionActive) ? '未アクティベート' : '無制限'}
                 </p>
               </div>
 
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-white/60">サブスクリプション</p>
+                  <p className="text-xs md:text-sm text-white/60">サブスクリプション</p>
                   {userData.subscription && (
                     <span className="text-sm">
                       {userData.subscription.status === 'active' ? '✅' : '⏳'}
                     </span>
                   )}
                 </div>
-                <div className="text-2xl font-bold text-blue-400 mb-1">
+                <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">
                   ¥2,980
-                  <span className="text-sm font-normal text-white/50">/月</span>
+                  <span className="text-xs md:text-sm font-normal text-white/50">/月</span>
                 </div>
-                <p className="text-sm text-white/60">
+                <p className="text-xs md:text-sm text-white/60">
                   {userData.isTrialActive ? '🎯 体験期間中' : '🔄 自動更新'}
                 </p>
               </div>
 
-              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
-                <p className="text-sm text-white/60 mb-3">利用可能な機能</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5">
+                <p className="text-xs md:text-sm text-white/60 mb-3">利用可能な機能</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-green-400">✅</span>
-                    <span className="text-sm text-white/80">全ツール利用可能</span>
+                    <span className="text-xs md:text-sm text-white/80">全ツール利用可能</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-green-400">✅</span>
-                    <span className="text-sm text-white/80">全ガイド閲覧可能</span>
+                    <span className="text-xs md:text-sm text-white/80">全ガイド閲覧可能</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-green-400">✅</span>
-                    <span className="text-sm text-white/80">サポート利用可能</span>
+                    <span className="text-xs md:text-sm text-white/80">サポート利用可能</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Account Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">アカウント情報</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
+            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">アカウント情報</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">メールアドレス</p>
-                    <p className="text-gray-800 font-medium">{userData.email}</p>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">メールアドレス</p>
+                    <p className="text-white font-medium text-sm md:text-base">{userData.email}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">現在のデバイス</p>
-                    <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">現在のデバイス</p>
+                    <p className="font-mono text-xs md:text-sm bg-white/10 p-2 md:p-3 rounded border border-white/20 text-white/80 break-all">
                       {userData.device?.device_hash || '未設定'}
                     </p>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">PayPal サブスクリプションID</p>
-                    <p className="font-mono text-xs text-gray-500">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">PayPal サブスクリプションID</p>
+                    <p className="font-mono text-xs text-white/50 break-all">
                       {userData.subscription?.paypal_subscription_id || 'なし'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">契約プラン</p>
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">契約プラン</p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                      <span className="px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded text-xs md:text-sm font-medium">
                         スタンダード
                       </span>
-                      <span className="text-gray-700">月額 ¥2,980</span>
+                      <span className="text-white/80 text-xs md:text-sm">月額 ¥2,980</span>
                     </div>
                   </div>
                 </div>
@@ -469,53 +520,53 @@ export default function DashboardPage() {
             </div>
 
             {/* Main.lua Script Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">📜 main.lua スクリプト情報</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
+            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📜 main.lua スクリプト情報</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">設定済みデバイスハッシュ</p>
-                    <p className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">設定済みデバイスハッシュ</p>
+                    <p className="font-mono text-xs md:text-sm bg-white/10 p-2 md:p-3 rounded border border-white/20 text-white/80 break-all">
                       {userData.device?.device_hash || '未設定'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">初回実行日時</p>
-                    <p className="text-gray-800">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">初回実行日時</p>
+                    <p className="text-white/80 text-sm md:text-base">
                       未実行
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">デバイス登録日時</p>
-                    <p className="text-gray-800">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">デバイス登録日時</p>
+                    <p className="text-white/80 text-sm md:text-base">
                       {userData.device?.created_at ? formatDate(userData.device.created_at) : '未登録'}
                     </p>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">スクリプト実行状態</p>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">スクリプト実行状態</p>
                     <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-700">
+                      <span className="px-3 py-1 rounded text-xs md:text-sm font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-400/30">
                         ⏳ 未実行
                       </span>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Trial開始状態</p>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">Trial開始状態</p>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        userData.isTrialActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                      <span className={`px-3 py-1 rounded text-xs md:text-sm font-medium border ${
+                        userData.isTrialActive ? 'bg-blue-500/20 text-blue-300 border-blue-400/30' : 'bg-white/10 text-white/60 border-white/20'
                       }`}>
                         {userData.isTrialActive ? '🎯 開始済み' : '📦 未開始'}
                       </span>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">利用可能ツール</p>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">利用可能ツール</p>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        (userData.isTrialActive || userData.isSubscriptionActive) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      <span className={`px-3 py-1 rounded text-xs md:text-sm font-medium border ${
+                        (userData.isTrialActive || userData.isSubscriptionActive) ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-red-500/20 text-red-300 border-red-400/30'
                       }`}>
                         {(userData.isTrialActive || userData.isSubscriptionActive) ? '🛠️ 全ツール利用可能' : '🚫 ツール利用不可'}
                       </span>
@@ -525,8 +576,8 @@ export default function DashboardPage() {
               </div>
 
               {!userData.isTrialActive && (
-                <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="mt-4 bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                  <p className="text-xs md:text-sm text-blue-300">
                     <strong>💡 次のステップ:</strong> AutoTouchでmain.luaを実行すると、3日間の体験期間が自動的に開始されます。
                   </p>
                 </div>
@@ -534,24 +585,25 @@ export default function DashboardPage() {
             </div>
 
             {/* Device Management */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">デバイス管理</h3>
-              <p className="text-sm text-gray-600 mb-4">登録デバイスの変更</p>
+            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-2">デバイス管理</h3>
+              <p className="text-xs md:text-sm text-white/60 mb-3 md:mb-4">登録デバイスの変更</p>
               {!showDeviceChangeForm ? (
                 <div>
-                  <p className="text-gray-700 mb-4">
+                  <p className="text-white/70 mb-3 md:mb-4 text-sm md:text-base">
                     契約が有効な間は、別のデバイスに変更することができます。
                     デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
                   </p>
                   {(userData.isTrialActive || userData.isSubscriptionActive) ? (
-                    <button
+                    <Button
                       onClick={() => setShowDeviceChangeForm(true)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20"
+                      size="md"
                     >
                       デバイスを変更
-                    </button>
+                    </Button>
                   ) : (
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs md:text-sm text-white/50">
                       デバイス変更は契約有効期間中のみ利用できます
                     </div>
                   )}
@@ -559,7 +611,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-white mb-1 md:mb-2">
                       新しいデバイスハッシュ
                     </label>
                     <input
@@ -567,61 +619,64 @@ export default function DashboardPage() {
                       value={newDeviceHash}
                       onChange={(e) => setNewDeviceHash(e.target.value)}
                       placeholder="新しいデバイスハッシュを入力"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-400"
+                      className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition text-sm md:text-base"
                       disabled={changingDevice}
                     />
                   </div>
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                    <p className="font-medium text-yellow-800 mb-2">⚠️ 注意事項</p>
-                    <ul className="space-y-1 text-sm text-gray-700">
+                  <div className="bg-yellow-500/10 border border-yellow-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                    <p className="font-medium text-yellow-300 mb-2 text-sm md:text-base">⚠️ 注意事項</p>
+                    <ul className="space-y-1 text-xs md:text-sm text-white/70">
                       <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
                       <li>• 現在のデバイスでは利用できなくなります</li>
                       <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
                     </ul>
                   </div>
-                  <div className="flex gap-3">
-                    <button
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
                       onClick={handleDeviceChange}
                       disabled={changingDevice || !newDeviceHash.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20 disabled:opacity-50"
+                      size="md"
                     >
                       {changingDevice ? '変更中...' : 'デバイス変更を実行'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => {
                         setShowDeviceChangeForm(false)
                         setNewDeviceHash('')
                         setError('')
                       }}
                       disabled={changingDevice}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm disabled:opacity-50"
+                      size="md"
                     >
                       キャンセル
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Actions */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">アクション</h3>
-              <p className="text-sm text-gray-600 mb-4">契約の管理</p>
+            <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-2">アクション</h3>
+              <p className="text-xs md:text-sm text-white/60 mb-3 md:mb-4">契約の管理</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                 <div className="space-y-3">
                   {userData.subscription?.status === 'active' && (
-                    <button
+                    <Button
                       onClick={handleCancelSubscription}
                       disabled={cancelling}
-                      className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      className="bg-red-500/20 border border-red-400/30 text-red-300 hover:bg-red-500/30 disabled:opacity-50 backdrop-blur-sm"
+                      size="md"
                     >
                       {cancelling ? '解約中...' : 'サブスクリプションを解約'}
-                    </button>
+                    </Button>
                   )}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs md:text-sm text-white/60">
                   <p className="mb-1">お困りの場合は</p>
-                  <a href="mailto:support@metacube.app" className="text-blue-600 hover:text-blue-700">
+                  <a href="mailto:support@metacube.app" className="text-blue-400 hover:text-blue-300 transition">
                     support@metacube.app
                   </a>
                 </div>
@@ -632,49 +687,49 @@ export default function DashboardPage() {
 
         {/* Expired Status */}
         {(!userData.device || (!userData.isTrialActive && !userData.isSubscriptionActive && userData.trialDaysRemaining !== null && userData.trialDaysRemaining <= 0)) && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">契約が期限切れです</h3>
-            <p className="text-gray-600 mb-6">サービスを継続するには再登録が必要です</p>
+          <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8">
+            <h3 className="text-lg md:text-xl font-semibold text-white mb-2">契約が期限切れです</h3>
+            <p className="text-white/60 mb-4 md:mb-6 text-sm md:text-base">サービスを継続するには再登録が必要です</p>
             <div className="text-center">
-              <p className="text-gray-700 mb-6">
+              <p className="text-white/70 mb-4 md:mb-6 text-sm md:text-base">
                 体験期間または契約期間が終了しました。
                 サービスを継続利用するには、再度契約をお願いします。
               </p>
               <Link href="/register">
-                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20" size="lg">
                   再登録して利用を再開
-                </button>
+                </Button>
               </Link>
             </div>
           </div>
         )}
 
         {/* Quick Links */}
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">クイックアクセス</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="mt-6 md:mt-8">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4 text-center">クイックアクセス</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <Link href="/">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="text-2xl mb-2">🏠</div>
-                <p className="text-gray-700 font-medium">ホーム</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+                <div className="text-xl md:text-2xl mb-1 md:mb-2">🏠</div>
+                <p className="text-white/80 font-medium text-sm md:text-base">ホーム</p>
               </div>
             </Link>
             <Link href="/guides">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="text-2xl mb-2">📚</div>
-                <p className="text-gray-700 font-medium">ガイド</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+                <div className="text-xl md:text-2xl mb-1 md:mb-2">📚</div>
+                <p className="text-white/80 font-medium text-sm md:text-base">ガイド</p>
               </div>
             </Link>
             <a href="mailto:support@metacube.app">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="text-2xl mb-2">📧</div>
-                <p className="text-gray-700 font-medium">サポート</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+                <div className="text-xl md:text-2xl mb-1 md:mb-2">📧</div>
+                <p className="text-white/80 font-medium text-sm md:text-base">サポート</p>
               </div>
             </a>
             <Link href="/register">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="text-2xl mb-2">🎯</div>
-                <p className="text-gray-700 font-medium">プラン</p>
+              <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-white/5 transition-all cursor-pointer">
+                <div className="text-xl md:text-2xl mb-1 md:mb-2">🎯</div>
+                <p className="text-white/80 font-medium text-sm md:text-base">プラン</p>
               </div>
             </Link>
           </div>
