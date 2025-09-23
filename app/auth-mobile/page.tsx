@@ -68,7 +68,7 @@ function AuthMobileContent() {
   // デバイス登録処理
   const handleDeviceRegistration = async (deviceHash: string) => {
     try {
-      // デバイス登録用の一時的なメールアドレス生成
+      // シンプルな登録方式：バックエンドで自動的にuser作成/取得
       const tempEmail = `device_${deviceHash.substring(0, 8)}@smartgram.temp`
       const tempPassword = `temp_${deviceHash.substring(0, 12)}`
 
@@ -79,19 +79,22 @@ function AuthMobileContent() {
         },
         body: JSON.stringify({
           email: tempEmail,
-          password: tempPassword,
+          password: tempPassword, // バックエンドで自動的にuser_id生成
           device_hash: deviceHash
         })
       })
 
       if (!registerResponse.ok) {
-        throw new Error(`Registration failed: ${registerResponse.status}`)
+        const errorData = await registerResponse.json().catch(() => ({}))
+        throw new Error(`Registration failed: ${registerResponse.status} - ${errorData.error || 'Unknown error'}`)
       }
 
       const registerData = await registerResponse.json()
+      if (!registerData.success) {
+        throw new Error(registerData.error || 'Registration failed')
+      }
 
-      if (registerData.success) {
-        setStatus('✅ デバイス登録完了 - 再認証中...')
+      setStatus('✅ デバイス登録完了 - 再認証中...')
 
         // 登録完了後、再度認証を実行
         setTimeout(async () => {
@@ -119,9 +122,6 @@ function AuthMobileContent() {
             }
           }
         }, 2000) // 2秒待機後に再認証
-      } else {
-        throw new Error(registerData.error || 'Registration failed')
-      }
     } catch (error) {
       console.error('Device registration error:', error)
       setStatus('❌ 登録エラー: ' + (error as Error).message)

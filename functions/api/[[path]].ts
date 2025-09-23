@@ -956,14 +956,100 @@ async function handleDeviceRegister(request: Request, env: any) {
 
   try {
     const body = await request.json();
-    const { device_hash, email, user_id } = body;
+    const { device_hash, email, user_id, password } = body;
 
-    // Validate required fields - now using user_id instead of password
-    if (!device_hash || !email || !user_id) {
+    // Validate required fields - accept either user_id or password+email for registration
+    if (!device_hash || !email) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Device hash, email, and user_id are required'
+          error: 'Device hash and email are required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    let final_user_id = user_id;
+
+    // If no user_id provided but password is, create/get user
+    if (!user_id && password) {
+      const supabase = getSupabaseClient(env);
+
+      // Try to create user or get existing user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: password
+      });
+
+      if (authError && authError.message.includes('already registered')) {
+        // User exists, try to sign in
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (signInError || !signInData.user) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Failed to authenticate user: ' + (signInError?.message || 'Unknown error')
+            }),
+            {
+              status: 400,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              }
+            }
+          );
+        }
+        final_user_id = signInData.user.id;
+      } else if (authError) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Failed to create user: ' + authError.message
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      } else {
+        final_user_id = authData.user?.id;
+      }
+
+      if (!final_user_id) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Failed to obtain user ID'
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      }
+    }
+
+    if (!final_user_id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'User ID or password is required for registration'
         }),
         {
           status: 400,
@@ -981,7 +1067,7 @@ async function handleDeviceRegister(request: Request, env: any) {
     const { data: existingDevice, error: checkError } = await supabase
       .from('devices')
       .select('id, device_hash')
-      .eq('user_id', user_id)
+      .eq('user_id', final_user_id)
       .eq('device_hash', device_hash)
       .maybeSingle();
 
@@ -1020,7 +1106,7 @@ async function handleDeviceRegister(request: Request, env: any) {
 
     // Register device with registered status (free registration)
     const { data: deviceData, error: deviceError } = await supabase.rpc('register_device_with_setup', {
-      p_user_id: user_id,
+      p_user_id: final_user_id,
       p_device_hash: device_hash,
       p_email: email
     });
