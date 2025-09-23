@@ -229,7 +229,8 @@ function AuthMobileContent() {
           } catch (error) {
             // フォールバック: JavaScript経由でアプリ起動を試行
             try {
-              if (window.webkit && window.webkit.messageHandlers) {
+              const windowWithWebkit = window as any;
+              if (windowWithWebkit.webkit && windowWithWebkit.webkit.messageHandlers) {
                 // iOS WebView環境での代替方法
                 console.log('Attempting app activation via WebKit')
                 // Note: appActivate("me.autotouch.AutoTouch.ios8") はLua側で実行

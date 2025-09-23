@@ -341,97 +341,17 @@ function saveCache(data)
     end
 end
 
--- WebView経由でAPI認証を実行
-function tryWebViewAuthentication(deviceHash)
-    print("🌐 WebView経由でAPI認証を開始...")
+-- バックグラウンドでAPI認証を実行
+function tryBackgroundAuthentication(deviceHash)
+    print("🔄 バックグラウンドでAPI認証を開始...")
 
-    -- 認証用WebページのURL（デバイスハッシュをパラメータで渡す）
-    local authURL = string.format("https://smartgram.jp/auth-mobile?device_hash=%s&source=autotools", deviceHash)
-    print("📱 認証ページを開きます:", authURL)
+    local url = API_BASE_URL .. "/license/verify"
+    local body = '{"device_hash":"' .. deviceHash .. '"}'
 
-    -- WebページでAPI接続を実行し、結果をURLスキーム経由で受け取る
-    local success, result = pcall(function()
-        return openURL(authURL)
-    end)
-
-    if success then
-        print("✅ 認証ページを開きました")
-        print("⏳ API認証処理中...")
-
-        -- WebView認証の完了を待機（URLスキーム経由で結果を受け取る）
-        return waitForWebViewResult(deviceHash)
-    else
-        print("❌ 認証ページの表示に失敗:", tostring(result))
-        return nil
-    end
-end
-
--- WebView認証結果の待機
-function waitForWebViewResult(deviceHash)
-    print("📲 認証結果を待機中...")
-
-    -- AutoTouchアプリに戻る（ユーザーが手動で操作しやすくするため）
-    local success, activateResult = pcall(function()
-        appActivate("me.autotouch.AutoTouch.ios8")
-        print("📱 AutoTouchアプリに戻りました")
-    end)
-
-    if not success then
-        print("⚠️ AutoTouchアプリの起動に失敗 (手動で戻ってください):", activateResult)
-    end
-
-    -- 結果ファイルのパス（WebページがJavaScript経由で書き込む）
-    local resultFile = "/tmp/smartgram_auth_result.json"
-    local maxWaitTime = 30  -- 30秒まで待機
-    local waitInterval = 1  -- 1秒間隔でチェック
-
-    for i = 1, maxWaitTime do
-        -- 結果ファイルの存在確認
-        local file = io.open(resultFile, "r")
-        if file then
-            local content = file:read("*all")
-            file:close()
-
-            if content and content ~= "" then
-                print("✅ 認証結果を受信しました")
-                print("📊 レスポンス:", content)
-
-                -- 結果ファイルを削除（次回実行のため）
-                os.remove(resultFile)
-
-                return content
-            end
-        end
-
-        -- プログレス表示
-        if i % 5 == 0 then
-            print(string.format("⏳ 認証処理中... (%d/%d秒)", i, maxWaitTime))
-        end
-
-        -- 1秒待機
-        usleep(1000000)
-    end
-
-    print("⏰ 認証がタイムアウトしました")
-    return nil
-end
-
--- HTTPリクエスト用ヘルパー関数（WebView方式優先）
-function tryHttpRequest(url, body)
-    print("🌐 Smartgram APIサーバーに接続中...")
-
-    local deviceHash = string.match(body, '"device_hash":"([^"]+)"')
+    print("📡 APIエンドポイント:", url)
     print("📱 デバイスハッシュ:", deviceHash)
 
-    -- Method 1: WebView経由の認証（推奨方式）
-    print("🔄 WebView経由でAPI認証を試行...")
-    local webResult = tryWebViewAuthentication(deviceHash)
-    if webResult then
-        return webResult
-    end
-
-    -- Method 2: 直接HTTP接続（フォールバック）
-    print("⏳ 直接HTTP接続を試行中...")
+    -- 直接HTTP接続でライセンス認証
     local success, response = pcall(function()
         local headers = {
             ["Content-Type"] = "application/json",
@@ -441,19 +361,41 @@ function tryHttpRequest(url, body)
     end)
 
     if success and response and response ~= "" then
-        print("✅ 直接HTTP接続成功")
+        print("✅ バックグラウンド認証成功")
+        -- HTMLエラーページでないことを確認
         if not string.find(response, "<!DOCTYPE") and not string.find(response, "<html") then
+            print("📊 認証レスポンス受信完了")
             return response
         else
             print("❌ HTMLエラーページを受信")
         end
     else
-        print("❌ 直接HTTP接続失敗:", tostring(response))
+        print("❌ バックグラウンド認証失敗:", tostring(response))
+    end
+
+    return nil
+end
+
+-- [削除済み] WebView認証結果の待機関数
+-- バックグラウンド認証に変更したため、この関数は不要になりました
+
+-- HTTPリクエスト用ヘルパー関数（バックグラウンド認証）
+function tryHttpRequest(url, body)
+    print("🌐 Smartgram APIサーバーに接続中...")
+
+    local deviceHash = string.match(body, '"device_hash":"([^"]+)"')
+    print("📱 デバイスハッシュ:", deviceHash)
+
+    -- バックグラウンド認証を実行
+    print("🔄 バックグラウンド認証を実行中...")
+    local backgroundResult = tryBackgroundAuthentication(deviceHash)
+    if backgroundResult then
+        return backgroundResult
     end
 
     -- すべての方法が失敗
-    print("❌ すべての接続方法が失敗しました")
-    print("📱 ブラウザでの認証も完了していない可能性があります")
+    print("❌ バックグラウンド認証が失敗しました")
+    print("🔌 インターネット接続またはAPIサーバーの問題の可能性があります")
 
     return nil
 end
