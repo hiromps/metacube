@@ -57,6 +57,8 @@ export async function onRequest(context: any) {
     return handlePayPalCancel(request);
   } else if (path === 'paypal/webhook') {
     return handlePayPalWebhook(request, env);
+  } else if (path === 'device/user-email') {
+    return handleGetUserEmailByDevice(request, env);
   }
 
   // 404 for unknown API routes
@@ -2086,6 +2088,152 @@ async function handleSaveAuthResult(request: Request, env: any) {
       JSON.stringify({
         success: false,
         error: 'Failed to save authentication result'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Get user email by device hash handler
+async function handleGetUserEmailByDevice(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    let device_hash: string;
+
+    if (request.method === 'POST') {
+      const body = await request.json();
+      device_hash = body.device_hash;
+    } else {
+      // GET request - extract from query parameters
+      const url = new URL(request.url);
+      device_hash = url.searchParams.get('device_hash') || '';
+    }
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Query to get user email associated with the device hash
+    const { data: deviceData, error: deviceError } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        device_hash,
+        user_id,
+        status,
+        trial_ends_at,
+        users!inner (
+          id,
+          email,
+          created_at
+        )
+      `)
+      .eq('device_hash', device_hash)
+      .maybeSingle();
+
+    if (deviceError) {
+      console.error('Database error:', deviceError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Database query failed'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!deviceData) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device not found',
+          device_hash: device_hash
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Return user email and device information
+    return new Response(
+      JSON.stringify({
+        success: true,
+        device_hash: deviceData.device_hash,
+        user_id: deviceData.user_id,
+        user_email: deviceData.users.email,
+        device_status: deviceData.status,
+        trial_ends_at: deviceData.trial_ends_at,
+        user_created_at: deviceData.users.created_at
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('Get user email error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Internal server error'
       }),
       {
         status: 500,
