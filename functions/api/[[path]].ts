@@ -2209,15 +2209,16 @@ async function handleGetUserEmailByDevice(request: Request, env: any) {
     }
 
     // Return user email and device information
+    const userData = deviceData.users as any;
     return new Response(
       JSON.stringify({
         success: true,
         device_hash: deviceData.device_hash,
         user_id: deviceData.user_id,
-        user_email: deviceData.users.email,
+        user_email: userData.email,
         device_status: deviceData.status,
         trial_ends_at: deviceData.trial_ends_at,
-        user_created_at: deviceData.users.created_at
+        user_created_at: userData.created_at
       }),
       {
         status: 200,
