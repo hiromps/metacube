@@ -62,10 +62,17 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
       // 管理者がアップロードした専用パッケージが存在する場合
 
       // ダウンロード回数を更新
+      const { data: currentPackage } = await supabase
+        .from('user_packages')
+        .select('download_count')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+
       await supabase
         .from('user_packages')
         .update({
-          download_count: supabase.raw('download_count + 1'),
+          download_count: (currentPackage?.download_count || 0) + 1,
           last_downloaded: new Date().toISOString()
         })
         .eq('user_id', user.id)

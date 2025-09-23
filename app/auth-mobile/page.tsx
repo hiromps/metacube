@@ -159,7 +159,7 @@ function AuthMobileContent() {
         device_hash: data.device_hash || searchParams.get('device_hash'),
         status: data.status || 'unknown',
         timestamp: new Date().toISOString(),
-        expires_at: data.expires_at || (os.time() + (24 * 60 * 60)), // 24時間後
+        expires_at: data.expires_at || (Math.floor(Date.now() / 1000) + (24 * 60 * 60)), // 24時間後
         source: 'smartgram-auth-mobile-webview',
         is_valid: data.is_valid || false,
         authenticated_at: Math.floor(Date.now() / 1000) // Unix timestamp
@@ -201,7 +201,7 @@ function AuthMobileContent() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(authResult.result)
+          body: JSON.stringify(authResult)
         });
 
         if (saveResponse.ok) {
