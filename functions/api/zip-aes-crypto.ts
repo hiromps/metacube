@@ -43,7 +43,8 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
   salt: Uint8Array
 }> {
   // Generate salt for this file
-  const salt = crypto.getRandomValues(new Uint8Array(8)) // 8 bytes salt for ZIP AES
+  const saltArray = crypto.getRandomValues(new Uint8Array(8)) // 8 bytes salt for ZIP AES
+  const salt = saltArray.buffer.slice(saltArray.byteOffset, saltArray.byteOffset + saltArray.byteLength)
 
   // Derive key using PBKDF2 (ZIP AES standard)
   const encoder = new TextEncoder()
@@ -74,7 +75,8 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
   // Generate IV (12 bytes for CTR mode)
   const iv = crypto.getRandomValues(new Uint8Array(12))
 
-  // Encrypt the data
+  // Encrypt the data - convert Uint8Array to ArrayBuffer for compatibility
+  const dataBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
   const encryptedBuffer = await crypto.subtle.encrypt(
     {
       name: 'AES-CTR',
@@ -82,7 +84,7 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
       length: 128
     },
     key,
-    data
+    dataBuffer
   )
 
   const encryptedData = new Uint8Array(encryptedBuffer)
@@ -93,7 +95,7 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
   return {
     encryptedData,
     authCode,
-    salt
+    salt: saltArray
   }
 }
 
