@@ -531,18 +531,20 @@ CACHE_DURATION = 86400  -- 24時間
             <div className="bg-gradient-to-br from-slate-800/30 via-gray-800/20 to-slate-800/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl shadow-lg shadow-slate-500/10">
               <div className="p-6 md:p-8">
                 <div
-                  className="markdown-content prose prose-blue max-w-none"
+                  className="markdown-content max-w-none"
+                  style={{color: '#ffffff'}}
                   dangerouslySetInnerHTML={{
-                    __html: getSelectedContent().replace(/\n/g, '<br>')
+                    __html: getSelectedContent()
+                      .replace(/\n/g, '<br>')
                       .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/30 pb-2">$1</h1>')
                       .replace(/^## (.*?)$/gm, '<h2 class="text-xl md:text-2xl font-semibold mb-3 mt-6 text-white">$1</h2>')
                       .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-white">$1</h3>')
-                      .replace(/\`\`\`[\s\S]*?\`\`\`/g, '<pre class="bg-black/40 border border-white/30 p-4 rounded-lg overflow-x-auto backdrop-blur-sm"><code class="text-white text-sm">$1</code></pre>')
+                      .replace(/\`\`\`([\s\S]*?)\`\`\`/g, '<pre class="bg-black/40 border border-white/30 p-4 rounded-lg overflow-x-auto backdrop-blur-sm my-4"><code class="text-white text-sm">$1</code></pre>')
                       .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/30 px-2 py-1 rounded text-blue-200 text-sm border border-blue-400/40">$1</code>')
-                      .replace(/^- (.*?)$/gm, '<li class="ml-4 text-white list-disc marker:text-blue-400">$1</li>')
-                      .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-white list-decimal marker:text-blue-400">$1</li>')
+                      .replace(/^(\d+)\. (.*)$/gm, '<div class="my-1"><span class="text-blue-400 font-medium">$1.</span> <span class="text-white">$2</span></div>')
+                      .replace(/^- (.*)$/gm, '<div class="my-1 ml-4"><span class="text-blue-400 mr-2">•</span><span class="text-white">$1</span></div>')
                       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
-                      .replace(/^([^#\-\d\`\*].*)$/gm, '<p class="text-white leading-relaxed mb-2">$1</p>')
+                      .replace(/^([^#\-\d\`\<\*].*)$/gm, '<div class="text-white leading-relaxed my-2">$1</div>')
                   }}
                 />
               </div>
