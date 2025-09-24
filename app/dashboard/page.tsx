@@ -267,10 +267,13 @@ export default function DashboardPage() {
   }, [])
 
   const checkPackageStatus = useCallback(async () => {
-    if (!userData?.device?.device_hash || !userData?.device?.user_id) return
+    if (!userData?.device?.device_hash) return
 
     try {
-      const response = await fetch(`/api/user-packages/status?user_id=${userData.device.user_id}&device_hash=${userData.device.device_hash}`)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const response = await fetch(`/api/user-packages/status?user_id=${user.id}&device_hash=${userData.device.device_hash}`)
       const result = await response.json()
 
       if (result.success) {
@@ -279,14 +282,14 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to check package status:', error)
     }
-  }, [userData?.device?.device_hash, userData?.device?.user_id])
+  }, [userData?.device?.device_hash])
 
   // Check package status on mount and data change
   useEffect(() => {
-    if (userData?.device?.device_hash && userData?.device?.user_id) {
+    if (userData?.device?.device_hash) {
       checkPackageStatus()
     }
-  }, [userData?.device?.device_hash, userData?.device?.user_id, checkPackageStatus])
+  }, [userData?.device?.device_hash, checkPackageStatus])
 
   // Reset download states on component mount to prevent stuck states
   useEffect(() => {
@@ -388,7 +391,8 @@ export default function DashboardPage() {
         if (fileInput) fileInput.value = ''
 
         // Refresh package status if it's for current user
-        if (uploadTargetUserId === userData?.device?.user_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user && uploadTargetUserId === user.id) {
           checkPackageStatus()
         }
       } else {
@@ -1160,7 +1164,7 @@ export default function DashboardPage() {
                             <span className="text-green-400">✅</span>
                             <span className="text-white/80 text-sm">timeline.lua (タイムライン自動いいね)</span>
                           </div>
-                          {(userData.plan?.plan_name === 'pro' || userData.plan?.plan_name === 'pro_yearly' || userData.plan?.plan_name === 'max') && (
+                          {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly' || userData.plan?.name === 'max') && (
                             <>
                               <div className="flex items-center gap-2">
                                 <span className="text-green-400">✅</span>
@@ -1172,7 +1176,7 @@ export default function DashboardPage() {
                               </div>
                             </>
                           )}
-                          {userData.plan?.plan_name === 'max' && (
+                          {userData.plan?.name === 'max' && (
                             <>
                               <div className="flex items-center gap-2">
                                 <span className="text-green-400">✅</span>
@@ -1198,7 +1202,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-xs md:text-sm text-white/60 mb-1">制限機能</p>
                     <div className="space-y-1">
-                      {(!userData.plan?.plan_name || userData.plan?.plan_name === 'starter' || userData.device?.status === 'trial') && (
+                      {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-yellow-400">🔒</span>
@@ -1218,7 +1222,7 @@ export default function DashboardPage() {
                           </div>
                         </>
                       )}
-                      {(userData.plan?.plan_name === 'pro' || userData.plan?.plan_name === 'pro_yearly') && (
+                      {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly') && (
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-yellow-400">🔒</span>
@@ -1230,7 +1234,7 @@ export default function DashboardPage() {
                           </div>
                         </>
                       )}
-                      {userData.plan?.plan_name === 'max' && (
+                      {userData.plan?.name === 'max' && (
                         <div className="flex items-center gap-2">
                           <span className="text-green-400">✅</span>
                           <span className="text-white/80 text-sm">制限なし - 全機能利用可能</span>
@@ -1250,7 +1254,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {(!userData.plan?.plan_name || userData.plan?.plan_name === 'starter' || userData.device?.status === 'trial') && (
+              {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
                 <div className="mt-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                   <p className="text-blue-300 text-sm md:text-base font-medium mb-1">
                     💎 もっと多くの機能を使用しませんか？
