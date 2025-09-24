@@ -121,50 +121,51 @@ export async function generateCompleteAteFile(env: any, device_hash: string): Pr
 
     const zipEntries: ZipFileEntry[] = []
 
-    // Add processed Lua scripts
+    // Create AutoTouch exact 2-file structure based on sample analysis
+    let workerContent = ''
+    let indexContent = ''
+
+    // Combine all content but ensure we have exactly worker.js and index.js
     for (const [filePath, content] of Object.entries(templateResult.files)) {
-      // AutoTouch expects specific file names
-      let fileName = filePath
-      if (filePath === 'smartgram/main.lua') {
-        fileName = 'index.js' // Main entry point
-      } else if (filePath.includes('functions/')) {
-        fileName = filePath.replace('smartgram/functions/', '') // Keep function files in root
+      if (filePath === 'smartgram/main.lua' || filePath.includes('timeline.lua')) {
+        indexContent += `-- File: ${filePath}\n${content as string}\n\n`
       } else {
-        fileName = filePath.replace('smartgram/', '') // Remove smartgram prefix
+        workerContent += `-- File: ${filePath}\n${content as string}\n\n`
       }
-
-      zipEntries.push({
-        name: fileName,
-        content: content as string,
-        isText: true
-      })
-      console.log(`📄 Added Lua script: ${fileName}`)
     }
 
-    // Add image files (convert base64 to binary)
-    for (const [filePath, base64Content] of Object.entries(imageFiles)) {
-      const fileName = filePath.replace('smartgram/', '') // Remove smartgram prefix
-
-      // Convert base64 to binary
-      const binaryString = atob(base64Content)
-      const imageBytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        imageBytes[i] = binaryString.charCodeAt(i)
-      }
-
-      zipEntries.push({
-        name: fileName,
-        content: imageBytes,
-        isText: false
-      })
-      console.log(`🖼️ Added image: ${fileName}`)
+    // Ensure both files have content (AutoTouch requires both)
+    if (!indexContent) {
+      indexContent = '-- AutoTouch Index Entry Point\n' + Object.values(templateResult.files)[0] || '-- Empty index\n'
     }
+    if (!workerContent) {
+      workerContent = '-- AutoTouch Worker Script\nrequire("index")\n'
+    }
+
+    // Add exactly 2 files as in AutoTouch sample
+    zipEntries.push({
+      name: 'worker.js',  // First file in sample
+      content: workerContent,
+      isText: true
+    })
+
+    zipEntries.push({
+      name: 'index.js',   // Second file in sample
+      content: indexContent,
+      isText: true
+    })
+
+    console.log(`📄 Created AutoTouch 2-file structure: worker.js (${workerContent.length} chars) + index.js (${indexContent.length} chars)`)
+
+    // AutoTouch sample contains ONLY 2 JS files - no images
+    // Skip image processing to match exact sample structure
+    console.log('🚫 Skipping images - AutoTouch sample has only worker.js + index.js')
 
     console.log(`📊 Total ZIP entries: ${zipEntries.length} files`)
 
     // Step 4: Create AutoTouch compatible encrypted ZIP (.ate file)
     console.log('🔐 Step 4: Creating AutoTouch compatible .ate file...')
-    const zipResult = await createAutoTouchZIP(zipEntries, '1111') // Password: 1111
+    const zipResult = await createAutoTouchZIP(zipEntries, '') // Empty password like AutoTouch sample
 
     // Step 5: Convert to base64 for response
     console.log('📤 Step 5: Preparing download...')

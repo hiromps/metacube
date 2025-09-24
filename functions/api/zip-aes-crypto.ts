@@ -143,8 +143,9 @@ function createAESExtraField(): Uint8Array {
 }
 
 // Create ZIP file with AES encryption (AutoTouch compatible)
-export async function createAutoTouchZIP(files: ZipFileEntry[], password: string = '1111'): Promise<ZipAESResult> {
-  console.log(`🔐 Creating AutoTouch compatible ZIP with ${files.length} files (AES-256, 16-byte salt, 1 PBKDF2 iteration)`)
+export async function createAutoTouchZIP(files: ZipFileEntry[], password: string = ''): Promise<ZipAESResult> {
+  const passwordForLog = password === '' ? 'empty' : password
+  console.log(`🔐 Creating AutoTouch compatible ZIP with ${files.length} files (AES-256, 16-byte salt, 1 PBKDF2 iteration, password: ${passwordForLog})`)
 
   const zipEntries: Array<{
     name: string
