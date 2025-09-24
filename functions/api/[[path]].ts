@@ -7,6 +7,13 @@ import {
   handleFeatureCheck
 } from './multiplan-handlers'
 import { handleDownloadPackage } from './download-package'
+import {
+  handleSchedulerRun,
+  handleSchedulerStatus,
+  handleSchedulerHealth,
+  handleWorkerProcess,
+  handleWorkerHealth
+} from './ate-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -91,6 +98,16 @@ export async function onRequest(context: any) {
     return handleAteDownload(request, env, ateFileId);
   } else if (path === 'ate/status') {
     return handleAteStatus(request, env);
+  } else if (path === 'ate-scheduler/run') {
+    return handleSchedulerRun(request, env);
+  } else if (path === 'ate-scheduler/status') {
+    return handleSchedulerStatus(request, env);
+  } else if (path === 'ate-scheduler/health') {
+    return handleSchedulerHealth(request, env);
+  } else if (path === 'ate-worker/process') {
+    return handleWorkerProcess(request, env);
+  } else if (path === 'ate-worker/health') {
+    return handleWorkerHealth(request, env);
   }
 
   // 404 for unknown API routes
