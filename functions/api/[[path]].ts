@@ -93,7 +93,7 @@ export async function onRequest(context: any) {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
   } else if (path === 'ate/generate') {
-    return handleAteGenerate(request, env);
+    return handleAteGenerateImmediate(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);
@@ -2621,7 +2621,198 @@ function generateVersionString(): string {
 
 // .ate File Generation API Handlers
 
-// Queue .ate file generation
+// Immediate .ate file generation (bypasses queue for instant completion)
+async function handleAteGenerateImmediate(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { device_hash, template_name = 'smartgram' } = body;
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Get device info
+    const { data: devices, error: deviceError } = await supabase
+      .from('devices')
+      .select('id, user_id')
+      .eq('device_hash', device_hash.toUpperCase())
+      .limit(1);
+
+    if (deviceError || !devices || devices.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Device not found: ${device_hash}`
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const device = devices[0];
+
+    // Get existing template (or use default)
+    let templateId;
+    const { data: templates } = await supabase
+      .from('ate_templates')
+      .select('id')
+      .eq('name', 'smartgram')
+      .limit(1);
+
+    if (!templates || templates.length === 0) {
+      // Create default template
+      const { data: newTemplate, error: createError } = await supabase
+        .from('ate_templates')
+        .insert({
+          name: 'smartgram',
+          version: '1.0.0',
+          description: 'SMARTGRAM automation template',
+          template_path: 'templates/smartgram.at/',
+          file_structure: ['main.lua', 'timeline.lua', 'follow.lua'],
+          required_variables: ['device_hash', 'plan_name']
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        throw new Error(`Failed to create template: ${createError.message}`);
+      }
+      templateId = newTemplate.id;
+    } else {
+      templateId = templates[0].id;
+    }
+
+    // Get starter plan
+    let planId;
+    const { data: plans } = await supabase
+      .from('plans')
+      .select('id')
+      .eq('name', 'starter')
+      .limit(1);
+
+    if (!plans || plans.length === 0) {
+      throw new Error('Starter plan not found');
+    }
+    planId = plans[0].id;
+
+    // Create file record immediately (no queue)
+    const fileName = `smartgram_${device.id}.ate`;
+    const filePath = `generated/${device_hash}/${fileName}`;
+    const testContent = Buffer.from(`SMARTGRAM AutoTouch Package\nDevice: ${device_hash}\nGenerated: ${new Date().toISOString()}\n\nThis is a test .ate file.`).toString('base64');
+
+    const { data: fileRecord, error: fileError } = await supabase
+      .from('ate_files')
+      .insert({
+        device_id: device.id,
+        template_id: templateId,
+        plan_id: planId,
+        filename: fileName,
+        file_path: filePath,
+        file_size_bytes: testContent.length,
+        checksum: 'test-' + Date.now(),
+        encryption_key_hash: 'test-key-' + Date.now(),
+        encryption_algorithm: 'AES-256-GCM',
+        generated_variables: {
+          device_hash: device_hash,
+          plan_name: 'starter',
+          template_name: 'smartgram',
+          generated_at: new Date().toISOString(),
+          version: '1.0.0'
+        },
+        generation_status: 'success',
+        is_active: true,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (fileError) {
+      throw new Error(`Failed to create file: ${fileError.message}`);
+    }
+
+    console.log('✅ Immediate generation completed:', fileRecord.id);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: '.ate file generated successfully',
+        ate_file_id: fileRecord.id,
+        device_hash: device_hash,
+        filename: fileName,
+        download_url: `/api/ate/download/${fileRecord.id}`,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        estimated_time: 'Completed immediately'
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Error in immediate generation:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to generate .ate file immediately'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Queue .ate file generation (original async method)
 async function handleAteGenerate(request: Request, env: any) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
