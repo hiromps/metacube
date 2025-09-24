@@ -191,10 +191,11 @@ export async function processTemplate(env: any, device_hash: string): Promise<an
 
 // Test function for template processing
 export async function testTemplateProcess(env: any): Promise<any> {
-  // Use a test device hash for demonstration
-  const testDeviceHash = 'TEST123DEVICE'
+  // Use a real device hash for testing
+  const testDeviceHash = 'FFMZ3GTSJC6J'
 
   try {
+    console.log(`🧪 Testing template processing with device: ${testDeviceHash}`)
     const result = await processTemplate(env, testDeviceHash)
     return result
   } catch (error) {
@@ -202,7 +203,7 @@ export async function testTemplateProcess(env: any): Promise<any> {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      note: 'This test uses a dummy device hash. In production, use a real device hash.'
+      note: `This test uses device hash: ${testDeviceHash}`
     }
   }
 }
