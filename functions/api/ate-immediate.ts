@@ -50,8 +50,23 @@ export async function handleAteGenerateSuper(request: Request, env: any) {
 
     // Convert to base64 (Cloudflare Workers compatible)
     const encoder = new TextEncoder();
-    const dataArray = encoder.encode(JSON.stringify(ateContent));
-    const base64Content = btoa(String.fromCharCode(...dataArray));
+    const jsonString = JSON.stringify(ateContent);
+    const dataArray = encoder.encode(jsonString);
+
+    // For small content, use direct conversion
+    let base64Content;
+    if (dataArray.length < 10000) {
+      base64Content = btoa(String.fromCharCode(...dataArray));
+    } else {
+      // For larger content, use chunked encoding
+      const CHUNK_SIZE = 0x8000;
+      const chunks = [];
+      for (let i = 0; i < dataArray.length; i += CHUNK_SIZE) {
+        const chunk = dataArray.subarray(i, i + CHUNK_SIZE);
+        chunks.push(String.fromCharCode(...chunk));
+      }
+      base64Content = btoa(chunks.join(''));
+    }
 
     // IMMEDIATE SUCCESS RESPONSE
     const successResponse = {
