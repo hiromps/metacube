@@ -3142,19 +3142,38 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
     ).then(() => console.log('Download count updated'))
      .catch(err => console.warn('Failed to update download count:', err));
 
-    // Return file as binary
-    const fileBuffer = Buffer.from(packageData.file_content, 'base64');
-    console.log('Returning file buffer, size:', fileBuffer.length, 'bytes');
-
-    return new Response(fileBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${packageData.file_name}"`,
-        'Content-Length': fileBuffer.length.toString(),
-        'Access-Control-Allow-Origin': '*'
+    // Return file as binary (using Web API instead of Buffer for Cloudflare Workers)
+    try {
+      // Decode base64 to binary using Web API
+      const binaryString = atob(packageData.file_content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
-    });
+      console.log('Returning file buffer, size:', bytes.length, 'bytes');
+
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${packageData.file_name}"`,
+          'Content-Length': bytes.length.toString(),
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    } catch (decodeError) {
+      console.error('Failed to decode base64 content:', decodeError);
+      return new Response(JSON.stringify({
+        error: 'Failed to decode package content',
+        details: 'Invalid base64 content in package data'
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
 
   } catch (error: any) {
     console.error('User package download error:', error);
