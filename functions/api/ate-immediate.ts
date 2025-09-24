@@ -418,7 +418,7 @@ export async function handleAteGenerateSimple(request: Request, env: any): Promi
 
     // Import and use simple ATE generator
     const { generateSimpleATE } = await import('./ate-simple')
-    const result = await generateSimpleATE(device_hash)
+    const result = await generateSimpleATE(device_hash, env)
 
     if (!result.success || !result.data) {
       throw new Error(result.error || 'Simple ATE generation failed')

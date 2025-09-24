@@ -2,15 +2,15 @@
 // Based on discovery that AutoTouch .ate files are standard ZIP files
 
 import { createSimpleZIP, SimpleZipEntry } from './simple-zip'
-import { processTemplates } from './template-processor'
+import { processTemplate } from './template-processor'
 
-export async function generateSimpleATE(device_hash: string) {
+export async function generateSimpleATE(device_hash: string, env?: any) {
   console.log('🚀 Starting simple .ate generation (no encryption)...')
 
   try {
     // Step 1: Process templates with device data
     console.log('📋 Step 1: Processing templates...')
-    const templateResult = await processTemplates(device_hash)
+    const templateResult = await processTemplate(env || {}, device_hash)
 
     if (!templateResult.success) {
       throw new Error(`Template processing failed: ${templateResult.error}`)
