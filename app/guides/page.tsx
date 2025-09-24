@@ -73,45 +73,19 @@ export default function GuidesPage() {
         return
       }
 
-      // Check content access
-      let response: Response
-      let data: any
-
-      try {
-        response = await fetch(`/api/content/access?user_id=${user.id}`)
-
-        // Check if response is HTML (404 page)
-        const contentType = response.headers.get('content-type')
-        if (contentType && contentType.includes('text/html')) {
-          throw new Error('API endpoint not found - using mock data')
-        }
-
-        data = await response.json()
-      } catch (fetchError) {
-        console.warn('API not available, using mock data for content access')
-        // Mock data - default to registered status (pre-trial)
-        data = {
-          has_access: true,
-          can_use_tools: false,
-          status: UserStatus.REGISTERED,
-          status_description: '登録済み - smartgram.ate初回実行時に体験開始',
-          trial_activated_at: null,
-          trial_ends_at: null
-        }
-      }
-
+      // User is logged in - set registered status for guides access
+      console.log('User logged in:', user.email)
       setAccess({
-        hasAccess: data.has_access || false,
-        canUseTools: data.can_use_tools || false,
-        status: data.status as UserStatus || UserStatus.VISITOR,
-        statusDescription: data.status_description || '',
-        trialEndsAt: data.trial_ends_at,
-        reason: data.reason
+        hasAccess: true,
+        canUseTools: true,
+        status: UserStatus.REGISTERED,
+        statusDescription: `登録済み - ${user.email}`,
+        reason: ''
       })
 
       // Set default guide
-      if (!selectedGuide) {
-        setSelectedGuide('overview')
+      if (!selectedGuide && guides.length > 0) {
+        setSelectedGuide(guides[0].slug)
       }
 
     } catch (error: any) {
@@ -127,7 +101,7 @@ export default function GuidesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [guides, selectedGuide])
 
   useEffect(() => {
     checkAccess()
@@ -239,7 +213,7 @@ export default function GuidesPage() {
               <div>
                 <p className="text-sm text-white/60">現在のアクセスレベル</p>
                 <p className="text-lg font-semibold text-white">
-                  {access.status !== UserStatus.VISITOR ? '✅ フルアクセス' : '🔒 制限付きアクセス'}
+                  {access.status !== UserStatus.VISITOR ? '✅ フルアクセス（全ガイド閲覧可能）' : '🔒 制限付きアクセス'}
                 </p>
               </div>
               <span className={`px-3 py-1 rounded-lg text-sm font-medium border ${
