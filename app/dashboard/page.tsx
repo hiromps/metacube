@@ -353,20 +353,49 @@ export default function DashboardPage() {
     setError('')
 
     try {
-      const response = await fetch(`/api/user-packages/download/${packageStatus.package_id}`)
+      const downloadUrl = `/api/user-packages/download/${packageStatus.package_id}`
+      console.log('Downloading package from:', downloadUrl)
+
+      const response = await fetch(downloadUrl)
+      console.log('Download response status:', response.status)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'ダウンロードに失敗しました')
+        let errorMessage = 'ダウンロードに失敗しました'
+
+        try {
+          const contentType = response.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorMessage
+          } else {
+            errorMessage = await response.text() || errorMessage
+          }
+        } catch (e) {
+          console.warn('Could not parse error response:', e)
+        }
+
+        console.error('Download failed:', response.status, errorMessage)
+
+        if (response.status === 404) {
+          throw new Error('パッケージが見つかりません。管理者にお問い合わせください。')
+        } else {
+          throw new Error(`ダウンロードエラー (${response.status}): ${errorMessage}`)
+        }
       }
 
       // Download file
       const blob = await response.blob()
+      console.log('Downloaded blob size:', blob.size, 'bytes')
+
+      if (blob.size === 0) {
+        throw new Error('ダウンロードしたファイルが空です')
+      }
+
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.style.display = 'none'
       a.href = url
-      a.download = packageStatus.file_name
+      a.download = packageStatus.file_name || 'package.zip'
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
