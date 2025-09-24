@@ -42,6 +42,7 @@ DECLARE
     template_record RECORD;
     plan_record RECORD;
     queue_id UUID;
+    mapped_plan_name TEXT;
 BEGIN
     -- Get device info
     SELECT d.id, d.user_id, s.plan_id
@@ -65,14 +66,31 @@ BEGIN
         RAISE EXCEPTION 'Template not found: %', template_name_param;
     END IF;
 
-    -- Get plan info (use starter if no subscription)
+    -- Get plan info (use starter if no subscription, map legacy plan names)
+    -- Map legacy plan names to new names
+    mapped_plan_name := CASE
+        WHEN device_record.plan_id = 'socialtouch_monthly_2980' THEN 'starter'
+        WHEN device_record.plan_id = 'socialtouch_monthly_8800' THEN 'pro'
+        WHEN device_record.plan_id = 'socialtouch_monthly_15000' THEN 'max'
+        WHEN device_record.plan_id IS NULL THEN 'starter'
+        ELSE COALESCE(device_record.plan_id, 'starter')
+    END;
+
     SELECT * INTO plan_record
     FROM plans
-    WHERE name = COALESCE(device_record.plan_id, 'starter')
+    WHERE name = mapped_plan_name
     AND is_active = true;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Plan not found: %', COALESCE(device_record.plan_id, 'starter');
+        -- Try starter as fallback
+        SELECT * INTO plan_record
+        FROM plans
+        WHERE name = 'starter'
+        AND is_active = true;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Plan not found: % (mapped to: %)', device_record.plan_id, mapped_plan_name;
+        END IF;
     END IF;
 
     -- Insert into generation queue
