@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -291,11 +291,7 @@ CACHE_DURATION = 86400  -- 24時間
     }
   ]
 
-  useEffect(() => {
-    checkAccess()
-  }, [])
-
-  const checkAccess = async () => {
+  const checkAccess = useCallback(async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -366,7 +362,11 @@ CACHE_DURATION = 86400  -- 24時間
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    checkAccess()
+  }, [checkAccess])
 
   const getGuideAccess = (guide: GuideSection): boolean => {
     if (!guide.requiresAccess) return true

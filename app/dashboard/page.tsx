@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -25,20 +25,7 @@ export default function DashboardPage() {
   const [timeLeft, setTimeLeft] = useState<string>('')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (userData?.device?.trial_ends_at) {
-        updateTimeLeft()
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [userData])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -51,9 +38,9 @@ export default function DashboardPage() {
       setError(error.message)
       router.push('/login')
     }
-  }
+  }, [router])
 
-  const updateTimeLeft = () => {
+  const updateTimeLeft = useCallback(() => {
     if (!userData?.device?.trial_ends_at || !userData.isTrialActive) {
       setTimeLeft('')
       return
@@ -76,8 +63,20 @@ export default function DashboardPage() {
     const seconds = totalSeconds % 60
 
     setTimeLeft(`体験期間残り: ${days}日 ${hours}時間 ${minutes}分 ${seconds}秒`)
-  }
+  }, [userData?.device?.trial_ends_at, userData?.isTrialActive])
 
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (userData?.device?.trial_ends_at) {
+        updateTimeLeft()
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [userData, updateTimeLeft])
 
   const handleCancelSubscription = async () => {
     if (!confirm('本当に解約しますか？解約すると即座にサービスが利用できなくなります。')) {
@@ -242,14 +241,7 @@ export default function DashboardPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
 
-  // Check .ate file status on mount and data change
-  useEffect(() => {
-    if (userData?.device?.device_hash) {
-      checkAteStatus()
-    }
-  }, [userData?.device?.device_hash])
-
-  const checkAteStatus = async () => {
+  const checkAteStatus = useCallback(async () => {
     if (!userData?.device?.device_hash) return
 
     try {
@@ -262,7 +254,14 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to check .ate status:', error)
     }
-  }
+  }, [userData?.device?.device_hash])
+
+  // Check .ate file status on mount and data change
+  useEffect(() => {
+    if (userData?.device?.device_hash) {
+      checkAteStatus()
+    }
+  }, [userData?.device?.device_hash, checkAteStatus])
 
   const handleGenerateAteFile = async () => {
     if (!userData?.device?.device_hash || isGenerating) return

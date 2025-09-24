@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 function AuthMobileContent() {
@@ -8,68 +8,8 @@ function AuthMobileContent() {
   const [status, setStatus] = useState('認証中...')
   const [result, setResult] = useState<any>(null)
 
-  useEffect(() => {
-    const authenticateDevice = async () => {
-      try {
-        const deviceHash = searchParams.get('device_hash')
-        const source = searchParams.get('source')
-
-        if (!deviceHash) {
-          throw new Error('デバイスハッシュが指定されていません')
-        }
-
-        // デバイスハッシュを統一形式にする（大文字）
-        const normalizedDeviceHash = deviceHash.toUpperCase()
-
-        setStatus('Smartgram APIに接続中...')
-
-        // API接続
-        const response = await fetch('/api/license/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            device_hash: normalizedDeviceHash
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status}`)
-        }
-
-        const data = await response.json()
-        setResult(data)
-
-        if (data.is_valid) {
-          setStatus('✅ 認証成功')
-
-          // 結果をファイルに保存（AutoTouchが読み取る）
-          await saveResultToFile(data)
-
-          // URLスキーム経由でAutoTouchに結果を送信
-          await notifyAutoTouch(data)
-        } else if (data.status === 'unregistered') {
-          // 未登録デバイスの場合、自動登録を試行
-          setStatus('🔄 デバイス登録中...')
-          await handleDeviceRegistration(normalizedDeviceHash)
-        } else {
-          setStatus('❌ 認証失敗')
-          await saveResultToFile({ error: data.message || 'Authentication failed' })
-        }
-
-      } catch (error) {
-        console.error('Authentication error:', error)
-        setStatus('❌ エラー: ' + (error as Error).message)
-        await saveResultToFile({ error: (error as Error).message })
-      }
-    }
-
-    authenticateDevice()
-  }, [searchParams])
-
   // デバイス登録処理
-  const handleDeviceRegistration = async (deviceHash: string) => {
+  const handleDeviceRegistration = useCallback(async (deviceHash: string) => {
     try {
       // 有効なメールアドレス形式で生成（Supabase認証対応）
       const sanitizedHash = deviceHash.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -148,10 +88,10 @@ function AuthMobileContent() {
       setStatus('❌ 登録エラー: ' + (error as Error).message)
       await saveResultToFile({ error: (error as Error).message })
     }
-  }
+  }, [searchParams])
 
   // 結果をファイルに保存（AutoTouchが読み取り可能な場所）
-  const saveResultToFile = async (data: any) => {
+  const saveResultToFile = useCallback(async (data: any) => {
     try {
       // AutoTouch用の認証結果フォーマット
       const authResult = {
@@ -262,7 +202,67 @@ function AuthMobileContent() {
     } catch (error) {
       console.error('❌ 結果保存エラー:', error);
     }
-  }
+  }, [searchParams])
+
+  useEffect(() => {
+    const authenticateDevice = async () => {
+      try {
+        const deviceHash = searchParams.get('device_hash')
+        const source = searchParams.get('source')
+
+        if (!deviceHash) {
+          throw new Error('デバイスハッシュが指定されていません')
+        }
+
+        // デバイスハッシュを統一形式にする（大文字）
+        const normalizedDeviceHash = deviceHash.toUpperCase()
+
+        setStatus('Smartgram APIに接続中...')
+
+        // API接続
+        const response = await fetch('/api/license/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            device_hash: normalizedDeviceHash
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        setResult(data)
+
+        if (data.is_valid) {
+          setStatus('✅ 認証成功')
+
+          // 結果をファイルに保存（AutoTouchが読み取る）
+          await saveResultToFile(data)
+
+          // URLスキーム経由でAutoTouchに結果を送信
+          await notifyAutoTouch(data)
+        } else if (data.status === 'unregistered') {
+          // 未登録デバイスの場合、自動登録を試行
+          setStatus('🔄 デバイス登録中...')
+          await handleDeviceRegistration(normalizedDeviceHash)
+        } else {
+          setStatus('❌ 認証失敗')
+          await saveResultToFile({ error: data.message || 'Authentication failed' })
+        }
+
+      } catch (error) {
+        console.error('Authentication error:', error)
+        setStatus('❌ エラー: ' + (error as Error).message)
+        await saveResultToFile({ error: (error as Error).message })
+      }
+    }
+
+    authenticateDevice()
+  }, [searchParams, handleDeviceRegistration, saveResultToFile])
 
   // URLスキーム経由でAutoTouchに通知
   const notifyAutoTouch = async (data: any) => {
