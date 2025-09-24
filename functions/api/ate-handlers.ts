@@ -187,6 +187,43 @@ export async function handleSchedulerStatus(request: Request, env: any) {
   }
 }
 
+export async function handleAteStatus(request: Request, env: any) {
+  try {
+    const url = new URL(request.url);
+    const device_hash = url.searchParams.get('device_hash');
+
+    if (!device_hash) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Device hash is required'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // For now, return no file found until tables are properly set up
+    return new Response(JSON.stringify({
+      success: true,
+      is_ready: false,
+      message: 'No .ate file found. Generate one first.',
+      device_hash: device_hash
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get status'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
 export async function handleSchedulerHealth(request: Request, env: any) {
   return new Response(JSON.stringify({
     status: 'healthy',

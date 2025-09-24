@@ -12,7 +12,8 @@ import {
   handleSchedulerStatus,
   handleSchedulerHealth,
   handleWorkerProcess,
-  handleWorkerHealth
+  handleWorkerHealth,
+  handleAteStatus
 } from './ate-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
