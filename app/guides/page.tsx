@@ -40,19 +40,14 @@ export default function GuidesPage() {
         ? `${window.location.origin}/api/guides/list`
         : '/api/guides/list'
 
-      console.log('Fetching guides from:', apiUrl)
       const response = await fetch(apiUrl)
-
-      console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'))
 
       // Check if response is HTML (404 page) instead of JSON
       const contentType = response.headers.get('content-type')
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('API Error Response:', errorText)
 
         if (contentType && contentType.includes('text/html')) {
-          console.warn('Guides API returned HTML (404 page)')
           setGuides([])
           setError('ガイドAPIが見つかりません。システム管理者にお問い合わせください。')
           return
@@ -63,7 +58,6 @@ export default function GuidesPage() {
       }
 
       const result = await response.json()
-      console.log('API Response:', result)
 
       if (result.success) {
         setGuides(result.guides || [])
@@ -75,12 +69,11 @@ export default function GuidesPage() {
         setError('ガイドの読み込みに失敗しました: ' + (result.error || 'Unknown error'))
       }
     } catch (error: any) {
-      console.error('Failed to fetch guides:', error)
       // Handle JSON parse errors specifically
-      if (error.message.includes('Unexpected token')) {
+      if (error.message && error.message.includes('Unexpected token')) {
         setError('ガイドAPIからの応答が正しくありません。システム管理者にお問い合わせください。')
       } else {
-        setError('ガイドの読み込みに失敗しました: ' + error.message)
+        setError('ガイドの読み込みに失敗しました: ' + (error.message || 'Unknown error'))
       }
     } finally {
       setGuidesLoading(false)
@@ -105,7 +98,6 @@ export default function GuidesPage() {
       }
 
       // User is logged in - set registered status for guides access
-      console.log('User logged in:', user.email)
       setAccess({
         hasAccess: true,
         canUseTools: true,
@@ -120,8 +112,7 @@ export default function GuidesPage() {
       }
 
     } catch (error: any) {
-      console.error('Access check error:', error)
-      setError(error.message)
+      setError(error.message || 'アクセスチェックエラー')
       setAccess({
         hasAccess: false,
         canUseTools: false,
