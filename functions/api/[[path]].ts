@@ -2591,9 +2591,82 @@ async function handleAteGenerate(request: Request, env: any) {
 
     const device = devices[0];
 
-    // Generate required IDs since they are required by the database
-    const templateId = crypto.randomUUID();
-    const planId = crypto.randomUUID();
+    // Get or create a valid template_id from ate_templates table
+    let templateId;
+    const { data: templates, error: templateError } = await supabase
+      .from('ate_templates')
+      .select('id')
+      .eq('name', 'smartgram')
+      .limit(1);
+
+    if (templateError || !templates || templates.length === 0) {
+      // Create a default template if it doesn't exist
+      const { data: newTemplate, error: createError } = await supabase
+        .from('ate_templates')
+        .insert({
+          name: 'smartgram',
+          display_name: 'SMARTGRAM Default',
+          description: 'Default template for SMARTGRAM automation',
+          config: {},
+          is_active: true
+        })
+        .select('id')
+        .single();
+
+      if (createError || !newTemplate) {
+        console.error('Failed to create template:', createError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Failed to create template: ${createError?.message || 'Unknown error'}`
+          }),
+          {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      }
+      templateId = newTemplate.id;
+    } else {
+      templateId = templates[0].id;
+    }
+
+    // Get or create a valid plan_id from plans table
+    let planId;
+    const { data: plans, error: planError } = await supabase
+      .from('plans')
+      .select('id')
+      .eq('name', 'basic')
+      .limit(1);
+
+    if (planError || !plans || plans.length === 0) {
+      // Create a default plan if it doesn't exist
+      const { data: newPlan, error: createPlanError } = await supabase
+        .from('plans')
+        .insert({
+          name: 'basic',
+          display_name: 'Basic Plan',
+          price: 2980,
+          features: {},
+          limitations: {},
+          is_active: true
+        })
+        .select('id')
+        .single();
+
+      if (createPlanError || !newPlan) {
+        console.error('Failed to create plan:', createPlanError);
+        // If we can't create plan, try with existing random UUID
+        planId = crypto.randomUUID();
+      } else {
+        planId = newPlan.id;
+      }
+    } else {
+      planId = plans[0].id;
+    }
 
     // Insert directly into file_generation_queue
     const insertData = {
