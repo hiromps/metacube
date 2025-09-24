@@ -84,6 +84,13 @@ export async function onRequest(context: any) {
   } else if (path === 'admin/upload-package') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
+  } else if (path === 'ate/generate') {
+    return handleAteGenerate(request, env);
+  } else if (path.startsWith('ate/download/')) {
+    const ateFileId = path.split('/')[2];
+    return handleAteDownload(request, env, ateFileId);
+  } else if (path === 'ate/status') {
+    return handleAteStatus(request, env);
   }
 
   // 404 for unknown API routes
@@ -2472,4 +2479,412 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
 function generateVersionString(): string {
   const now = new Date()
   return `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}.${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`
+}
+
+// .ate File Generation API Handlers
+
+// Queue .ate file generation
+async function handleAteGenerate(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { device_hash, template = 'smartgram', priority = 5 } = body;
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Queue .ate file generation using helper function
+    const { data: queueId, error } = await supabase.rpc('queue_ate_generation', {
+      device_hash_param: device_hash,
+      template_name_param: template,
+      priority_param: priority
+    });
+
+    if (error) {
+      console.error('Error queuing .ate generation:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: '.ate file generation queued',
+        queue_id: queueId,
+        device_hash: device_hash,
+        template: template,
+        estimated_time: '2-5 minutes'
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Error in handleAteGenerate:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to queue .ate file generation'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Download .ate file
+async function handleAteDownload(request: Request, env: any, ateFileId: string) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    if (!ateFileId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'File ID is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Get file info
+    const { data: fileData, error: fileError } = await supabase
+      .from('ate_files')
+      .select('*')
+      .eq('id', ateFileId)
+      .eq('is_active', true)
+      .single();
+
+    if (fileError || !fileData) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'File not found or expired'
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check if file is ready
+    if (fileData.generation_status !== 'success') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'File is not ready yet',
+          status: fileData.generation_status
+        }),
+        {
+          status: 202,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Check expiration
+    if (fileData.expires_at && new Date(fileData.expires_at) < new Date()) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'File has expired'
+        }),
+        {
+          status: 410,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Get client IP and user agent for logging
+    const clientIP = request.headers.get('cf-connecting-ip') ||
+                    request.headers.get('x-forwarded-for') ||
+                    'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    // Download file from Supabase Storage
+    const { data: fileBlob, error: storageError } = await supabase.storage
+      .from('ate-files')
+      .download(fileData.file_path);
+
+    if (storageError || !fileBlob) {
+      console.error('Storage error:', storageError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to retrieve file'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Log download event
+    await supabase.rpc('log_download', {
+      ate_file_id_param: ateFileId,
+      download_ip_param: clientIP,
+      user_agent_param: userAgent,
+      bytes_downloaded_param: fileBlob.size
+    });
+
+    // Return file for download
+    return new Response(fileBlob, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileData.filename}"`,
+        'Content-Length': fileBlob.size.toString(),
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in handleAteDownload:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Download failed'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+}
+
+// Get .ate file status and download info
+async function handleAteStatus(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const url = new URL(request.url);
+    const device_hash = url.searchParams.get('device_hash');
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Get download info using helper function
+    const { data: downloadInfo, error } = await supabase.rpc('get_download_info', {
+      device_hash_param: device_hash
+    });
+
+    if (error) {
+      console.error('Error getting download info:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!downloadInfo || downloadInfo.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          is_ready: false,
+          message: 'No .ate file found. Generate one first.',
+          device_hash: device_hash
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const fileInfo = downloadInfo[0];
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        is_ready: fileInfo.is_ready,
+        ate_file_id: fileInfo.ate_file_id,
+        filename: fileInfo.filename,
+        file_size_bytes: fileInfo.file_size_bytes,
+        expires_at: fileInfo.expires_at,
+        download_count: fileInfo.download_count,
+        last_downloaded_at: fileInfo.last_downloaded_at,
+        download_url: fileInfo.is_ready ? `/api/ate/download/${fileInfo.ate_file_id}` : null,
+        device_hash: device_hash
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('Error in handleAteStatus:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to get status'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
 }
