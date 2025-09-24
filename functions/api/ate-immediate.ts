@@ -316,104 +316,33 @@ export async function handleAteGenerateSuper(request: Request, env: any) {
     }
 
     console.log('🎯 PRODUCTION .ATE GENERATION for device:', device_hash);
+    console.log('🔄 Using COMPLETE template processing system...');
 
-    const supabase = getSupabaseClient(env);
+    // Use the complete .ate generation system instead of the old RPC approach
+    const result = await generateCompleteAteFile(env, device_hash);
 
-    // Get device and plan information
-    const { data: deviceInfo, error: deviceError } = await supabase.rpc('get_download_info', {
-      device_hash_param: device_hash
-    });
-
-    if (deviceError) {
-      console.error('Error getting device info:', deviceError);
-      throw new Error('Device not found or not authorized');
+    if (!result.success) {
+      throw new Error(result.error || 'Complete .ate generation failed');
     }
 
-    if (!deviceInfo || deviceInfo.length === 0) {
-      throw new Error('Device not registered or inactive');
-    }
+    console.log(`✅ Complete .ate generated: ${result.fileSize} bytes, ${result.fileCount} files`);
 
-    const deviceData = deviceInfo[0];
-    console.log('📋 Device data:', {
-      device_hash: deviceData.device_hash,
-      plan_name: deviceData.plan_name,
-      device_status: deviceData.device_status
-    });
-
-    // Get plan features for this device
-    const { data: planData, error: planError } = await supabase
-      .from('device_plan_view')
-      .select('plan_name, plan_display_name, plan_features, plan_limitations')
-      .eq('device_hash', device_hash)
-      .single();
-
-    if (planError) {
-      console.error('Error getting plan data:', planError);
-      throw new Error('Unable to determine device plan');
-    }
-
-    console.log('📊 Plan features:', planData.plan_features);
-
-    // Generate file ID and name
+    // Generate file ID for tracking (optional)
     const fileId = crypto.randomUUID();
-    const fileName = `smartgram_${device_hash}_${Date.now()}.ate`;
 
-    // Create production .ate file structure with actual scripts
-    const ateStructure = {
-      metadata: {
-        format: "SMARTGRAM_ATE_v1.0",
-        device_hash: device_hash,
-        plan_name: planData.plan_name,
-        plan_display_name: planData.plan_display_name,
-        generated_at: new Date().toISOString(),
-        password: "1111",
-        encryption: "AES-256-GCM"
-      },
-      configuration: {
-        device_settings: {
-          hash: device_hash,
-          licensed: true,
-          plan: planData.plan_name
-        },
-        plan_features: planData.plan_features,
-        plan_limitations: planData.plan_limitations
-      },
-      scripts: generateScriptsForPlan(device_hash, planData)
-    };
-
-    console.log('📦 Generated .ate structure with', Object.keys(ateStructure.scripts).length, 'scripts');
-    console.log('🎯 Available scripts:', Object.keys(ateStructure.scripts));
-
-    // Convert to base64 (Cloudflare Workers compatible)
-    const encoder = new TextEncoder();
-    const jsonString = JSON.stringify(ateStructure, null, 2);
-    const dataArray = encoder.encode(jsonString);
-
-    // For small content, use direct conversion
-    let base64Content;
-    if (dataArray.length < 10000) {
-      base64Content = btoa(String.fromCharCode(...dataArray));
-    } else {
-      // For larger content, use chunked encoding
-      const CHUNK_SIZE = 0x8000;
-      const chunks = [];
-      for (let i = 0; i < dataArray.length; i += CHUNK_SIZE) {
-        const chunk = dataArray.subarray(i, i + CHUNK_SIZE);
-        chunks.push(String.fromCharCode(...chunk));
-      }
-      base64Content = btoa(chunks.join(''));
-    }
-
-    // IMMEDIATE SUCCESS RESPONSE
+    // IMMEDIATE SUCCESS RESPONSE with complete .ate file
     const successResponse = {
       success: true,
-      message: '.ate file generated successfully',
+      message: result.message,
       ate_file_id: fileId,
       device_hash: device_hash,
-      filename: fileName,
+      filename: result.filename,
       download_url: `/api/ate/download/${fileId}`,
-      download_direct: `data:application/octet-stream;base64,${base64Content}`,
-      file_size: base64Content.length,
+      download_direct: `data:application/octet-stream;base64,${result.downloadData}`,
+      file_size: result.fileSize,
+      file_count: result.fileCount,
+      breakdown: result.breakdown,
+      variables: result.variables,
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       estimated_time: 'Completed immediately',
       generated: true,
