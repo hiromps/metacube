@@ -74,7 +74,7 @@ export async function processAteGeneration(queueId: string, env: any): Promise<b
 
     console.log('💾 Creating test file:', filePath);
 
-    // Try to create the file record directly without using the complex RPC
+    // Try to create the file record directly with all required fields
     const { data: fileRecord, error: fileError } = await supabase
       .from('ate_files')
       .insert({
@@ -83,9 +83,17 @@ export async function processAteGeneration(queueId: string, env: any): Promise<b
         plan_id: queueItem.plan_id,
         filename: fileName,
         file_path: filePath,
-        file_size: testFileContent.length,
+        file_size_bytes: testFileContent.length,
         checksum: 'test-checksum-' + queueId.substring(0, 8),
-        encryption_key_hash: 'test-key-hash',
+        encryption_key_hash: 'test-key-hash-' + queueId.substring(0, 8),
+        encryption_algorithm: 'AES-256-GCM',
+        generated_variables: {
+          device_hash: 'FFMZ3GTSJC6J',
+          plan_name: queueItem.plan_id || 'starter',
+          template_name: 'smartgram',
+          generation_timestamp: new Date().toISOString(),
+          queue_id: queueId
+        },
         generation_status: 'success',
         is_active: true,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
