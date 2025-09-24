@@ -36,7 +36,8 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error('Auth check error:', error)
-      setError(error.message)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setError(errorMessage)
       router.push('/login')
     }
   }, [router])
@@ -222,7 +223,8 @@ export default function DashboardPage() {
 
     } catch (error: any) {
       console.error('Device change error:', error)
-      setError(error.message || 'デバイス変更に失敗しました')
+      const errorMessage = error instanceof Error ? error.message : 'デバイス変更に失敗しました'
+      setError(errorMessage)
     } finally {
       setChangingDevice(false)
     }
@@ -347,7 +349,8 @@ export default function DashboardPage() {
 
     } catch (error: any) {
       console.error('Download package error:', error)
-      setError(error.message || 'ダウンロードに失敗しました')
+      const errorMessage = error instanceof Error ? error.message : 'ダウンロードに失敗しました'
+      setError(errorMessage)
     } finally {
       setIsDownloading(false)
     }
@@ -417,7 +420,8 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error('Admin upload error:', error)
-      setError(error.message || 'アップロードに失敗しました')
+      const errorMessage = error instanceof Error ? error.message : 'アップロードに失敗しました'
+      setError(errorMessage)
     } finally {
       setUploading(false)
     }
