@@ -19,15 +19,38 @@ function getSupabaseClient(env: any) {
   })
 }
 
-// Simplified .ate generation function
+// Simplified .ate generation function with better error handling
 export async function processAteGeneration(queueId: string, env: any): Promise<boolean> {
   const supabase = getSupabaseClient(env);
 
   try {
-    console.log('Processing .ate generation for queue ID:', queueId);
+    console.log('🔄 Starting .ate generation for queue ID:', queueId);
+
+    // Get queue item details first
+    const { data: queueItem, error: fetchError } = await supabase
+      .from('file_generation_queue')
+      .select('*')
+      .eq('id', queueId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch queue item: ${fetchError.message}`);
+    }
+
+    if (!queueItem) {
+      throw new Error(`Queue item not found: ${queueId}`);
+    }
+
+    console.log('📋 Queue item details:', {
+      id: queueItem.id,
+      device_id: queueItem.device_id,
+      template_id: queueItem.template_id,
+      plan_id: queueItem.plan_id,
+      status: queueItem.status
+    });
 
     // Mark as processing
-    await supabase
+    const { error: updateError } = await supabase
       .from('file_generation_queue')
       .update({
         status: 'processing',
@@ -35,32 +58,80 @@ export async function processAteGeneration(queueId: string, env: any): Promise<b
       })
       .eq('id', queueId);
 
-    // Simulate processing (replace with actual implementation)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Mark as completed
-    const { error: completeError } = await supabase.rpc('complete_ate_generation', {
-      queue_id_param: queueId,
-      file_path_param: `generated/temp/${queueId}.ate`,
-      file_size_param: 1024,
-      checksum_param: 'temp_checksum',
-      encryption_key_hash_param: 'temp_key_hash'
-    });
-
-    if (completeError) {
-      throw new Error(`Failed to complete generation: ${completeError.message}`);
+    if (updateError) {
+      throw new Error(`Failed to update status to processing: ${updateError.message}`);
     }
 
-    console.log('✅ Generation completed successfully');
+    console.log('⏳ Processing started, simulating generation...');
+
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Create a simple test .ate file content (Base64 encoded ZIP-like structure)
+    const testFileContent = Buffer.from('PK\x03\x04\x14\x00\x00\x00\x00\x00test.ate').toString('base64');
+    const fileName = `smartgram_${queueItem.device_id}.ate`;
+    const filePath = `generated/${queueId}/${fileName}`;
+
+    console.log('💾 Creating test file:', filePath);
+
+    // Try to create the file record directly without using the complex RPC
+    const { data: fileRecord, error: fileError } = await supabase
+      .from('ate_files')
+      .insert({
+        device_id: queueItem.device_id,
+        template_id: queueItem.template_id,
+        plan_id: queueItem.plan_id,
+        filename: fileName,
+        file_path: filePath,
+        file_size: testFileContent.length,
+        checksum: 'test-checksum-' + queueId.substring(0, 8),
+        encryption_key_hash: 'test-key-hash',
+        generation_status: 'success',
+        is_active: true,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+      })
+      .select('id')
+      .single();
+
+    if (fileError) {
+      throw new Error(`Failed to create file record: ${fileError.message}`);
+    }
+
+    console.log('📁 File record created:', fileRecord.id);
+
+    // Update queue item to completed
+    const { error: completeError } = await supabase
+      .from('file_generation_queue')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        ate_file_id: fileRecord.id
+      })
+      .eq('id', queueId);
+
+    if (completeError) {
+      throw new Error(`Failed to mark as completed: ${completeError.message}`);
+    }
+
+    console.log('✅ Generation completed successfully for queue:', queueId);
     return true;
 
   } catch (error) {
-    console.error('❌ Generation failed:', error);
+    console.error('❌ Generation failed for queue:', queueId, 'Error:', error);
 
-    await supabase.rpc('fail_ate_generation', {
-      queue_id_param: queueId,
-      error_message_param: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Try to mark as failed
+    try {
+      await supabase
+        .from('file_generation_queue')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_message: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('id', queueId);
+    } catch (failError) {
+      console.error('❌ Failed to mark queue item as failed:', failError);
+    }
 
     return false;
   }
