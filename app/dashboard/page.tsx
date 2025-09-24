@@ -756,11 +756,11 @@ export default function DashboardPage() {
                     <>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">follow.lua (PRO+で解除)</span>
+                        <span className="text-white/60 text-sm">follow.lua (PROで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">unfollow.lua (PRO+で解除)</span>
+                        <span className="text-white/60 text-sm">unfollow.lua (PROで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
