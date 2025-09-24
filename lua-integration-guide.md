@@ -80,9 +80,9 @@ API_BASE_URL = "https://socialtouch.app/api",
 ```
 
 ### 2. ファイル配置
-既存の`main.lua`を`main_v2.lua`で置き換え：
+既存の`smartgram.ate`を`main_v2.lua`で置き換え：
 ```bash
-cp lua/main_v2.lua /var/mobile/Library/AutoTouch/Scripts/main.lua
+cp lua/main_v2.lua /var/mobile/Library/AutoTouch/Scripts/smartgram.ate
 ```
 
 ### 3. AutoTouch設定
@@ -104,7 +104,7 @@ cp lua/main_v2.lua /var/mobile/Library/AutoTouch/Scripts/main.lua
 
 ### 初回実行時
 ```
-1. main.lua実行
+1. smartgram.ate実行
    ↓
 2. デバイスハッシュ生成 (例: a1b2c3d4e5f6g7h8)
    ↓
@@ -117,12 +117,12 @@ cp lua/main_v2.lua /var/mobile/Library/AutoTouch/Scripts/main.lua
    ↓
 5. ユーザーがWeb登録
    ↓
-6. main.lua再実行でツール選択画面表示
+6. smartgram.ate再実行でツール選択画面表示
 ```
 
 ### 2回目以降
 ```
-1. main.lua実行
+1. smartgram.ate実行
    ↓
 2. キャッシュからライセンス確認 (24時間有効)
    ↓

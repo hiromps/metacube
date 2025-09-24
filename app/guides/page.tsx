@@ -144,14 +144,14 @@ SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
 /var/mobile/Library/AutoTouch/Scripts/
 \`\`\`
 
-### main.lua配置
+### smartgram.ate配置
 1. PCからiFunBoxやFilzaを使用
-2. Scriptsフォルダにmain.lua転送
+2. Scriptsフォルダにsmartgram.ate転送
 3. 権限設定: 755
 
 ## 動作確認
 1. AutoTouchアプリでScripts確認
-2. main.lua選択
+2. smartgram.ate選択
 3. Playボタンで実行
 4. デバイスハッシュ表示確認
 
@@ -164,7 +164,7 @@ SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
     {
       id: 'scripts',
       title: 'スクリプト設定',
-      description: 'main.luaとツールスクリプトの設定',
+      description: 'smartgram.ateとツールスクリプトの設定',
       requiresAccess: true,
       content: `
 # スクリプト設定ガイド
@@ -172,18 +172,18 @@ SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
 ## ファイル構成
 \`\`\`
 /var/mobile/Library/AutoTouch/Scripts/
-├── main.lua          # メインメニュー
+├── smartgram.ate     # メインメニュー
 ├── timeline.lua      # タイムラインツール
 ├── like.lua         # いいねツール
 ├── follow.lua       # フォローツール
 └── config.lua       # 設定ファイル
 \`\`\`
 
-## main.lua設定
+## smartgram.ate設定
 
 ### デバイスハッシュ取得
 初回実行時に自動表示されます：
-1. AutoTouchでmain.lua実行
+1. AutoTouchでsmartgram.ate実行
 2. デバイスハッシュをメモ
 3. Webサイトで登録
 
@@ -240,7 +240,7 @@ CACHE_DURATION = 86400  -- 24時間
 ## セットアップ完了後の手順
 
 ### 1. デバイスハッシュ確認
-1. AutoTouchでmain.lua実行
+1. AutoTouchでsmartgram.ate実行
 2. 表示されるデバイスハッシュをコピー
 3. 形式例: F2LXJ7XXHG7F
 
@@ -275,7 +275,7 @@ CACHE_DURATION = 86400  -- 24時間
 
 ### デバイスハッシュが表示されない
 - AutoTouch再インストール
-- main.lua権限確認
+- smartgram.ate権限確認
 - iPhoneを再起動
 
 ### アクティベート失敗
@@ -329,7 +329,7 @@ CACHE_DURATION = 86400  -- 24時間
           has_access: true,
           can_use_tools: false,
           status: UserStatus.REGISTERED,
-          status_description: '登録済み - main.lua初回実行時に体験開始',
+          status_description: '登録済み - smartgram.ate初回実行時に体験開始',
           trial_activated_at: null,
           trial_ends_at: null
         }

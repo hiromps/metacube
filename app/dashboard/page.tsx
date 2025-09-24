@@ -749,7 +749,7 @@ export default function DashboardPage() {
           <div className="bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-black/20 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-6 mb-8">
             <h3 className="text-lg font-semibold text-white mb-2">🚀 体験期間を開始する準備</h3>
             <p className="text-white/70 mb-4">
-              支払い登録が完了しました。AutoTouchのmain.luaを実行すると、自動的に3日間の体験期間が開始されます。
+              支払い登録が完了しました。AutoTouchのsmartgram.ateを実行すると、自動的に3日間の体験期間が開始されます。
             </p>
 
             <div className="bg-black/20 border border-white/10 p-4 rounded-xl mb-4 backdrop-blur-sm">
@@ -761,7 +761,7 @@ export default function DashboardPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 font-medium">2.</span>
-                  <span>main.luaスクリプトを実行</span>
+                  <span>smartgram.ateスクリプトを実行</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 font-medium">3.</span>
@@ -772,7 +772,7 @@ export default function DashboardPage() {
 
             <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl backdrop-blur-sm">
               <p className="text-sm text-blue-300">
-                <strong>💡 ヒント:</strong> 体験期間は最初のmain.lua実行時に自動的に開始されます。
+                <strong>💡 ヒント:</strong> 体験期間は最初のsmartgram.ate実行時に自動的に開始されます。
                 準備が整ってから実行することをお勧めします。
               </p>
             </div>
@@ -1021,7 +1021,7 @@ export default function DashboardPage() {
                     <ol className="space-y-1 text-xs md:text-sm text-white/70">
                       <li>1. 下のボタンからパッケージファイルをダウンロード</li>
                       <li>2. Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置</li>
-                      <li>3. AutoTouchでmain.luaを実行してツールを起動</li>
+                      <li>3. AutoTouchでsmartgram.ateを実行してツールを起動</li>
                     </ol>
                   </div>
 
@@ -1239,7 +1239,7 @@ export default function DashboardPage() {
 
             {/* Main.lua Script Information */}
             <div className="bg-gradient-to-br from-violet-800/30 via-purple-800/20 to-fuchsia-800/30 backdrop-blur-xl border border-violet-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-violet-500/10">
-              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📜 main.lua スクリプト情報</h3>
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📜 smartgram.ate スクリプト情報</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-3 md:space-y-4">
                   <div>
@@ -1296,7 +1296,7 @@ export default function DashboardPage() {
               {!userData.isTrialActive && (
                 <div className="mt-4 bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                   <p className="text-xs md:text-sm text-blue-300">
-                    <strong>💡 次のステップ:</strong> AutoTouchでmain.luaを実行すると、3日間の体験期間が自動的に開始されます。
+                    <strong>💡 次のステップ:</strong> AutoTouchでsmartgram.ateを実行すると、3日間の体験期間が自動的に開始されます。
                   </p>
                 </div>
               )}
@@ -1310,7 +1310,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-white/70 mb-3 md:mb-4 text-sm md:text-base">
                     契約が有効な間は、別のデバイスに変更することができます。
-                    デバイスハッシュは AutoTouch の main.lua 実行時に表示されます。
+                    デバイスハッシュは AutoTouch の smartgram.ate 実行時に表示されます。
                   </p>
                   {(userData.isTrialActive || userData.isSubscriptionActive) ? (
                     <Button
@@ -1346,7 +1346,7 @@ export default function DashboardPage() {
                     <ul className="space-y-1 text-xs md:text-sm text-white/70">
                       <li>• デバイス変更後は新しいデバイスでのみご利用いただけます</li>
                       <li>• 現在のデバイスでは利用できなくなります</li>
-                      <li>• デバイスハッシュは main.lua 実行時に表示されます</li>
+                      <li>• デバイスハッシュは smartgram.ate 実行時に表示されます</li>
                     </ul>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">

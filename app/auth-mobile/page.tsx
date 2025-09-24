@@ -485,7 +485,7 @@ function AuthMobileContent() {
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="text-green-300 font-bold">3.</span>
-                        <span>AutoTouchアプリに戻り、main.luaを再実行してください</span>
+                        <span>AutoTouchアプリに戻り、smartgram.ateを再実行してください</span>
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="text-green-300 font-bold">4.</span>
@@ -600,7 +600,7 @@ function AuthMobileContent() {
 
                     // Method 2: ユーザーに手動起動を促す
                     setTimeout(() => {
-                      setStatus('📱 AutoTouchアプリを手動で開いてmain.luaを実行してください')
+                      setStatus('📱 AutoTouchアプリを手動で開いてsmartgram.ateを実行してください')
                       console.log('💡 Tip: AutoTouchアプリでappActivate("me.autotouch.AutoTouch.ios8")が実行されます')
                     }, 2000)
 

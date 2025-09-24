@@ -76,7 +76,7 @@ fetch('/api/license/verify', {
 
 - **Target Platform**: iPhone 7/8 with Jailbreak + AutoTouch
 - **Lua Scripts**: Located in `scripts/` directory
-  - `main.lua`: License verification and tool selection
+  - `smartgram.ate`: License verification and tool selection
   - Tool scripts: `timeline.lua`, etc. for Instagram automation
 - **License Flow**: Device hash → Web registration → PayPal subscription → License validation
 
@@ -370,7 +370,7 @@ iPhone 7/8でAutoTouchを使用するInstagram自動化ツールに対して、�
   - 3日間の無料体験開始
 
 - **ライセンス認証**
-  - main.luaでの認証
+  - smartgram.ateでの認証
   - 24時間キャッシュ
   - オンライン検証
 
@@ -411,7 +411,7 @@ iPhone 7/8でAutoTouchを使用するInstagram自動化ツールに対して、�
 ```
 クライアント側：
 - AutoTouch (Lua Scripts)
-  - main.lua（認証モジュール）
+  - smartgram.ate（認証モジュール）
   - 各ツール（timeline.lua等）
 
 サーバー側：
@@ -464,7 +464,7 @@ POST /api/license/verify
 ### 4.1 初回登録フロー
 
 ```
-1. main.lua実行
+1. smartgram.ate実行
    ↓
 2. デバイスハッシュ表示
    ↓
@@ -476,13 +476,13 @@ POST /api/license/verify
    ↓
 4. 3日間体験開始
    ↓
-5. main.lua再実行で認証成功
+5. smartgram.ate再実行で認証成功
 ```
 
 ### 4.2 日常利用フロー
 
 ```
-1. main.lua実行
+1. smartgram.ate実行
    ↓
 2. キャッシュ確認（24時間有効）
    ↓

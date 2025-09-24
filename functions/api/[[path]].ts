@@ -512,7 +512,7 @@ async function handleLicenseVerify(request: Request, env: any) {
         } : {}),
         // AutoTouchスクリプト用の機能フラグ（プラン別制限適用）
         script_access: scriptAccess,
-        // プラン制限情報（AutoTouch main.luaで使用）
+        // プラン制限情報（AutoTouch smartgram.ateで使用）
         plan_restrictions: {
           name: planInfo?.plan_name || (device.status === 'trial' ? 'trial' : 'unregistered'),
           display_name: planInfo?.plan_display_name || (device.status === 'trial' ? 'TRIAL' : 'UNREGISTERED'),
@@ -911,7 +911,7 @@ async function handleUserStatus(request: Request, env: any) {
               subscription_id: null,
               paypal_subscription_id: null,
               subscription_status: 'registered',
-              status_description: 'Registered - Trial will start on first main.lua execution',
+              status_description: 'Registered - Trial will start on first smartgram.ate execution',
               has_access_to_content: true,
               has_access_to_tools: false,
               time_remaining_seconds: null
@@ -977,7 +977,7 @@ async function handleUserStatus(request: Request, env: any) {
 
     switch (device.status) {
       case 'registered':
-        statusDescription = 'Registered - Trial will start on first main.lua execution';
+        statusDescription = 'Registered - Trial will start on first smartgram.ate execution';
         hasAccessToTools = false;
         break;
       case 'trial':
