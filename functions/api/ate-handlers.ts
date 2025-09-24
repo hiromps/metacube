@@ -359,7 +359,7 @@ export async function handleWorkerProcess(request: Request, env: any) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
@@ -368,26 +368,41 @@ export async function handleWorkerProcess(request: Request, env: any) {
     if (!queue_id) {
       return new Response(JSON.stringify({ error: 'Queue ID required' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
+    console.log('🚀 Worker processing queue ID:', queue_id);
+
     const success = await processAteGeneration(queue_id, env);
 
-    return new Response(JSON.stringify({
+    const response = {
       success,
-      message: success ? 'Generation completed' : 'Generation failed'
-    }), {
+      queue_id,
+      message: success ? 'Generation completed successfully' : 'Generation failed',
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('✅ Worker response:', response);
+
+    return new Response(JSON.stringify(response), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : 'Processing failed'
-    }), {
+    console.error('❌ Worker error:', error);
+
+    const errorResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Processing failed',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    };
+
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 }
