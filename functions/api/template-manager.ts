@@ -1,6 +1,5 @@
 // Template Manager for reading and processing .at templates from Supabase Storage
 import { createClient } from '@supabase/supabase-js'
-import { unzip } from 'fflate'
 
 // Initialize Supabase client
 function getSupabaseClient(env: any) {
@@ -19,76 +18,83 @@ function getSupabaseClient(env: any) {
   })
 }
 
-// Extract ZIP archive using fflate library
-async function extractZipArchive(zipBuffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
-  return new Promise((resolve, reject) => {
-    try {
-      console.log(`🔍 Starting ZIP extraction with fflate - buffer size: ${zipBuffer.byteLength} bytes`);
+// Load individual files from Supabase Storage
+async function loadFilesFromStorage(supabase: any, basePath: string): Promise<Map<string, Uint8Array>> {
+  const files = new Map<string, Uint8Array>();
 
-      const zipData = new Uint8Array(zipBuffer);
+  try {
+    console.log(`🔍 Loading files from storage path: ${basePath}`);
 
-      unzip(zipData, (err, extracted) => {
-        if (err) {
-          console.error('❌ ZIP extraction error:', err);
-          reject(new Error(`ZIP extraction failed: ${err.message}`));
-          return;
-        }
+    // Recursively list all files
+    const loadDirectory = async (path: string) => {
+      const { data: items, error: listError } = await supabase.storage
+        .from('templates')
+        .list(path, { limit: 100 });
 
-        const files = new Map<string, Uint8Array>();
+      if (listError) {
+        throw new Error(`Failed to list files in ${path}: ${listError.message}`);
+      }
 
-        for (const [fileName, fileData] of Object.entries(extracted)) {
-          if (!fileName.endsWith('/')) { // Skip directories
-            files.set(fileName, fileData);
-            console.log(`📄 Extracted: ${fileName} (${fileData.length} bytes)`);
-          } else {
-            console.log(`📁 Skipped directory: ${fileName}`);
+      for (const item of items) {
+        const fullPath = path ? `${path}/${item.name}` : item.name;
+
+        if (item.metadata?.size !== undefined) {
+          // It's a file
+          console.log(`📄 Loading file: ${fullPath}`);
+
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from('templates')
+            .download(fullPath);
+
+          if (downloadError) {
+            console.error(`❌ Failed to download ${fullPath}:`, downloadError.message);
+            continue;
           }
+
+          const arrayBuffer = await fileData.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          files.set(fullPath, uint8Array);
+
+          console.log(`✅ Loaded: ${fullPath} (${uint8Array.length} bytes)`);
+        } else {
+          // It's a directory, recurse
+          console.log(`📁 Entering directory: ${fullPath}`);
+          await loadDirectory(fullPath);
         }
+      }
+    };
 
-        console.log(`✅ Successfully extracted ${files.size} files from ZIP archive`);
-        resolve(files);
-      });
+    await loadDirectory(basePath);
+    console.log(`🎯 Total files loaded: ${files.size}`);
+    return files;
 
-    } catch (error) {
-      console.error('❌ ZIP extraction setup error:', error);
-      reject(error);
-    }
-  });
+  } catch (error) {
+    console.error('❌ Error loading files from storage:', error);
+    throw error;
+  }
 }
 
-// Load template from Supabase Storage
-export async function loadTemplate(env: any, templateName: string = 'smartgram.at'): Promise<Map<string, string>> {
+// Load template from Supabase Storage (individual files, no ZIP)
+export async function loadTemplate(env: any, templatePath: string = 'smartgram'): Promise<Map<string, string>> {
   try {
-    console.log(`🔍 Loading template: ${templateName}`);
+    console.log(`🔍 Loading template from path: ${templatePath}`);
     const supabase = getSupabaseClient(env);
 
-    // Download template ZIP from storage
-    const { data: zipData, error: downloadError } = await supabase.storage
-      .from('templates')
-      .download(templateName);
+    // Load all files from the template path
+    const rawFiles = await loadFilesFromStorage(supabase, templatePath);
 
-    if (downloadError) {
-      throw new Error(`Failed to download template: ${downloadError.message}`);
-    }
-
-    const zipBuffer = await zipData.arrayBuffer();
-    console.log(`📥 Downloaded template: ${zipBuffer.byteLength} bytes`);
-
-    // Extract ZIP contents
-    const extractedFiles = await extractZipArchive(zipBuffer);
-
-    // Convert binary files to strings (for Lua scripts) or keep as binary (for images)
+    // Convert binary files to strings (for Lua scripts) or keep as base64 (for images)
     const template = new Map<string, string>();
     const textDecoder = new TextDecoder('utf-8');
 
-    for (const [fileName, fileData] of extractedFiles) {
+    for (const [fileName, fileData] of rawFiles) {
       if (fileName.endsWith('.lua')) {
         // Decode Lua scripts as text
         const content = textDecoder.decode(fileData);
         template.set(fileName, content);
         console.log(`📄 Loaded script: ${fileName} (${content.length} chars)`);
       } else if (fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
-        // Keep images as base64 for now
+        // Keep images as base64
         const base64Content = btoa(String.fromCharCode(...fileData));
         template.set(fileName, base64Content);
         console.log(`🖼️ Loaded image: ${fileName} (${base64Content.length} chars base64)`);
@@ -97,7 +103,7 @@ export async function loadTemplate(env: any, templateName: string = 'smartgram.a
         try {
           const content = textDecoder.decode(fileData);
           template.set(fileName, content);
-          console.log(`📄 Loaded file: ${fileName} (${content.length} chars)`);
+          console.log(`📄 Loaded text file: ${fileName} (${content.length} chars)`);
         } catch {
           // If text decoding fails, store as base64
           const base64Content = btoa(String.fromCharCode(...fileData));
@@ -107,7 +113,7 @@ export async function loadTemplate(env: any, templateName: string = 'smartgram.a
       }
     }
 
-    console.log(`✅ Template loaded: ${template.size} files`);
+    console.log(`✅ Template loaded successfully: ${template.size} files`);
     return template;
 
   } catch (error) {
@@ -119,17 +125,34 @@ export async function loadTemplate(env: any, templateName: string = 'smartgram.a
 // Test function for template loading
 export async function testTemplateLoad(env: any): Promise<any> {
   try {
-    const template = await loadTemplate(env, 'smartgram.at');
+    const template = await loadTemplate(env, 'smartgram');
+
+    // Get sample content for verification
+    const sampleContent: Record<string, string> = {};
+
+    const mainLua = template.get('smartgram/main.lua');
+    if (mainLua) {
+      sampleContent['smartgram/main.lua'] = mainLua.substring(0, 200) + '...';
+    }
+
+    const timelineLua = template.get('smartgram/functions/timeline.lua');
+    if (timelineLua) {
+      sampleContent['smartgram/functions/timeline.lua'] = timelineLua.substring(0, 200) + '...';
+    }
+
+    const functionsMainLua = template.get('smartgram/functions/main.lua');
+    if (functionsMainLua) {
+      sampleContent['smartgram/functions/main.lua'] = functionsMainLua.substring(0, 200) + '...';
+    }
 
     return {
       success: true,
-      message: 'Template loaded successfully',
+      message: 'Template loaded successfully from individual files',
       fileCount: template.size,
-      files: Array.from(template.keys()),
-      sampleContent: {
-        'main.lua': template.get('main.lua')?.substring(0, 200) + '...',
-        'functions/timeline.lua': template.get('functions/timeline.lua')?.substring(0, 200) + '...'
-      }
+      files: Array.from(template.keys()).sort(),
+      luaFiles: Array.from(template.keys()).filter(f => f.endsWith('.lua')).sort(),
+      imageFiles: Array.from(template.keys()).filter(f => f.endsWith('.png')).length,
+      sampleContent
     };
   } catch (error) {
     return {
