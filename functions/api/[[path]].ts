@@ -104,7 +104,7 @@ export async function onRequest(context: any) {
   } else if (path === 'admin/upload-package') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
-  } else if (path.startsWith('user-packages/status')) {
+  } else if (path === 'user-packages/status' || path === 'user-packages/status/' || path.startsWith('user-packages/status?')) {
     return handleUserPackageStatus(request, env);
   } else if (path.startsWith('user-packages/download/')) {
     const packageId = path.split('/')[2];

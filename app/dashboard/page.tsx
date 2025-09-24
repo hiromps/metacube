@@ -279,8 +279,19 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const response = await fetch(`/api/user-packages/status?user_id=${user.id}&device_hash=${userData.device.device_hash}`)
+      const url = `/api/user-packages/status?user_id=${user.id}&device_hash=${userData.device.device_hash}`
+      console.log('Checking package status at:', url)
+
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Package status check failed:', response.status, errorText)
+        return
+      }
+
       const result = await response.json()
+      console.log('Package status result:', result)
 
       if (result.success) {
         setPackageStatus(result)
