@@ -567,7 +567,7 @@ export default function DashboardPage() {
               <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
               <p className="text-white/70 text-sm md:text-base">
                 {userData.device ?
-                  (userData.isTrialActive ? `体験期間中 - ${userData.trialDaysRemaining}日残り` :
+                  (userData.isTrialActive ? '体験期間中' :
                    userData.isSubscriptionActive ? '有料会員' :
                    '登録済み - 体験期間未開始') :
                   'デバイス未登録'}
