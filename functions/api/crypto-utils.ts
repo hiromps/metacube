@@ -8,7 +8,7 @@ export interface EncryptionResult {
 }
 
 // Convert password string to AES key using PBKDF2
-export async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const passwordBuffer = encoder.encode(password)
 
@@ -40,7 +40,8 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
 export async function encryptData(data: ArrayBuffer, password: string): Promise<EncryptionResult> {
   try {
     // Generate random salt and IV
-    const salt = crypto.getRandomValues(new Uint8Array(16)) // 128-bit salt
+    const saltArray = crypto.getRandomValues(new Uint8Array(16)) // 128-bit salt
+    const salt = saltArray.buffer.slice(saltArray.byteOffset, saltArray.byteOffset + saltArray.byteLength)
     const iv = crypto.getRandomValues(new Uint8Array(12))   // 96-bit IV for GCM
 
     // Derive encryption key
@@ -51,7 +52,7 @@ export async function encryptData(data: ArrayBuffer, password: string): Promise<
       {
         name: 'AES-GCM',
         iv: iv,
-        additionalData: salt // Use salt as additional authenticated data
+        additionalData: saltArray // Use salt as additional authenticated data
       },
       key,
       data
@@ -168,7 +169,7 @@ export async function createAteFile(
 
     // Create final .ate file structure
     // Format: [SALT:16][IV:12][AUTH_TAG:16][ENCRYPTED_DATA:N]
-    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const fileSalt = crypto.getRandomValues(new Uint8Array(16))
     const finalSize = 16 + 12 + 16 + encryptionResult.encryptedData.byteLength
     const finalBuffer = new ArrayBuffer(finalSize)
     const finalBytes = new Uint8Array(finalBuffer)
@@ -176,7 +177,7 @@ export async function createAteFile(
     let finalOffset = 0
 
     // Write salt
-    finalBytes.set(salt, finalOffset)
+    finalBytes.set(fileSalt, finalOffset)
     finalOffset += 16
 
     // Write IV
