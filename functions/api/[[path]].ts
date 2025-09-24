@@ -3210,6 +3210,12 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
 
 async function handleGuidesList(request: Request, env: any): Promise<Response> {
   try {
+    console.log('Environment check:', {
+      hasSupabaseUrl: !!env.SUPABASE_URL,
+      hasServiceKey: !!env.SUPABASE_SERVICE_ROLE_KEY,
+      urlPrefix: env.SUPABASE_URL ? env.SUPABASE_URL.substring(0, 30) + '...' : 'undefined'
+    });
+
     const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: guides, error } = await supabaseAdmin
