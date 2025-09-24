@@ -2550,11 +2550,26 @@ async function handleAteGenerate(request: Request, env: any) {
     const supabase = getSupabaseClient(env);
 
     // Queue .ate file generation using helper function
-    const { data: queueId, error } = await supabase.rpc('queue_ate_generation', {
-      device_hash_param: device_hash,
-      template_name_param: template_name,
-      priority_param: priority
-    });
+    // Try the simplified version (migration 18) first, fallback to template version
+    let queueId, error;
+    try {
+      const result = await supabase.rpc('queue_ate_generation', {
+        device_hash_param: device_hash,
+        priority_param: priority
+      });
+      queueId = result.data;
+      error = result.error;
+    } catch (firstError) {
+      console.warn('Simplified function failed, trying with template_name:', firstError);
+      // Fallback to version with template_name parameter
+      const result = await supabase.rpc('queue_ate_generation', {
+        device_hash_param: device_hash,
+        template_name_param: template_name,
+        priority_param: priority
+      });
+      queueId = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error('Error queuing .ate generation:', error);
