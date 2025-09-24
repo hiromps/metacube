@@ -17,6 +17,7 @@ import {
 } from './ate-handlers'
 import { handleAteGenerateSuper } from './ate-immediate'
 import { testTemplateLoad } from './template-manager'
+import { testTemplateLoadSimple } from './template-manager-simple'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -135,6 +136,16 @@ export async function onRequest(context: any) {
   } else if (path === 'template/test') {
     // Test template loading functionality
     const result = await testTemplateLoad(env);
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  } else if (path === 'template/test-simple') {
+    // Test simple template loading functionality (no recursion)
+    const result = await testTemplateLoadSimple(env);
     return new Response(JSON.stringify(result, null, 2), {
       status: 200,
       headers: {
