@@ -43,18 +43,18 @@ export async function generateExactATE(device_hash: string, env?: any) {
 
     const ateEntries: AutoTouchFileEntry[] = [
       {
-        name: 'worker.js',
+        name: 'worker.lua',
         content: workerContent,
         isText: true
       },
       {
-        name: 'index.js',
+        name: 'index.lua',
         content: indexContent,
         isText: true
       }
     ]
 
-    console.log(`📄 Structure: worker.js (${workerContent.length} bytes) + index.js (${indexContent.length} bytes)`)
+    console.log(`📄 Structure: worker.lua (${workerContent.length} bytes) + index.lua (${indexContent.length} bytes)`)
 
     // Step 3: Create exact AutoTouch ATE file with correct parameters
     console.log('🔐 Step 3: Creating ATE with vendor 0x0003, AES 0x08, Deflate64...')

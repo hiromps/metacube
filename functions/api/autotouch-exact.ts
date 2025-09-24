@@ -228,8 +228,8 @@ export async function createAutoTouchATE(files: AutoTouchFileEntry[], password: 
     headerView.setUint16(offset, 51, true)
     offset += 2
 
-    // General purpose bit flag (0x0809 = encrypted + UTF-8)
-    headerView.setUint16(offset, 0x0809, true)
+    // General purpose bit flag (0x0001 = encrypted only, no UTF-8 for compatibility)
+    headerView.setUint16(offset, 0x0001, true)
     offset += 2
 
     // Compression method (99 for AES encryption)
@@ -334,7 +334,7 @@ export async function createAutoTouchATE(files: AutoTouchFileEntry[], password: 
     offset += 2
 
     // General purpose bit flag
-    centralView.setUint16(offset, 0x0809, true)
+    centralView.setUint16(offset, 0x0001, true)
     offset += 2
 
     // Compression method (99 for AES)
