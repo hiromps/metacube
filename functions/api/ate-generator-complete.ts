@@ -1,7 +1,7 @@
 // Complete .ate file generator with template processing and encryption
 import { createClient } from '@supabase/supabase-js'
 import { processTemplate } from './template-processor'
-import { createAteFile, arrayBufferToBase64 } from './crypto-utils'
+import { createAutoTouchZIP, ZipFileEntry, arrayBufferToBase64 } from './zip-aes-crypto'
 
 // Initialize Supabase client
 function getSupabaseClient(env: any) {
@@ -116,40 +116,76 @@ export async function generateCompleteAteFile(env: any, device_hash: string): Pr
     const imageFiles = await loadImageFiles(env)
     console.log(`✅ Image loading: ${Object.keys(imageFiles).length} files`)
 
-    // Step 3: Combine all files
-    console.log('📦 Step 3: Combining files...')
-    const allFiles = {
-      ...templateResult.files,  // Processed Lua scripts
-      ...imageFiles             // PNG images
+    // Step 3: Prepare files for AutoTouch ZIP format
+    console.log('📦 Step 3: Preparing files for AutoTouch ZIP format...')
+
+    const zipEntries: ZipFileEntry[] = []
+
+    // Add processed Lua scripts
+    for (const [filePath, content] of Object.entries(templateResult.files)) {
+      // AutoTouch expects specific file names
+      let fileName = filePath
+      if (filePath === 'smartgram/main.lua') {
+        fileName = 'index.js' // Main entry point
+      } else if (filePath.includes('functions/')) {
+        fileName = filePath.replace('smartgram/functions/', '') // Keep function files in root
+      } else {
+        fileName = filePath.replace('smartgram/', '') // Remove smartgram prefix
+      }
+
+      zipEntries.push({
+        name: fileName,
+        content: content,
+        isText: true
+      })
+      console.log(`📄 Added Lua script: ${fileName}`)
     }
 
-    const totalFiles = Object.keys(allFiles).length
-    console.log(`📊 Total files for .ate: ${totalFiles} files`)
+    // Add image files (convert base64 to binary)
+    for (const [filePath, base64Content] of Object.entries(imageFiles)) {
+      const fileName = filePath.replace('smartgram/', '') // Remove smartgram prefix
 
-    // Log file breakdown
-    const luaCount = Object.keys(templateResult.files).length
-    const imageCount = Object.keys(imageFiles).length
-    console.log(`📋 File breakdown: ${luaCount} Lua scripts, ${imageCount} images`)
+      // Convert base64 to binary
+      const binaryString = atob(base64Content)
+      const imageBytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        imageBytes[i] = binaryString.charCodeAt(i)
+      }
 
-    // Step 4: Create encrypted .ate file
-    console.log('🔐 Step 4: Creating encrypted .ate file...')
-    const ateBuffer = await createAteFile(allFiles, '1111') // Password: 1111
+      zipEntries.push({
+        name: fileName,
+        content: imageBytes,
+        isText: false
+      })
+      console.log(`🖼️ Added image: ${fileName}`)
+    }
+
+    console.log(`📊 Total ZIP entries: ${zipEntries.length} files`)
+
+    // Step 4: Create AutoTouch compatible encrypted ZIP (.ate file)
+    console.log('🔐 Step 4: Creating AutoTouch compatible .ate file...')
+    const zipResult = await createAutoTouchZIP(zipEntries, '1111') // Password: 1111
 
     // Step 5: Convert to base64 for response
     console.log('📤 Step 5: Preparing download...')
-    const base64Data = arrayBufferToBase64(ateBuffer)
+    const base64Data = arrayBufferToBase64(zipResult.zipBuffer)
 
-    console.log(`✅ Complete .ate file generated: ${ateBuffer.byteLength} bytes`)
+    console.log(`✅ AutoTouch compatible .ate file generated: ${zipResult.zipBuffer.byteLength} bytes`)
+
+    // Count file types
+    const luaCount = zipEntries.filter(entry => entry.name.endsWith('.lua') || entry.name.endsWith('.js')).length
+    const imageCount = zipEntries.filter(entry => entry.name.endsWith('.png')).length
 
     return {
       success: true,
-      message: 'Complete .ate file generated successfully',
-      fileSize: ateBuffer.byteLength,
-      fileCount: totalFiles,
+      message: 'AutoTouch compatible .ate file generated successfully',
+      fileSize: zipResult.zipBuffer.byteLength,
+      fileCount: zipResult.fileCount,
       breakdown: {
         luaFiles: luaCount,
         imageFiles: imageCount,
-        totalSize: ateBuffer.byteLength
+        totalSize: zipResult.zipBuffer.byteLength,
+        format: 'ZIP AES (AutoTouch compatible)'
       },
       variables: templateResult.variables,
       downloadData: base64Data,
