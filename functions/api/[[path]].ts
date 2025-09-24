@@ -42,7 +42,26 @@ export async function onRequest(context: any) {
   const { request, params, env } = context;
   const path = params.path ? params.path.join('/') : '';
 
-  console.log('API Request - Path:', path, 'URL:', request.url, 'Method:', request.method);
+  console.log('🚀 API Request received - Path:', path, 'URL:', request.url, 'Method:', request.method);
+  console.log('🔍 Full params:', params);
+
+  // Health check endpoint for debugging
+  if (path === 'health' || path === '') {
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Cloudflare Functions is working',
+      timestamp: new Date().toISOString(),
+      path: path,
+      url: request.url,
+      method: request.method
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
 
   // Route to specific handlers based on path
   if (path === 'license/verify') {
@@ -115,11 +134,31 @@ export async function onRequest(context: any) {
   }
 
   // 404 for unknown API routes
+  console.log('❌ API endpoint not found - Path:', path, 'Available routes: ate/generate, ate/status, license/verify, etc.');
+
   return new Response(
-    JSON.stringify({ error: 'API endpoint not found', path }),
+    JSON.stringify({
+      error: 'API endpoint not found',
+      path,
+      method: request.method,
+      url: request.url,
+      available_routes: [
+        'ate/generate', 'ate/status', 'ate/download/{id}',
+        'license/verify', 'device/register', 'device/login',
+        'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
+        'health'
+      ],
+      debug_info: {
+        raw_params: params,
+        timestamp: new Date().toISOString()
+      }
+    }),
     {
       status: 404,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
     }
   );
 }
