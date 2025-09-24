@@ -3210,13 +3210,7 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
 
 async function handleGuidesList(request: Request, env: any): Promise<Response> {
   try {
-    console.log('Environment check:', {
-      hasSupabaseUrl: !!env.SUPABASE_URL,
-      hasServiceKey: !!env.SUPABASE_SERVICE_ROLE_KEY,
-      urlPrefix: env.SUPABASE_URL ? env.SUPABASE_URL.substring(0, 30) + '...' : 'undefined'
-    });
-
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { data: guides, error } = await supabaseAdmin
       .from('guides')
@@ -3247,7 +3241,7 @@ async function handleGuidesList(request: Request, env: any): Promise<Response> {
 
 async function handleGuidesGet(request: Request, env: any, slug: string): Promise<Response> {
   try {
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { data: guide, error } = await supabaseAdmin
       .from('guides')
@@ -3288,7 +3282,7 @@ async function handleAdminGuidesList(request: Request, env: any): Promise<Respon
       });
     }
 
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { data: guides, error } = await supabaseAdmin
       .from('guides')
@@ -3336,7 +3330,7 @@ async function handleAdminGuidesCreate(request: Request, env: any): Promise<Resp
       });
     }
 
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { data: guide, error } = await supabaseAdmin
       .from('guides')
@@ -3385,7 +3379,7 @@ async function handleAdminGuidesUpdate(request: Request, env: any, guideId: stri
     }
 
     const updateData = await request.json();
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { data: guide, error } = await supabaseAdmin
       .from('guides')
@@ -3426,7 +3420,7 @@ async function handleAdminGuidesDelete(request: Request, env: any, guideId: stri
       });
     }
 
-    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = getSupabaseClient(env);
 
     const { error } = await supabaseAdmin
       .from('guides')
