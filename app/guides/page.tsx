@@ -370,7 +370,8 @@ CACHE_DURATION = 86400  -- 24時間
 
   const getGuideAccess = (guide: GuideSection): boolean => {
     if (!guide.requiresAccess) return true
-    return access?.hasAccess || false
+    // Allow access for any registered user (not just paid users)
+    return access?.status !== UserStatus.VISITOR
   }
 
   const getSelectedContent = (): string => {
@@ -472,11 +473,11 @@ CACHE_DURATION = 86400  -- 24時間
               <div>
                 <p className="text-sm text-white/60">現在のアクセスレベル</p>
                 <p className="text-lg font-semibold text-white">
-                  {access.hasAccess ? '✅ フルアクセス' : '🔒 制限付きアクセス'}
+                  {access.status !== UserStatus.VISITOR ? '✅ フルアクセス' : '🔒 制限付きアクセス'}
                 </p>
               </div>
               <span className={`px-3 py-1 rounded-lg text-sm font-medium border ${
-                access.hasAccess ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30'
+                access.status !== UserStatus.VISITOR ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30'
               }`}>
                 {access.statusDescription}
               </span>
@@ -547,7 +548,7 @@ CACHE_DURATION = 86400  -- 24時間
             </div>
 
             {/* CTA for locked content */}
-            {selectedGuide && guides.find(g => g.id === selectedGuide)?.requiresAccess && !access?.hasAccess && (
+            {selectedGuide && guides.find(g => g.id === selectedGuide)?.requiresAccess && access?.status === UserStatus.VISITOR && (
               <div className="mt-6 bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-sm border border-blue-200 p-8">
                 <div className="text-center">
                   <h3 className="text-2xl font-bold text-gray-800 mb-4">
