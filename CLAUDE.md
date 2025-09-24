@@ -132,6 +132,217 @@ Use the built-in test page: https://smartgram.jp/api-test.html
 - Ensure no `export const dynamic = "force-dynamic"` in pages
 - Check file sizes don't exceed 25MB limit
 
+## Cloudflare Workers Compatibility Guide
+
+### 🚨 Critical Cloudflare Restrictions and Solutions
+
+This section documents working solutions for Cloudflare Workers limitations discovered through production debugging.
+
+#### Buffer API Not Available
+**Problem**: `Buffer is not defined` error in Cloudflare Workers runtime
+**Solution**: Use Web API alternatives
+
+```typescript
+// ❌ Node.js approach (will fail in Workers)
+const fileBuffer = Buffer.from(packageData.file_content, 'base64');
+const response = new Response(fileBuffer, {
+  headers: {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': 'attachment; filename="package.zip"'
+  }
+});
+
+// ✅ Cloudflare Workers compatible approach
+const binaryString = atob(packageData.file_content);
+const bytes = new Uint8Array(binaryString.length);
+for (let i = 0; i < binaryString.length; i++) {
+  bytes[i] = binaryString.charCodeAt(i);
+}
+const response = new Response(bytes, {
+  headers: {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': 'attachment; filename="package.zip"'
+  }
+});
+```
+
+#### TypeScript Promise Chain Issues
+**Problem**: `Property 'catch' does not exist on type 'PromiseLike<void>'`
+**Solution**: Wrap Supabase operations in Promise.resolve()
+
+```typescript
+// ❌ Direct Supabase operation chaining
+supabase.from('table').insert(data)
+  .then(result => /* handle */)
+  .catch(error => /* handle */);
+
+// ✅ Proper promise wrapping for error handling
+Promise.resolve(supabase.from('table').insert(data))
+  .then(result => /* handle */)
+  .catch(error => /* handle */);
+```
+
+#### API Route Path Matching
+**Problem**: Trailing slashes cause 404 errors in Cloudflare Functions
+**Solution**: Normalize paths by removing trailing slashes
+
+```typescript
+// functions/api/[[path]].ts
+export async function onRequestPOST(context: EventContext) {
+  const url = new URL(context.request.url);
+  // ✅ Remove trailing slash for consistent matching
+  const pathSegments = url.pathname.replace('/api/', '').replace(/\/$/, '').split('/');
+  const path = pathSegments.join('/');
+
+  if (path === 'admin/upload-package') {
+    return handleUploadPackage(context.request);
+  }
+}
+```
+
+#### UUID Validation for Database Queries
+**Problem**: Invalid UUIDs cause Supabase parsing errors: `"failed to parse select parameter"`
+**Solution**: Validate UUIDs before database operations
+
+```typescript
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+// ✅ Always validate before querying
+if (!isValidUUID(packageId)) {
+  return new Response(JSON.stringify({ error: 'Invalid package ID format' }), {
+    status: 400,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+```
+
+#### Database Error Handling
+**Problem**: Different error codes for missing data vs connection issues
+**Solution**: Specific error code handling with meaningful responses
+
+```typescript
+const { data, error } = await supabase
+  .from('user_packages')
+  .select('*')
+  .eq('id', packageId)
+  .single();
+
+if (error) {
+  if (error.code === 'PGRST116') {
+    // No rows returned - package not found
+    return new Response(JSON.stringify({ error: 'Package not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  // Other database errors
+  return new Response(JSON.stringify({ error: 'Database error', details: error.message }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+```
+
+#### Plan-Based Feature Access Control
+**Working Pattern**: Japanese localization with backend feature control
+
+```typescript
+// Frontend display (Japanese names for users)
+const getFeatureDisplayName = (feature: string): string => {
+  const featureMap = {
+    'timeline.lua': 'タイムライン自動いいね',
+    'follow.lua': 'フォロー',
+    'hashtaglike.lua': 'ハッシュタグいいね',
+    'activelike.lua': 'アクティブいいね',
+    'dm.lua': 'DM送信'
+  };
+  return featureMap[feature] || feature;
+};
+
+// Backend access control
+const isPlanFeatureAvailable = (planName: string, feature: string): boolean => {
+  const planFeatures = {
+    'STARTER': ['timeline.lua', 'follow.lua', 'hashtaglike.lua'], // Updated to include hashtag
+    'PRO': ['timeline.lua', 'follow.lua', 'hashtaglike.lua', 'activelike.lua'],
+    'MAX': ['timeline.lua', 'follow.lua', 'hashtaglike.lua', 'activelike.lua', 'dm.lua']
+  };
+  return planFeatures[planName]?.includes(feature) || false;
+};
+```
+
+### 🔧 Working Development Patterns
+
+#### File Upload with Progress Handling
+```typescript
+// ✅ Tested pattern for admin file uploads
+const formData = new FormData();
+formData.append('file', file);
+formData.append('name', packageName);
+formData.append('description', description);
+
+const response = await fetch('/api/admin/upload-package', {
+  method: 'POST',
+  body: formData, // Don't set Content-Type header - let browser set multipart boundary
+});
+```
+
+#### Error Recovery Strategies
+```typescript
+// ✅ Graceful error handling with user feedback
+try {
+  const response = await fetch('/api/user-packages/download/' + packageId);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'package.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+} catch (error) {
+  console.error('Download error:', error);
+  setError(`ダウンロードエラー: ${error.message}`);
+}
+```
+
+### 📋 Deployment Checklist
+
+Before deploying to Cloudflare Pages, verify:
+
+- [ ] **No Node.js APIs**: Replace Buffer, fs, path with Web API equivalents
+- [ ] **Static Export**: `next.config.mjs` has `output: 'export'`
+- [ ] **Functions Directory**: All APIs in `functions/api/[[path]].ts`, not `app/api/`
+- [ ] **Path Handling**: Remove trailing slashes, normalize routes
+- [ ] **UUID Validation**: Validate all UUID parameters before database queries
+- [ ] **Error Handling**: Specific handling for Supabase error codes
+- [ ] **TypeScript Promises**: Wrap Supabase operations in Promise.resolve() when chaining
+- [ ] **File Operations**: Use Uint8Array and atob() instead of Buffer
+- [ ] **Build Output**: Check `/out` directory contains static files
+- [ ] **Redirects File**: `public/_redirects` handles SPA routing correctly
+
+### 🚀 Performance Optimizations
+
+#### Proven Fast Patterns
+- **Parallel Queries**: Run independent database queries concurrently
+- **Client-side Caching**: Use localStorage for session persistence
+- **Static Generation**: Leverage Next.js static export for fast page loads
+- **Cloudflare CDN**: Assets automatically cached at edge locations
+
+```typescript
+// ✅ Concurrent database operations
+const [userData, deviceData, subscriptionData] = await Promise.all([
+  supabase.from('users').select('*').eq('id', userId).single(),
+  supabase.from('devices').select('*').eq('user_id', userId).single(),
+  supabase.from('subscriptions').select('*').eq('device_id', deviceId).single()
+]);
+```
+
 ## SocialTouch MVP要件定義書
 
 ## 1. MVP概要

@@ -943,9 +943,9 @@ export default function DashboardPage() {
                   <p className="text-blue-300/80 text-xs md:text-sm mb-2">
                     PROプランでフォロー/アンフォロー機能、MAXプランで全機能が解除されます
                   </p>
-                  <Link href="/" className="inline-block">
+                  <Link href="/plans" className="inline-block">
                     <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-xs md:text-sm px-3 py-1">
-                      プランを比較
+                      プラン比較
                     </Button>
                   </Link>
                 </div>
@@ -1445,7 +1445,7 @@ export default function DashboardPage() {
                 <p className="text-white/80 font-medium text-sm md:text-base">サポート</p>
               </div>
             </a>
-            <Link href="/register">
+            <Link href="/plans">
               <div className="bg-gradient-to-br from-purple-700/30 via-violet-700/20 to-indigo-700/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-purple-400/50 hover:bg-gradient-to-br hover:from-purple-700/30 hover:via-violet-700/30 hover:to-indigo-700/30 transition-all cursor-pointer shadow-lg shadow-purple-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">🎯</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">プラン</p>
