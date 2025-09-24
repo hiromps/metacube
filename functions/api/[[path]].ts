@@ -2578,7 +2578,7 @@ async function handleAteGenerate(request: Request, env: any) {
         message: '.ate file generation queued',
         queue_id: queueId,
         device_hash: device_hash,
-        template: template,
+        template: 'smartgram',
         estimated_time: '2-5 minutes'
       }),
       {
