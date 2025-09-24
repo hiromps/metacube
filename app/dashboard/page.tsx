@@ -427,25 +427,27 @@ export default function DashboardPage() {
   const fetchUsersList = async () => {
     setLoadingUsers(true)
     try {
-      const { data: devices, error } = await supabase
-        .from('devices')
-        .select(`
-          id,
-          user_id,
-          device_hash,
-          status,
-          created_at,
-          users!inner(email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      console.log('Fetching users list from API...')
 
-      if (error) throw error
+      const response = await fetch(`/api/admin/users-list?admin_key=smartgram-admin-2024`)
 
-      setUsersList(devices || [])
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API request failed:', response.status, errorText)
+        throw new Error(`API request failed: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Users list API result:', result)
+
+      if (result.success) {
+        setUsersList(result.users || [])
+      } else {
+        throw new Error(result.error || 'Unknown API error')
+      }
     } catch (error) {
       console.error('Failed to fetch users:', error)
-      setError('ユーザー一覧の取得に失敗しました')
+      setError(`ユーザー一覧の取得に失敗しました: ${error.message || 'Unknown error'}`)
     } finally {
       setLoadingUsers(false)
     }

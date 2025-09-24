@@ -109,6 +109,8 @@ export async function onRequest(context: any) {
   } else if (path.startsWith('user-packages/download/')) {
     const packageId = path.split('/')[2];
     return handleUserPackageDownload(request, env, packageId);
+  } else if (path === 'admin/users-list') {
+    return handleAdminUsersList(request, env);
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
     const result = await debugDevices(env);
@@ -2852,6 +2854,134 @@ async function handleUserPackageStatus(request: Request, env: any): Promise<Resp
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to check package status'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+}
+
+// Admin: Get users list with email information
+async function handleAdminUsersList(request: Request, env: any): Promise<Response> {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const url = new URL(request.url);
+    const adminKey = url.searchParams.get('admin_key');
+
+    // Simple admin authentication
+    if (adminKey !== 'smartgram-admin-2024') {
+      return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Get devices with basic info
+    const { data: devices, error: devicesError } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        user_id,
+        device_hash,
+        status,
+        created_at
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (devicesError) {
+      console.error('Failed to fetch devices:', devicesError);
+      return new Response(JSON.stringify({
+        error: 'Failed to fetch devices',
+        details: devicesError.message
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    if (!devices || devices.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        users: []
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // Get user emails using admin API
+    const enrichedDevices = [];
+    for (const device of devices) {
+      try {
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(device.user_id);
+        enrichedDevices.push({
+          ...device,
+          users: {
+            email: userData?.user?.email || 'unknown@example.com'
+          }
+        });
+      } catch (userError) {
+        console.warn('Failed to get user for device:', device.id, userError);
+        enrichedDevices.push({
+          ...device,
+          users: {
+            email: 'unknown@example.com'
+          }
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      users: enrichedDevices
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Admin users list error:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to fetch users list',
+      details: error.message
     }), {
       status: 500,
       headers: {
