@@ -427,27 +427,34 @@ export default function DashboardPage() {
   const fetchUsersList = async () => {
     setLoadingUsers(true)
     try {
-      console.log('Fetching users list from API...')
+      console.log('Fetching users list from Supabase...')
 
-      const response = await fetch(`/api/admin/users-list?admin_key=smartgram-admin-2024`)
+      // Get devices with basic info (simplified approach)
+      const { data: devices, error } = await supabase
+        .from('devices')
+        .select('id, user_id, device_hash, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50)
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('API request failed:', response.status, errorText)
-        throw new Error(`API request failed: ${response.status}`)
+      if (error) {
+        console.error('Supabase error:', error)
+        throw new Error(`Database error: ${error.message}`)
       }
 
-      const result = await response.json()
-      console.log('Users list API result:', result)
+      // Create a simplified users list with device info and placeholder emails
+      const simplifiedUsers = (devices || []).map((device, index) => ({
+        ...device,
+        users: {
+          email: `user-${device.user_id.substring(0, 8)}@example.com` // Placeholder until proper API is deployed
+        }
+      }))
 
-      if (result.success) {
-        setUsersList(result.users || [])
-      } else {
-        throw new Error(result.error || 'Unknown API error')
-      }
+      setUsersList(simplifiedUsers)
+      console.log('Users list loaded:', simplifiedUsers.length, 'users')
     } catch (error) {
       console.error('Failed to fetch users:', error)
-      setError(`ユーザー一覧の取得に失敗しました: ${error.message || 'Unknown error'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setError(`ユーザー一覧の取得に失敗しました: ${errorMessage}`)
     } finally {
       setLoadingUsers(false)
     }
