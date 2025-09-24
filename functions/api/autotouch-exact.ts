@@ -111,6 +111,10 @@ async function encryptFileAutoTouch(data: Uint8Array, password: string = ''): Pr
   const iv = crypto.getRandomValues(new Uint8Array(16))
 
   // Encrypt the data
+  // Convert Uint8Array to ArrayBuffer for crypto.subtle
+  const dataBuffer = new ArrayBuffer(data.byteLength)
+  new Uint8Array(dataBuffer).set(data)
+
   const encryptedBuffer = await crypto.subtle.encrypt(
     {
       name: 'AES-CTR',
@@ -118,7 +122,7 @@ async function encryptFileAutoTouch(data: Uint8Array, password: string = ''): Pr
       length: 128
     },
     key,
-    data
+    dataBuffer
   )
 
   const encryptedData = new Uint8Array(encryptedBuffer)
@@ -126,7 +130,11 @@ async function encryptFileAutoTouch(data: Uint8Array, password: string = ''): Pr
   // Generate HMAC authentication code (10 bytes for WinZip AES)
   const authCode = new Uint8Array(10)
   // Simplified auth code - in real implementation would use HMAC
-  const hashBuffer = await crypto.subtle.digest('SHA-1', encryptedData)
+  // Convert Uint8Array to ArrayBuffer for crypto.subtle.digest
+  const hashDataBuffer = new ArrayBuffer(encryptedData.byteLength)
+  new Uint8Array(hashDataBuffer).set(encryptedData)
+
+  const hashBuffer = await crypto.subtle.digest('SHA-1', hashDataBuffer)
   const hashArray = new Uint8Array(hashBuffer)
   authCode.set(hashArray.slice(0, 10))
 
