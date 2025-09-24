@@ -528,20 +528,20 @@ CACHE_DURATION = 86400  -- 24時間
 
           {/* Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-8">
+            <div className="bg-gradient-to-br from-slate-800/30 via-gray-800/20 to-slate-800/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl shadow-lg shadow-slate-500/10">
+              <div className="p-6 md:p-8">
                 <div
                   className="markdown-content prose prose-blue max-w-none"
                   dangerouslySetInnerHTML={{
                     __html: getSelectedContent().replace(/\n/g, '<br>')
-                      .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold mb-4 text-gray-800 border-b border-gray-200 pb-2">$1</h1>')
-                      .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-semibold mb-3 mt-6 text-gray-800">$1</h2>')
-                      .replace(/^### (.*?)$/gm, '<h3 class="text-xl font-medium mb-2 mt-4 text-gray-700">$1</h3>')
-                      .replace(/\`\`\`[\s\S]*?\`\`\`/g, '<pre class="bg-gray-50 border border-gray-200 p-4 rounded-lg overflow-x-auto"><code class="text-gray-700 text-sm">$1</code></pre>')
-                      .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-50 px-2 py-1 rounded text-blue-700 text-sm">$1</code>')
-                      .replace(/^- (.*?)$/gm, '<li class="ml-4 text-gray-700">$1</li>')
-                      .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-gray-700">$1</li>')
-                      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                      .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/20 pb-2">$1</h1>')
+                      .replace(/^## (.*?)$/gm, '<h2 class="text-xl md:text-2xl font-semibold mb-3 mt-6 text-white">$1</h2>')
+                      .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-gray-300">$1</h3>')
+                      .replace(/\`\`\`[\s\S]*?\`\`\`/g, '<pre class="bg-black/30 border border-white/20 p-4 rounded-lg overflow-x-auto backdrop-blur-sm"><code class="text-gray-300 text-sm">$1</code></pre>')
+                      .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/20 px-2 py-1 rounded text-blue-300 text-sm border border-blue-400/30">$1</code>')
+                      .replace(/^- (.*?)$/gm, '<li class="ml-4 text-gray-300 list-disc">$1</li>')
+                      .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-gray-300 list-decimal">$1</li>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
                   }}
                 />
               </div>
@@ -549,12 +549,12 @@ CACHE_DURATION = 86400  -- 24時間
 
             {/* CTA for locked content */}
             {selectedGuide && guides.find(g => g.id === selectedGuide)?.requiresAccess && access?.status === UserStatus.VISITOR && (
-              <div className="mt-6 bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-sm border border-blue-200 p-8">
+              <div className="mt-6 bg-gradient-to-br from-blue-800/30 via-purple-800/20 to-indigo-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-blue-500/10">
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-4">
                     完全版にアクセス
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-300 mb-6">
                     契約を開始して、全てのガイドとツールにアクセスしましょう
                   </p>
                   <Link href="/register">
