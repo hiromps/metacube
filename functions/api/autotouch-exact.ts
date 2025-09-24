@@ -249,12 +249,13 @@ export async function createAutoTouchATE(files: AutoTouchFileEntry[], password: 
     headerView.setUint32(offset, 0, true)
     offset += 4
 
-    // Compressed size (use 0xFFFFFFFF for ZIP64 like sample)
-    headerView.setUint32(offset, 0xFFFFFFFF, true)
+    // Compressed size (actual encrypted payload size)
+    const encryptedPayloadSize = encryptionResult.salt.length + encryptionResult.encryptedData.length + encryptionResult.authCode.length
+    headerView.setUint32(offset, encryptedPayloadSize, true)
     offset += 4
 
-    // Uncompressed size (use 0xFFFFFFFF for ZIP64 like sample)
-    headerView.setUint32(offset, 0xFFFFFFFF, true)
+    // Uncompressed size (original file size)
+    headerView.setUint32(offset, fileBytes.length, true)
     offset += 4
 
     // Filename length
@@ -353,12 +354,13 @@ export async function createAutoTouchATE(files: AutoTouchFileEntry[], password: 
     centralView.setUint32(offset, entry.crc32, true)
     offset += 4
 
-    // Compressed size (0xFFFFFFFF for ZIP64)
-    centralView.setUint32(offset, 0xFFFFFFFF, true)
+    // Compressed size (actual encrypted payload size)
+    const centralEncryptedSize = entry.salt.length + entry.encryptedData.length + entry.authCode.length
+    centralView.setUint32(offset, centralEncryptedSize, true)
     offset += 4
 
-    // Uncompressed size (0xFFFFFFFF for ZIP64)
-    centralView.setUint32(offset, 0xFFFFFFFF, true)
+    // Uncompressed size (original file size)
+    centralView.setUint32(offset, entry.originalData.length, true)
     offset += 4
 
     // Filename length
