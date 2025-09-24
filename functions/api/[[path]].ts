@@ -364,11 +364,37 @@ async function handleLicenseVerify(request: Request, env: any) {
       planInfo = devicePlan;
     }
 
+    // Determine license type based on plan hierarchy
+    let licenseType = 'UNREGISTERED';
+    if (device.status === 'trial') {
+      licenseType = 'TRIAL';
+    } else if (planInfo?.plan_name) {
+      licenseType = planInfo.plan_name.toUpperCase();
+    } else if (device.status === 'active' || hasActiveSubscription) {
+      licenseType = 'STARTER'; // Default fallback
+    }
+
+    // Create script access object with plan-based restrictions
+    const scriptAccess = planInfo?.plan_features ? {
+      timeline_lua: planInfo.plan_features.timeline_lua === true,
+      follow_lua: planInfo.plan_features.follow_lua === true,
+      unfollow_lua: planInfo.plan_features.unfollow_lua === true,
+      hashtaglike_lua: planInfo.plan_features.hashtaglike_lua === true,
+      activelike_lua: planInfo.plan_features.activelike_lua === true
+    } : {
+      // Default for trial users - all access
+      timeline_lua: device.status === 'trial',
+      follow_lua: device.status === 'trial',
+      unfollow_lua: device.status === 'trial',
+      hashtaglike_lua: device.status === 'trial',
+      activelike_lua: device.status === 'trial'
+    };
+
     return new Response(
       JSON.stringify({
         is_valid: isValid,
         status: device.status,
-        license_type: planInfo?.plan_name?.toUpperCase() || (device.status === 'trial' ? 'TRIAL' : (device.status === 'active' || hasActiveSubscription ? 'PRO' : null)),
+        license_type: licenseType,
         expires_at: expiresAt,
         trial_ends_at: device.trial_ends_at,
         time_remaining_seconds: timeRemainingSeconds,
@@ -388,20 +414,23 @@ async function handleLicenseVerify(request: Request, env: any) {
           limitations: planInfo.plan_limitations
         } : null,
         // 機能別アクセス権限
-        features: planInfo?.plan_features || {},
-        // AutoTouchスクリプト用の機能フラグ
-        script_access: planInfo?.plan_features ? {
-          timeline_lua: planInfo.plan_features.timeline_lua === true,
-          follow_lua: planInfo.plan_features.follow_lua === true,
-          unfollow_lua: planInfo.plan_features.unfollow_lua === true,
-          hashtaglike_lua: planInfo.plan_features.hashtaglike_lua === true,
-          activelike_lua: planInfo.plan_features.activelike_lua === true
-        } : {
-          timeline_lua: false,
-          follow_lua: false,
-          unfollow_lua: false,
-          hashtaglike_lua: false,
-          activelike_lua: false
+        features: planInfo?.plan_features || (device.status === 'trial' ? {
+          timeline_lua: true,
+          follow_lua: true,
+          unfollow_lua: true,
+          hashtaglike_lua: true,
+          activelike_lua: true,
+          max_daily_actions: 10000
+        } : {}),
+        // AutoTouchスクリプト用の機能フラグ（プラン別制限適用）
+        script_access: scriptAccess,
+        // プラン制限情報（AutoTouch main.luaで使用）
+        plan_restrictions: {
+          name: planInfo?.plan_name || (device.status === 'trial' ? 'trial' : 'unregistered'),
+          display_name: planInfo?.plan_display_name || (device.status === 'trial' ? 'TRIAL' : 'UNREGISTERED'),
+          max_daily_actions: planInfo?.plan_features?.max_daily_actions || (device.status === 'trial' ? 10000 : 0),
+          available_scripts: Object.keys(scriptAccess).filter(key => scriptAccess[key as keyof typeof scriptAccess]).map(key => key.replace('_lua', '')),
+          upgrade_required_for: Object.keys(scriptAccess).filter(key => !scriptAccess[key as keyof typeof scriptAccess]).map(key => key.replace('_lua', ''))
         }
       }),
       {
@@ -1753,21 +1782,111 @@ async function handlePayPalWebhook(request: Request, env: any) {
       const supabase = getSupabaseClient(env);
       const body = await request.json();
 
+      console.log('PayPal webhook received:', body.event_type, body.id);
+
       // Handle subscription creation/activation
       if (body.event_type === 'BILLING.SUBSCRIPTION.CREATED' ||
           body.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
         const resource = body.resource;
         const subscriptionId = resource.id;
         const customId = resource.custom_id; // device_id
+        const planId = resource.plan_id; // PayPal plan ID
 
-        // Start setup period for the device
-        const { data, error } = await supabase.rpc('start_setup_period', {
-          p_device_id: customId,
-          p_paypal_subscription_id: subscriptionId
+        console.log('Processing subscription activation:', {
+          subscriptionId,
+          customId,
+          planId
         });
 
-        if (error) {
-          console.error('Failed to start setup period:', error);
+        // Map PayPal plan ID to our internal plan names
+        let internalPlanName = 'starter'; // default fallback
+
+        // Extract plan name from custom_id if it contains plan info
+        // Expected format: "device_id:plan_name" or just "device_id"
+        const [deviceId, planName] = customId?.split(':') || [customId, 'starter'];
+
+        if (planName && ['starter', 'pro', 'max'].includes(planName)) {
+          internalPlanName = planName;
+        } else {
+          // Fallback: determine plan based on PayPal plan ID or amount
+          const billingCycles = resource.billing_info?.cycle_executions || [];
+          const regularCycle = billingCycles.find((cycle: any) => cycle.tenure_type === 'REGULAR');
+          const amount = regularCycle?.pricing_scheme?.fixed_price?.value;
+
+          if (amount) {
+            const price = parseInt(amount);
+            if (price >= 15000) internalPlanName = 'max';
+            else if (price >= 8800) internalPlanName = 'pro';
+            else internalPlanName = 'starter';
+          }
+        }
+
+        console.log('Determined internal plan name:', internalPlanName);
+
+        // Create or update subscription with plan information
+        const { data: subscriptionData, error: subError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            device_id: deviceId,
+            paypal_subscription_id: subscriptionId,
+            plan_id: internalPlanName,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'device_id,paypal_subscription_id'
+          });
+
+        if (subError) {
+          console.error('Failed to create/update subscription:', subError);
+        } else {
+          console.log('Subscription created/updated successfully');
+
+          // Update device status to active
+          await supabase
+            .from('devices')
+            .update({
+              status: 'active',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', deviceId);
+        }
+      }
+
+      // Handle subscription cancellation/suspension
+      if (body.event_type === 'BILLING.SUBSCRIPTION.CANCELLED' ||
+          body.event_type === 'BILLING.SUBSCRIPTION.SUSPENDED') {
+        const resource = body.resource;
+        const subscriptionId = resource.id;
+
+        console.log('Processing subscription cancellation/suspension:', subscriptionId);
+
+        // Update subscription status
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('paypal_subscription_id', subscriptionId);
+
+        if (!updateError) {
+          // Update device status to expired
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('device_id')
+            .eq('paypal_subscription_id', subscriptionId)
+            .single();
+
+          if (subscription) {
+            await supabase
+              .from('devices')
+              .update({
+                status: 'expired',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', subscription.device_id);
+          }
         }
       }
 
@@ -1788,6 +1907,7 @@ async function handlePayPalWebhook(request: Request, env: any) {
         }
       );
     } catch (error) {
+      console.error('PayPal webhook processing error:', error);
       return new Response(
         JSON.stringify({
           success: false,
