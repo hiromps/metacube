@@ -33,17 +33,17 @@ const features = [
   {
     icon: '👥',
     title: 'スマートフォロー',
-    description: 'ターゲット層を自動フォロー＆アンフォロー管理',
+    description: 'いいね欄やおすすめ欄などの一覧から一斉フォロー',
   },
   {
-    icon: '💬',
-    title: 'DM自動送信',
-    description: 'カスタマイズ可能なメッセージを自動送信',
+    icon: '🔄',
+    title: 'スマートアンフォロー',
+    description: 'サードパーティーを介さずにフォロバされていないユーザーのみを解除',
   },
   {
-    icon: '📊',
-    title: '成長分析',
-    description: 'フォロワー成長率とエンゲージメント分析',
+    icon: '🎯',
+    title: 'アクティブユーザーいいね',
+    description: 'エンゲージメントの高いユーザーを自動検出していいね',
   },
 ];
 
@@ -788,7 +788,7 @@ export default function Home() {
               <h3 className="text-xl font-bold text-blue-300 mb-3">🎓 開発チーム</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="bg-blue-500/10 rounded-lg p-3">
-                  <div className="text-blue-300 font-semibold">👨‍💻 元Instagram社エンジニア</div>
+                  <div className="text-blue-300 font-semibold">👨‍💻 現役iOSエンジニア</div>
                   <div className="text-gray-400">アルゴリズム最適化専門</div>
                 </div>
                 <div className="bg-purple-500/10 rounded-lg p-3">
@@ -900,10 +900,12 @@ export default function Home() {
                     <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{feature.icon}</div>
                     <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-300">{feature.description}</p>
-                    <div className="mt-4">
-                      <span className="text-xs bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">🤖 AI自動実行</span>
+                  <CardContent className="flex flex-col">
+                    <p className="text-gray-300 min-h-[3rem] flex items-center">{feature.description}</p>
+                    <div className="mt-4 p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-400/30">
+                      <span className="text-sm bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent font-bold">
+                        🤖 AIがフォロワー/フォロー比率を分析して最適なアクション
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -950,7 +952,7 @@ export default function Home() {
               手動運用からの完全解放
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              元Instagram社エンジニア監修・Instagram運用のプロが開発
+              現役iOSエンジニア監修・Instagram運用のプロが開発
             </p>
           </div>
 
@@ -1114,11 +1116,18 @@ export default function Home() {
                 </span>
               </Button>
             </Link>
-            <Link href="/login">
-              <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-purple-600 min-w-[200px]" size="xl">
+            <a href="#demo" className="inline-block">
+              <Button
+                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-purple-600 min-w-[200px] transition-all duration-300"
+                size="xl"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
                 デモ動画を見る
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </section>
