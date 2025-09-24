@@ -931,13 +931,13 @@ export default function Home() {
               <h3 className="text-xl font-bold text-orange-300 mb-2">⚠️ このチャンスを逃すと...</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
                 <div className="bg-red-500/10 rounded-lg p-3">
-                  <div className="text-red-400 font-semibold">💸 月間5,000フォロワー<br />獲得の機会を失う</div>
+                  <div className="text-red-400 font-semibold text-base">💸 月間5,000フォロワー<br />獲得の機会を失う</div>
                 </div>
                 <div className="bg-red-500/10 rounded-lg p-3">
-                  <div className="text-red-400 font-semibold">⏰ 手動作業で月40時間を浪費</div>
+                  <div className="text-red-400 font-semibold text-base">⏰ 手動作業で<br />月40時間を浪費</div>
                 </div>
                 <div className="bg-red-500/10 rounded-lg p-3">
-                  <div className="text-red-400 font-semibold">📉 競合他社に先を越される</div>
+                  <div className="text-red-400 font-semibold text-base">📉 競合他社に<br />先を越される</div>
                 </div>
               </div>
             </div>
