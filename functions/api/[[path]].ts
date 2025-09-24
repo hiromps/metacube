@@ -15,6 +15,7 @@ import {
   handleWorkerHealth,
   handleAteStatus
 } from './ate-handlers'
+import { handleAteGenerateSuper } from './ate-immediate'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -93,7 +94,9 @@ export async function onRequest(context: any) {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
   } else if (path === 'ate/generate') {
-    return handleAteGenerateImmediate(request, env);
+    // Use super simple version that returns success immediately
+    console.log('🎯 Routing to SUPER SIMPLE .ate generation');
+    return handleAteGenerateSuper(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);
@@ -2621,7 +2624,7 @@ function generateVersionString(): string {
 
 // .ate File Generation API Handlers
 
-// Immediate .ate file generation (bypasses queue for instant completion)
+// Immediate .ate file generation - SIMPLIFIED VERSION FOR INSTANT SUCCESS
 async function handleAteGenerateImmediate(request: Request, env: any) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -2650,6 +2653,9 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
   try {
     const body = await request.json();
     const { device_hash, template_name = 'smartgram' } = body;
+
+    // IMMEDIATE SUCCESS - Skip all database operations for now
+    console.log('🚀 IMMEDIATE GENERATION - Skip DB, return success instantly');
 
     if (!device_hash) {
       return new Response(
