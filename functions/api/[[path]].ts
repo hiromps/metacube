@@ -7,20 +7,7 @@ import {
   handleFeatureCheck
 } from './multiplan-handlers'
 import { handleDownloadPackage } from './download-package'
-import {
-  handleSchedulerRun,
-  handleSchedulerStatus,
-  handleSchedulerHealth,
-  handleWorkerProcess,
-  handleWorkerHealth,
-  handleAteStatus
-} from './ate-handlers'
-import { handleAteGenerateSuper, handleAteGenerateComplete, handleAteGenerateSimple } from './ate-immediate'
-import { testTemplateLoad } from './template-manager'
-import { testTemplateLoadSimple } from './template-manager-simple'
-import { testTemplateProcess } from './template-processor'
 import { debugDevices } from './debug-devices'
-import { testCompleteAteGeneration } from './ate-generator-complete'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -117,78 +104,11 @@ export async function onRequest(context: any) {
   } else if (path === 'admin/upload-package') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
-  } else if (path === 'ate/generate') {
-    // Use super simple version that returns success immediately
-    console.log('🎯 Routing to SUPER SIMPLE .ate generation');
-    return handleAteGenerateSuper(request, env);
-  } else if (path === 'ate/generate-complete') {
-    // Complete template-based .ate generation with encryption
-    console.log('🎯 Routing to COMPLETE .ate generation with templates');
-    return handleAteGenerateComplete(request, env);
-  } else if (path === 'ate/generate-simple') {
-    // Simple ZIP-based .ate generation (no encryption)
-    console.log('🎯 Routing to SIMPLE ZIP .ate generation (no encryption)');
-    return handleAteGenerateSimple(request, env);
-  } else if (path === 'ate/generate-exact') {
-    // EXACT AutoTouch ATE generation (vendor 0x0003)
-    console.log('🎯 Routing to EXACT AutoTouch ATE generation');
-    const { handleAteGenerateExact } = await import('./ate-exact');
-    return handleAteGenerateExact(request, env);
-  } else if (path === 'at/generate-simple') {
-    // Simple .at package generation (for AutoTouch to encrypt)
-    console.log('📦 Routing to simple .at package generation');
-    const { handleATGenerate } = await import('./autotouch-simple');
-    return handleATGenerate(request, env);
-  } else if (path === 'folder/generate') {
-    // AutoTouch folder structure generation (extract -> rename -> encrypt)
-    console.log('📁 Routing to AutoTouch folder structure generation');
-    const { handleAutoTouchFolder } = await import('./autotouch-folder');
-    return handleAutoTouchFolder(request, env);
-  } else if (path.startsWith('ate/download/')) {
-    const ateFileId = path.split('/')[2];
-    return handleAteDownload(request, env, ateFileId);
-  } else if (path === 'ate/status') {
-    return handleAteStatus(request, env);
-  } else if (path === 'ate-scheduler/run') {
-    return handleSchedulerRun(request, env);
-  } else if (path === 'ate-scheduler/status') {
-    return handleSchedulerStatus(request, env);
-  } else if (path === 'ate-scheduler/health') {
-    return handleSchedulerHealth(request, env);
-  } else if (path === 'ate-worker/process') {
-    return handleWorkerProcess(request, env);
-  } else if (path === 'ate-worker/health') {
-    return handleWorkerHealth(request, env);
-  } else if (path === 'template/test') {
-    // Test template loading functionality
-    const result = await testTemplateLoad(env);
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  } else if (path === 'template/test-simple') {
-    // Test simple template loading functionality (no recursion)
-    const result = await testTemplateLoadSimple(env);
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  } else if (path === 'template/test-process') {
-    // Test template processing with variable replacement
-    const result = await testTemplateProcess(env);
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+  } else if (path.startsWith('user-packages/status')) {
+    return handleUserPackageStatus(request, env);
+  } else if (path.startsWith('user-packages/download/')) {
+    const packageId = path.split('/')[2];
+    return handleUserPackageDownload(request, env, packageId);
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
     const result = await debugDevices(env);
@@ -199,20 +119,10 @@ export async function onRequest(context: any) {
         'Access-Control-Allow-Origin': '*'
       }
     });
-  } else if (path === 'ate/test-complete') {
-    // Test complete .ate generation with encryption
-    const result = await testCompleteAteGeneration(env);
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
   }
 
   // 404 for unknown API routes
-  console.log('❌ API endpoint not found - Path:', path, 'Available routes: ate/generate, ate/status, license/verify, etc.');
+  console.log('❌ API endpoint not found - Path:', path, 'Available routes: license/verify, device/register, etc.');
 
   return new Response(
     JSON.stringify({
@@ -221,10 +131,12 @@ export async function onRequest(context: any) {
       method: request.method,
       url: request.url,
       available_routes: [
-        'ate/generate', 'ate/generate-complete', 'ate/generate-simple', 'ate/generate-exact', 'ate/status', 'ate/download/{id}',
         'license/verify', 'device/register', 'device/login',
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
-        'health'
+        'plans/list', 'plans/upgrade', 'plans/downgrade',
+        'usage/check', 'usage/increment', 'feature/check',
+        'download/package', 'debug/devices', 'health',
+        'admin/upload-package', 'user-packages/status', 'user-packages/download/{id}'
       ],
       debug_info: {
         raw_params: params,
@@ -495,20 +407,73 @@ async function handleLicenseVerify(request: Request, env: any) {
     }
 
     // Create script access object with plan-based restrictions
-    const scriptAccess = planInfo?.plan_features ? {
-      timeline_lua: planInfo.plan_features.timeline_lua === true,
-      follow_lua: planInfo.plan_features.follow_lua === true,
-      unfollow_lua: planInfo.plan_features.unfollow_lua === true,
-      hashtaglike_lua: planInfo.plan_features.hashtaglike_lua === true,
-      activelike_lua: planInfo.plan_features.activelike_lua === true
-    } : {
-      // Default for trial users - all access
-      timeline_lua: device.status === 'trial',
-      follow_lua: device.status === 'trial',
-      unfollow_lua: device.status === 'trial',
-      hashtaglike_lua: device.status === 'trial',
-      activelike_lua: device.status === 'trial'
+    let scriptAccess = {
+      timeline_lua: false,
+      follow_lua: false,
+      unfollow_lua: false,
+      hashtaglike_lua: false,
+      activelike_lua: false
     };
+
+    // プラン別機能制限を適用
+    if (device.status === 'trial' || hasActiveSubscription) {
+      const planName = planInfo?.plan_name || 'starter';
+
+      switch (planName.toLowerCase()) {
+        case 'starter':
+          scriptAccess = {
+            timeline_lua: true,    // STARTERはtimeline.luaのみ
+            follow_lua: false,
+            unfollow_lua: false,
+            hashtaglike_lua: false,
+            activelike_lua: false
+          };
+          break;
+
+        case 'pro':
+        case 'pro_yearly':
+          scriptAccess = {
+            timeline_lua: true,    // PROはtimeline.lua
+            follow_lua: true,      // + follow.lua
+            unfollow_lua: true,    // + unfollow.lua
+            hashtaglike_lua: false,
+            activelike_lua: false
+          };
+          break;
+
+        case 'max':
+          scriptAccess = {
+            timeline_lua: true,     // MAXは全機能
+            follow_lua: true,
+            unfollow_lua: true,
+            hashtaglike_lua: true,  // + hashtaglike.lua
+            activelike_lua: true    // + activelike.lua
+          };
+          break;
+
+        case 'trial':
+          // 体験期間中はSTARTERと同じ
+          scriptAccess = {
+            timeline_lua: true,
+            follow_lua: false,
+            unfollow_lua: false,
+            hashtaglike_lua: false,
+            activelike_lua: false
+          };
+          break;
+
+        default:
+          // デフォルト（STARTER扱い）
+          scriptAccess = {
+            timeline_lua: true,
+            follow_lua: false,
+            unfollow_lua: false,
+            hashtaglike_lua: false,
+            activelike_lua: false
+          };
+          break;
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -540,7 +505,7 @@ async function handleLicenseVerify(request: Request, env: any) {
           unfollow_lua: true,
           hashtaglike_lua: true,
           activelike_lua: true,
-          max_daily_actions: 10000
+          max_daily_actions: null
         } : {}),
         // AutoTouchスクリプト用の機能フラグ（プラン別制限適用）
         script_access: scriptAccess,
@@ -548,7 +513,7 @@ async function handleLicenseVerify(request: Request, env: any) {
         plan_restrictions: {
           name: planInfo?.plan_name || (device.status === 'trial' ? 'trial' : 'unregistered'),
           display_name: planInfo?.plan_display_name || (device.status === 'trial' ? 'TRIAL' : 'UNREGISTERED'),
-          max_daily_actions: planInfo?.plan_features?.max_daily_actions || (device.status === 'trial' ? 10000 : 0),
+          max_daily_actions: null,
           available_scripts: Object.keys(scriptAccess).filter(key => scriptAccess[key as keyof typeof scriptAccess]).map(key => key.replace('_lua', '')),
           upgrade_required_for: Object.keys(scriptAccess).filter(key => !scriptAccess[key as keyof typeof scriptAccess]).map(key => key.replace('_lua', ''))
         }
@@ -1823,7 +1788,7 @@ async function handleDeviceChange(request: Request, env: any) {
       }),
       {
         status: 500,
-      headers: {
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
@@ -2611,6 +2576,12 @@ interface UploadPackageRequest {
   notes?: string
 }
 
+// Generate a version string
+function generateVersionString(): string {
+  const now = new Date()
+  return `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}.${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`
+}
+
 async function handleAdminUploadPackageInternal(request: Request, env?: any): Promise<Response> {
   console.log('handleAdminUploadPackageInternal called');
 
@@ -2636,8 +2607,19 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
   }
 
   try {
-    const uploadData: UploadPackageRequest = await request.json()
+    const uploadData: UploadPackageRequest & { admin_key?: string } = await request.json()
     console.log('Upload data received:', { user_id: uploadData.user_id, device_hash: uploadData.device_hash, file_name: uploadData.file_name });
+
+    // Simple admin authentication
+    if (uploadData.admin_key !== 'smartgram-admin-2024') {
+      return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
 
     if (!uploadData.user_id || !uploadData.device_hash || !uploadData.file_content) {
       return new Response(JSON.stringify({
@@ -2692,6 +2674,21 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
 
     if (packageError) {
       console.error('Package insert error:', packageError)
+
+      // Handle table not exists error
+      if (packageError.message?.includes('does not exist') || packageError.code === 'PGRST116' || packageError.code === '42P01') {
+        return new Response(JSON.stringify({
+          error: 'データベーステーブルが見つかりません。管理者にご連絡ください。',
+          details: 'user_packages table does not exist'
+        }), {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+
       return new Response(JSON.stringify({
         error: 'パッケージの保存に失敗しました',
         details: packageError.message
@@ -2734,765 +2731,8 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
   }
 }
 
-function generateVersionString(): string {
-  const now = new Date()
-  return `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}.${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`
-}
-
-// .ate File Generation API Handlers
-
-// Immediate .ate file generation - SIMPLIFIED VERSION FOR INSTANT SUCCESS
-async function handleAteGenerateImmediate(request: Request, env: any) {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-    });
-  }
-
-  if (request.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  }
-
-  try {
-    const body = await request.json();
-    const { device_hash, template_name = 'smartgram' } = body;
-
-    // IMMEDIATE SUCCESS - Skip all database operations for now
-    console.log('🚀 IMMEDIATE GENERATION - Skip DB, return success instantly');
-
-    if (!device_hash) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Device hash is required'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    const supabase = getSupabaseClient(env);
-
-    // Get device info
-    const { data: devices, error: deviceError } = await supabase
-      .from('devices')
-      .select('id, user_id')
-      .eq('device_hash', device_hash.toUpperCase())
-      .limit(1);
-
-    if (deviceError || !devices || devices.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Device not found: ${device_hash}`
-        }),
-        {
-          status: 404,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    const device = devices[0];
-
-    // Get existing template (or use default)
-    let templateId;
-    const { data: templates } = await supabase
-      .from('ate_templates')
-      .select('id')
-      .eq('name', 'smartgram')
-      .limit(1);
-
-    if (!templates || templates.length === 0) {
-      // Create default template
-      const { data: newTemplate, error: createError } = await supabase
-        .from('ate_templates')
-        .insert({
-          name: 'smartgram',
-          version: '1.0.0',
-          description: 'SMARTGRAM automation template',
-          template_path: 'templates/smartgram.at/',
-          file_structure: ['main.lua', 'timeline.lua', 'follow.lua'],
-          required_variables: ['device_hash', 'plan_name']
-        })
-        .select('id')
-        .single();
-
-      if (createError) {
-        throw new Error(`Failed to create template: ${createError.message}`);
-      }
-      templateId = newTemplate.id;
-    } else {
-      templateId = templates[0].id;
-    }
-
-    // Get starter plan
-    let planId;
-    const { data: plans } = await supabase
-      .from('plans')
-      .select('id')
-      .eq('name', 'starter')
-      .limit(1);
-
-    if (!plans || plans.length === 0) {
-      throw new Error('Starter plan not found');
-    }
-    planId = plans[0].id;
-
-    // Get user's plan information for script access control
-    const { data: devicePlan } = await supabase
-      .from('device_plan_view')
-      .select('plan_name, plan_features')
-      .eq('device_hash', device_hash.toUpperCase())
-      .single();
-
-    const planFeatures = devicePlan?.plan_features || {
-      timeline_lua: true,
-      follow_lua: false,
-      unfollow_lua: false,
-      hashtaglike_lua: false,
-      activelike_lua: false
-    };
-
-    // Create real .ate file content with plan-based scripts
-    const ateContent = await generateRealAteFile(device_hash, planFeatures);
-    const fileName = `smartgram_${device_hash}_${Date.now()}.ate`;
-    const filePath = `generated/${device_hash}/${fileName}`;
-
-    // Use UPSERT to handle duplicate device+template combinations
-    const { data: fileRecord, error: fileError } = await supabase
-      .from('ate_files')
-      .upsert({
-        device_id: device.id,
-        template_id: templateId,
-        plan_id: planId,
-        filename: fileName,
-        file_path: filePath,
-        file_size_bytes: ateContent.content.length,
-        checksum: 'test-' + Date.now(),
-        encryption_key_hash: 'test-key-' + Date.now(),
-        encryption_algorithm: 'AES-256-GCM',
-        generated_variables: {
-          device_hash: device_hash,
-          plan_name: devicePlan?.plan_name || 'starter',
-          template_name: 'smartgram',
-          generated_at: new Date().toISOString(),
-          version: '1.0.0',
-          included_scripts: ateContent.includedScripts,
-          plan_features: planFeatures
-        },
-        generation_status: 'success',
-        is_active: true,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      }, {
-        onConflict: 'device_id,template_id'
-      })
-      .select('id')
-      .single();
-
-    if (fileError) {
-      throw new Error(`Failed to create file: ${fileError.message}`);
-    }
-
-    console.log('✅ Immediate generation completed:', fileRecord.id);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '.ate file generated successfully',
-        ate_file_id: fileRecord.id,
-        device_hash: device_hash,
-        filename: fileName,
-        download_url: `/api/ate/download/${fileRecord.id}`,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        estimated_time: 'Completed immediately'
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  } catch (error) {
-    console.error('Detailed error in immediate generation:', error);
-
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      stack: error.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack
-      name: error.name
-    } : { message: String(error) };
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Failed to generate .ate file immediately',
-        details: errorDetails,
-        timestamp: new Date().toISOString()
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  }
-}
-
-// Generate real AutoTouch .ate file content with plan-based scripts (simplified version)
-async function generateRealAteFile(deviceHash: string, planFeatures: any): Promise<{ content: string; includedScripts: string[] }> {
-  const includedScripts: string[] = [];
-
-  // Build menu options based on plan features
-  let menuOptions = '';
-  let menuHandlers = '';
-  let optionIndex = 1;
-
-  if (planFeatures.timeline_lua) {
-    menuOptions += `    if script_access.timeline_lua then table.insert(available_tools, "Timeline Auto Like") end\n`;
-    menuHandlers += `    ${optionIndex === 1 ? 'if' : 'elseif'} choice == ${optionIndex} and script_access.timeline_lua then\n        runTimelineScript()\n`;
-    optionIndex++;
-  }
-
-  if (planFeatures.follow_lua) {
-    menuOptions += `    if script_access.follow_lua then table.insert(available_tools, "Auto Follow") end\n`;
-    menuHandlers += `    ${optionIndex === 1 ? 'if' : 'elseif'} choice == ${optionIndex} and script_access.follow_lua then\n        runFollowScript()\n`;
-    optionIndex++;
-  }
-
-  if (planFeatures.unfollow_lua) {
-    menuOptions += `    if script_access.unfollow_lua then table.insert(available_tools, "Auto Unfollow") end\n`;
-    menuHandlers += `    ${optionIndex === 1 ? 'if' : 'elseif'} choice == ${optionIndex} and script_access.unfollow_lua then\n        runUnfollowScript()\n`;
-    optionIndex++;
-  }
-
-  if (planFeatures.hashtaglike_lua) {
-    menuOptions += `    if script_access.hashtaglike_lua then table.insert(available_tools, "Hashtag Like") end\n`;
-    menuHandlers += `    ${optionIndex === 1 ? 'if' : 'elseif'} choice == ${optionIndex} and script_access.hashtaglike_lua then\n        runHashtagLikeScript()\n`;
-    optionIndex++;
-  }
-
-  if (planFeatures.activelike_lua) {
-    menuOptions += `    if script_access.activelike_lua then table.insert(available_tools, "Active Like") end\n`;
-    menuHandlers += `    ${optionIndex === 1 ? 'if' : 'elseif'} choice == ${optionIndex} and script_access.activelike_lua then\n        runActiveLikeScript()\n`;
-    optionIndex++;
-  }
-
-  // Main script (always included)
-  const mainLua = `-- SMARTGRAM AutoTouch Main Script
--- Generated for device: ${deviceHash}
--- Plan: ${JSON.stringify(planFeatures)}
--- Generated: ${new Date().toISOString()}
-
-toast("SMARTGRAM v1.0 - ${deviceHash}", 3);
-
--- License verification
-local device_hash = "${deviceHash}"
-local license_info = nil
-
-function checkLicense()
-    local http = require("http")
-    local url = "https://smartgram.jp/api/license/verify"
-    local data = '{"device_hash":"' .. device_hash .. '"}'
-
-    local response = http.post(url, data, {["Content-Type"] = "application/json"})
-    if response and response.statusCode == 200 then
-        license_info = json.decode(response.body)
-        if license_info.is_valid then
-            toast("認証成功: " .. license_info.license_type, 2)
-            return true
-        else
-            toast("ライセンス無効", 3)
-            return false
-        end
-    else
-        toast("認証失敗", 3)
-        return false
-    end
-end
-
--- Main menu
-function showMainMenu()
-    if not checkLicense() then
-        return
-    end
-
-    local script_access = license_info.script_access or {}
-    local available_tools = {}
-
-${menuOptions}
-    table.insert(available_tools, "Exit")
-
-    local choice = alert("SMARTGRAM", "機能を選択:", 0, unpack(available_tools))
-
-${menuHandlers}    end
-end
-
-showMainMenu()
-`;
-  includedScripts.push('main.lua');
-
-  // Timeline script (STARTER and above)
-  let timelineLua = '';
-  if (planFeatures.timeline_lua) {
-    timelineLua = `-- Timeline Auto Like Script
-function runTimelineScript()
-    toast("Timeline自動いいね開始", 2)
-    activateApplication("com.burbn.instagram")
-    usleep(2000000)
-
-    local like_count = 0
-    for i = 1, 20 do
-        -- Double tap like
-        touchDown(0, 400, 600)
-        usleep(50000)
-        touchUp(0, 400, 600)
-        usleep(100000)
-        touchDown(0, 400, 600)
-        usleep(50000)
-        touchUp(0, 400, 600)
-        usleep(1000000)
-
-        -- Scroll
-        touchDown(0, 400, 700)
-        usleep(100000)
-        touchMove(0, 400, 300)
-        touchUp(0, 400, 300)
-        usleep(2000000)
-
-        like_count = like_count + 1
-        if i % 5 == 0 then toast("いいね: " .. like_count, 1) end
-    end
-    toast("完了: " .. like_count .. "件", 3)
-end
-`;
-    includedScripts.push('timeline.lua');
-  }
-
-  // Other scripts (simplified versions)
-  let followLua = '';
-  if (planFeatures.follow_lua) {
-    followLua = `function runFollowScript()
-    toast("自動フォロー開始", 2)
-    activateApplication("com.burbn.instagram")
-    usleep(2000000)
-    toast("フォロー機能実行中", 2)
-end`;
-    includedScripts.push('follow.lua');
-  }
-
-  let unfollowLua = '';
-  if (planFeatures.unfollow_lua) {
-    unfollowLua = `function runUnfollowScript()
-    toast("自動アンフォロー開始", 2)
-    activateApplication("com.burbn.instagram")
-    usleep(2000000)
-    toast("アンフォロー機能実行中", 2)
-end`;
-    includedScripts.push('unfollow.lua');
-  }
-
-  let hashtagLikeLua = '';
-  if (planFeatures.hashtaglike_lua) {
-    hashtagLikeLua = `function runHashtagLikeScript()
-    toast("ハッシュタグいいね開始", 2)
-    activateApplication("com.burbn.instagram")
-    usleep(2000000)
-    toast("ハッシュタグ機能実行中", 2)
-end`;
-    includedScripts.push('hashtaglike.lua');
-  }
-
-  let activeLikeLua = '';
-  if (planFeatures.activelike_lua) {
-    activeLikeLua = `function runActiveLikeScript()
-    toast("アクティブいいね開始", 2)
-    activateApplication("com.burbn.instagram")
-    usleep(2000000)
-    toast("アクティブ機能実行中", 2)
-end`;
-    includedScripts.push('activelike.lua');
-  }
-
-  // Create .ate file structure (JSON format representing ZIP contents)
-  const ateStructure = {
-    format: "SMARTGRAM_ATE_v1.0",
-    device_hash: deviceHash,
-    generated_at: new Date().toISOString(),
-    plan_features: planFeatures,
-    files: {
-      "main.lua": mainLua,
-      ...(timelineLua && { "timeline.lua": timelineLua }),
-      ...(followLua && { "follow.lua": followLua }),
-      ...(unfollowLua && { "unfollow.lua": unfollowLua }),
-      ...(hashtagLikeLua && { "hashtaglike.lua": hashtagLikeLua }),
-      ...(activeLikeLua && { "activelike.lua": activeLikeLua }),
-      "config.json": JSON.stringify({
-        device_hash: deviceHash,
-        version: "1.0.0",
-        plan_features: planFeatures,
-        included_scripts: includedScripts,
-        generated_at: new Date().toISOString()
-      }, null, 2)
-    }
-  };
-
-  // Convert to base64 for storage (Cloudflare Workers compatible)
-  const encoder = new TextEncoder();
-  const dataArray = encoder.encode(JSON.stringify(ateStructure, null, 2));
-  const content = btoa(String.fromCharCode(...dataArray));
-
-  return {
-    content,
-    includedScripts
-  };
-}
-
-// Queue .ate file generation (original async method)
-async function handleAteGenerate(request: Request, env: any) {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-    });
-  }
-
-  if (request.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  }
-
-  try {
-    const body = await request.json();
-    const { device_hash, template_name = 'smartgram', priority = 5 } = body;
-
-    if (!device_hash) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Device hash is required'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    const supabase = getSupabaseClient(env);
-
-    // First, find the device to get device_id
-    const { data: devices, error: deviceError } = await supabase
-      .from('devices')
-      .select('id, user_id')
-      .eq('device_hash', device_hash.toUpperCase())
-      .limit(1);
-
-    if (deviceError) {
-      console.error('Error finding device:', deviceError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Device lookup failed: ${deviceError.message}`
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    if (!devices || devices.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Device not found: ${device_hash}`
-        }),
-        {
-          status: 404,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    const device = devices[0];
-
-    // Get or create a valid template_id from ate_templates table
-    let templateId;
-    const { data: templates, error: templateError } = await supabase
-      .from('ate_templates')
-      .select('id')
-      .eq('name', 'smartgram')
-      .limit(1);
-
-    if (templateError || !templates || templates.length === 0) {
-      // Create a default template if it doesn't exist
-      const { data: newTemplate, error: createError } = await supabase
-        .from('ate_templates')
-        .insert({
-          name: 'smartgram',
-          display_name: 'SMARTGRAM Default',
-          description: 'Default template for SMARTGRAM automation',
-          config: {},
-          is_active: true
-        })
-        .select('id')
-        .single();
-
-      if (createError || !newTemplate) {
-        console.error('Failed to create template:', createError);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Failed to create template: ${createError?.message || 'Unknown error'}`
-          }),
-          {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            }
-          }
-        );
-      }
-      templateId = newTemplate.id;
-    } else {
-      templateId = templates[0].id;
-    }
-
-    // Try to get ANY existing plan_id from plans table
-    let planId;
-    console.log('Looking for existing plans...');
-
-    const { data: plans, error: planError } = await supabase
-      .from('plans')
-      .select('id')
-      .limit(1);
-
-    console.log('Plans query result:', { plans, planError });
-
-    if (planError) {
-      console.error('Plans table query failed:', planError);
-      // Plans table might not exist - return error instead of random UUID
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Plans table access failed: ${planError.message}`,
-          debug: {
-            planError: planError,
-            suggestion: 'Plans table may not exist or access is restricted'
-          }
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    if (!plans || plans.length === 0) {
-      // No plans exist, try to create one
-      console.log('No plans found, attempting to create default plan...');
-      const { data: newPlan, error: createPlanError } = await supabase
-        .from('plans')
-        .insert({
-          name: 'basic',
-          display_name: 'Basic Plan',
-          price: 2980,
-          billing_cycle: 'monthly',
-          features: {},
-          limitations: {},
-          is_active: true
-        })
-        .select('id')
-        .single();
-
-      console.log('Plan creation result:', { newPlan, createPlanError });
-
-      if (createPlanError || !newPlan) {
-        console.error('Failed to create plan:', createPlanError);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Failed to create default plan: ${createPlanError?.message || 'Unknown error'}`,
-            debug: {
-              createPlanError,
-              suggestion: 'Plan creation failed - check table schema and permissions'
-            }
-          }),
-          {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            }
-          }
-        );
-      }
-      planId = newPlan.id;
-    } else {
-      planId = plans[0].id;
-      console.log('Using existing plan_id:', planId);
-    }
-
-    // Insert directly into file_generation_queue
-    const insertData = {
-      device_id: device.id,
-      template_id: templateId,
-      plan_id: planId,
-      priority: priority,
-      status: 'queued'
-    };
-
-    console.log('Attempting to insert queue entry with data:', insertData);
-    console.log('Device info:', device);
-
-    let queueId, error;
-
-    try {
-      // Try basic insert without template fields
-      const result = await supabase
-        .from('file_generation_queue')
-        .insert(insertData)
-        .select('id')
-        .single();
-
-      console.log('Insert result:', result);
-      queueId = result.data?.id;
-      error = result.error;
-
-      if (error) {
-        console.error('Supabase error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-      }
-    } catch (insertError) {
-      console.error('Insert exception:', insertError);
-      console.error('Exception details:', {
-        name: insertError instanceof Error ? insertError.name : 'Unknown',
-        message: insertError instanceof Error ? insertError.message : String(insertError),
-        stack: insertError instanceof Error ? insertError.stack : 'No stack'
-      });
-      error = insertError;
-    }
-
-    if (error) {
-      console.error('Final error queuing .ate generation:', error);
-
-      // Return detailed error information for debugging
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorDetails = error && typeof error === 'object' ?
-        JSON.stringify(error, Object.getOwnPropertyNames(error)) : 'No details';
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Failed to queue generation: ${errorMessage}`,
-          debug: {
-            errorDetails,
-            insertData,
-            deviceId: device.id
-          }
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '.ate file generation queued',
-        queue_id: queueId,
-        device_hash: device_hash,
-        template: 'smartgram',
-        estimated_time: '2-5 minutes'
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  } catch (error) {
-    console.error('Error in handleAteGenerate:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Failed to queue .ate file generation'
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    );
-  }
-}
-
-// Download .ate file
-async function handleAteDownload(request: Request, env: any, ateFileId: string) {
+// User package status handler
+async function handleUserPackageStatus(request: Request, env: any): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -3505,158 +2745,213 @@ async function handleAteDownload(request: Request, env: any, ateFileId: string) 
   }
 
   if (request.method !== 'GET') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('user_id');
+    const deviceHash = url.searchParams.get('device_hash');
+
+    if (!userId || !deviceHash) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User ID and device hash are required'
+      }), {
+        status: 400,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
-      }
-    );
-  }
-
-  try {
-    if (!ateFileId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'File ID is required'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
+      });
     }
 
     const supabase = getSupabaseClient(env);
 
-    // Get file info
-    const { data: fileData, error: fileError } = await supabase
-      .from('ate_files')
+    // Get active package for user/device
+    const { data: packageData, error: packageError } = await supabase
+      .from('user_packages')
       .select('*')
-      .eq('id', ateFileId)
+      .eq('user_id', userId)
+      .eq('device_hash', deviceHash)
       .eq('is_active', true)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (fileError || !fileData) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'File not found or expired'
-        }),
-        {
-          status: 404,
+    if (packageError) {
+      console.error('Package query error:', packageError);
+
+      // Handle table not exists error
+      if (packageError.message?.includes('does not exist') || packageError.code === 'PGRST116' || packageError.code === '42P01') {
+        return new Response(JSON.stringify({
+          success: true,
+          is_ready: false,
+          message: 'Package system not yet initialized'
+        }), {
+          status: 200,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
           }
-        }
-      );
-    }
-
-    // Check if file is ready
-    if (fileData.generation_status !== 'success') {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'File is not ready yet',
-          status: fileData.generation_status
-        }),
-        {
-          status: 202,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    // Check expiration
-    if (fileData.expires_at && new Date(fileData.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'File has expired'
-        }),
-        {
-          status: 410,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    // Get client IP and user agent for logging
-    const clientIP = request.headers.get('cf-connecting-ip') ||
-                    request.headers.get('x-forwarded-for') ||
-                    'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-
-    // Download file from Supabase Storage
-    const { data: fileBlob, error: storageError } = await supabase.storage
-      .from('ate-files')
-      .download(fileData.file_path);
-
-    if (storageError || !fileBlob) {
-      console.error('Storage error:', storageError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to retrieve file'
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
-    // Log download event
-    await supabase.rpc('log_download', {
-      ate_file_id_param: ateFileId,
-      download_ip_param: clientIP,
-      user_agent_param: userAgent,
-      bytes_downloaded_param: fileBlob.size
-    });
-
-    // Return file for download
-    return new Response(fileBlob, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${fileData.filename}"`,
-        'Content-Length': fileBlob.size.toString(),
-        'Access-Control-Allow-Origin': '*'
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('Error in handleAteDownload:', error);
-    return new Response(
-      JSON.stringify({
+      return new Response(JSON.stringify({
         success: false,
-        error: 'Download failed'
-      }),
-      {
+        error: 'Database query failed'
+      }), {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
+      });
+    }
+
+    if (!packageData) {
+      return new Response(JSON.stringify({
+        success: true,
+        is_ready: false,
+        message: 'No package available'
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      is_ready: true,
+      package_id: packageData.id,
+      file_name: packageData.file_name,
+      file_size: packageData.file_size,
+      version: packageData.version,
+      download_count: packageData.download_count,
+      uploaded_at: packageData.created_at,
+      notes: packageData.notes
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       }
-    );
+    });
+
+  } catch (error: any) {
+    console.error('User package status error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to check package status'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
   }
 }
 
+// User package download handler
+async function handleUserPackageDownload(request: Request, env: any, packageId: string): Promise<Response> {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
+
+  if (request.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    if (!packageId) {
+      return new Response(JSON.stringify({
+        error: 'Package ID is required'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    const supabase = getSupabaseClient(env);
+
+    // Get package data
+    const { data: packageData, error: packageError } = await supabase
+      .from('user_packages')
+      .select('*')
+      .eq('id', packageId)
+      .eq('is_active', true)
+      .single();
+
+    if (packageError || !packageData) {
+      return new Response(JSON.stringify({
+        error: 'Package not found'
+      }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // Increment download count
+    await supabase
+      .from('user_packages')
+      .update({
+        download_count: packageData.download_count + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', packageId);
+
+    // Return file as binary
+    const fileBuffer = Buffer.from(packageData.file_content, 'base64');
+
+    return new Response(fileBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${packageData.file_name}"`,
+        'Content-Length': fileBuffer.length.toString(),
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+  } catch (error: any) {
+    console.error('User package download error:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to download package'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+}

@@ -13,6 +13,7 @@ import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { PlanInfoCard } from '@/app/components/PlanInfoCard'
 import { ProgressBar } from '@/app/components/ui/ProgressBar'
+import { isCurrentUserAdmin } from '@/lib/auth/admin'
 
 
 export default function DashboardPage() {
@@ -237,224 +238,70 @@ export default function DashboardPage() {
     }
   }
 
-  // .ate file download states
-  const [ateStatus, setAteStatus] = useState<any>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
+  // Package download states
+  const [packageStatus, setPackageStatus] = useState<any>(null)
   const [isDownloading, setIsDownloading] = useState(false)
-  const [generationProgress, setGenerationProgress] = useState(0)
-  const [currentGenerationStep, setCurrentGenerationStep] = useState(0)
 
-  const checkAteStatus = useCallback(async () => {
-    if (!userData?.device?.device_hash) return
+  // Admin states
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminLoading, setAdminLoading] = useState(true)
+
+  // Admin upload states
+  const [uploadTargetUserId, setUploadTargetUserId] = useState('')
+  const [uploadTargetDeviceHash, setUploadTargetDeviceHash] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadNotes, setUploadNotes] = useState('')
+  const [uploading, setUploading] = useState(false)
+
+  // Check admin status
+  const checkAdminStatus = useCallback(async () => {
+    try {
+      const adminStatus = await isCurrentUserAdmin()
+      setIsAdmin(adminStatus)
+    } catch (error) {
+      console.error('Admin status check failed:', error)
+      setIsAdmin(false)
+    } finally {
+      setAdminLoading(false)
+    }
+  }, [])
+
+  const checkPackageStatus = useCallback(async () => {
+    if (!userData?.device?.device_hash || !userData?.device?.user_id) return
 
     try {
-      const response = await fetch(`/api/ate/status?device_hash=${userData.device.device_hash}`)
+      const response = await fetch(`/api/user-packages/status?user_id=${userData.device.user_id}&device_hash=${userData.device.device_hash}`)
       const result = await response.json()
 
       if (result.success) {
-        setAteStatus(result)
+        setPackageStatus(result)
       }
     } catch (error) {
-      console.error('Failed to check .ate status:', error)
+      console.error('Failed to check package status:', error)
     }
-  }, [userData?.device?.device_hash])
+  }, [userData?.device?.device_hash, userData?.device?.user_id])
 
-  // Check .ate file status on mount and data change
+  // Check package status on mount and data change
   useEffect(() => {
-    if (userData?.device?.device_hash) {
-      checkAteStatus()
+    if (userData?.device?.device_hash && userData?.device?.user_id) {
+      checkPackageStatus()
     }
-  }, [userData?.device?.device_hash, checkAteStatus])
+  }, [userData?.device?.device_hash, userData?.device?.user_id, checkPackageStatus])
 
-  // Reset generation states on component mount to prevent stuck states
+  // Reset download states on component mount to prevent stuck states
   useEffect(() => {
-    setIsGenerating(false)
     setIsDownloading(false)
-    setGenerationProgress(0)
-    setCurrentGenerationStep(0)
+    checkAdminStatus()
   }, [])
 
-  const handleGenerateAteFile = async () => {
-    if (!userData?.device?.device_hash || isGenerating) return
-
-    setIsGenerating(true)
-    setError('')
-    setGenerationProgress(0)
-    setCurrentGenerationStep(0)
-
-    try {
-      console.log('🔄 Starting immediate .ate generation');
-      setCurrentGenerationStep(0)
-      setGenerationProgress(20)
-
-      const generateResponse = await fetch('/api/ate/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          device_hash: userData.device.device_hash,
-          template_name: 'smartgram',
-          priority: 1
-        })
-      })
-
-      console.log('📥 Generation response status:', generateResponse.status);
-
-      const generateResult = await generateResponse.json()
-      console.log('📋 Generation result:', generateResult);
-
-      if (!generateResponse.ok) {
-        throw new Error(generateResult.error || '.ateファイル生成に失敗しました')
-      }
-
-      setGenerationProgress(60)
-      setCurrentGenerationStep(2)
-
-      // Check if this is immediate success response
-      if (generateResult.success && generateResult.generated && generateResult.status === 'completed') {
-        console.log('✅ Immediate generation success detected');
-
-        setGenerationProgress(90)
-        setCurrentGenerationStep(3)
-
-        // Handle immediate download if download_direct is available
-        if (generateResult.download_direct) {
-          console.log('💾 Starting immediate download');
-
-          setGenerationProgress(95)
-          setCurrentGenerationStep(4)
-
-          // Update the ate status FIRST to show it's ready
-          setAteStatus({
-            success: true,
-            is_ready: true,
-            ate_file_id: generateResult.ate_file_id,
-            filename: generateResult.filename,
-            file_size_bytes: generateResult.file_size || 0,
-            expires_at: generateResult.expires_at,
-            download_count: 0, // Start at 0, will increment when downloaded
-            device_hash: userData.device.device_hash
-          })
-
-          // Wait a moment to ensure UI updates, then trigger download
-          setTimeout(() => {
-            try {
-              console.log('🚀 Triggering download for:', generateResult.filename);
-
-              // Try multiple download methods for better compatibility
-              const filename = generateResult.filename || 'smartgram.ate'
-
-              // Method 1: Direct data URL download
-              try {
-                const a = document.createElement('a')
-                a.style.display = 'none'
-                a.href = generateResult.download_direct
-                a.download = filename
-                document.body.appendChild(a)
-                a.click()
-
-                // Clean up
-                setTimeout(() => {
-                  if (document.body.contains(a)) {
-                    document.body.removeChild(a)
-                  }
-                }, 1000)
-
-                console.log('✅ Direct data URL download triggered')
-              } catch (directError) {
-                console.log('⚠️ Direct download failed, trying blob method:', directError)
-
-                // Method 2: Blob download (fallback)
-                try {
-                  // Extract base64 data from data URL
-                  const base64Data = generateResult.download_direct.split(',')[1]
-                  const binaryString = atob(base64Data)
-                  const bytes = new Uint8Array(binaryString.length)
-
-                  for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i)
-                  }
-
-                  const blob = new Blob([bytes], { type: 'application/octet-stream' })
-                  const url = window.URL.createObjectURL(blob)
-
-                  const a = document.createElement('a')
-                  a.style.display = 'none'
-                  a.href = url
-                  a.download = filename
-                  document.body.appendChild(a)
-                  a.click()
-
-                  // Clean up
-                  setTimeout(() => {
-                    window.URL.revokeObjectURL(url)
-                    if (document.body.contains(a)) {
-                      document.body.removeChild(a)
-                    }
-                  }, 1000)
-
-                  console.log('✅ Blob download triggered')
-                } catch (blobError) {
-                  console.error('❌ Both download methods failed:', blobError)
-                  throw blobError
-                }
-              }
-
-              setGenerationProgress(100)
-
-              // Keep generation UI open for a moment to show success
-              setTimeout(() => {
-                setIsGenerating(false)
-
-                // Show success message after UI has time to update
-                setTimeout(() => {
-                  alert(`🎉 ${generateResult.filename || 'smartgram.ate'} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
-                }, 500)
-              }, 1500) // Keep UI open for 1.5 seconds to show completion
-
-            } catch (downloadError) {
-              console.error('Download error:', downloadError)
-              setIsGenerating(false)
-              setError('ダウンロードに失敗しました。ページを更新してください。')
-            }
-          }, 500) // Wait 500ms before triggering download
-
-          return;
-        }
-
-        // If no download_direct but success, update status
-        setGenerationProgress(100)
-        setCurrentGenerationStep(4)
-        setIsGenerating(false)
-
-        // Refresh ate status
-        await checkAteStatus()
-
-        return;
-      }
-
-      // Fallback: If not immediate success, show error
-      setError('生成レスポンスが期待された形式ではありませんでした。ページを更新してください。')
-      setIsGenerating(false)
-
-    } catch (error: any) {
-      console.error('Generate .ate file error:', error)
-      setError(error.message || '.ateファイル生成に失敗しました')
-      setIsGenerating(false)
-      setGenerationProgress(0)
-      setCurrentGenerationStep(0)
-    }
-  }
-
-  const handleDownloadAteFile = async () => {
-    if (!ateStatus?.ate_file_id || isDownloading) return
+  const handleDownloadPackage = async () => {
+    if (!packageStatus?.package_id || isDownloading) return
 
     setIsDownloading(true)
     setError('')
 
     try {
-      const response = await fetch(`/api/ate/download/${ateStatus.ate_file_id}`)
+      const response = await fetch(`/api/user-packages/download/${packageStatus.package_id}`)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -467,22 +314,91 @@ export default function DashboardPage() {
       const a = document.createElement('a')
       a.style.display = 'none'
       a.href = url
-      a.download = ateStatus.filename
+      a.download = packageStatus.file_name
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
       // Update status
-      checkAteStatus()
+      checkPackageStatus()
 
-      alert(`🎉 ${ateStatus.filename} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
+      alert(`🎉 ${packageStatus.file_name} をダウンロードしました！\n\n✅ 管理者が準備した専用パッケージ\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
 
     } catch (error: any) {
-      console.error('Download .ate file error:', error)
+      console.error('Download package error:', error)
       setError(error.message || 'ダウンロードに失敗しました')
     } finally {
       setIsDownloading(false)
+    }
+  }
+
+  // Admin file upload function
+  const handleAdminUpload = async () => {
+    if (!uploadFile || !uploadTargetUserId || !uploadTargetDeviceHash || uploading) return
+
+    setUploading(true)
+    setError('')
+
+    try {
+      // Convert file to base64
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (reader.result) {
+            const base64 = (reader.result as string).split(',')[1]
+            resolve(base64)
+          } else {
+            reject(new Error('Failed to read file'))
+          }
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(uploadFile)
+      })
+
+      const response = await fetch('/api/admin/upload-package', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          admin_key: 'smartgram-admin-2024',
+          user_id: uploadTargetUserId,
+          device_hash: uploadTargetDeviceHash,
+          file_name: uploadFile.name,
+          file_content: fileContent,
+          file_size: uploadFile.size,
+          notes: uploadNotes || 'Admin uploaded via dashboard'
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`✅ パッケージをアップロードしました！\nPackage ID: ${result.package_id}\nVersion: ${result.version}\nUser: ${result.user_email}`)
+
+        // Reset form
+        setUploadTargetUserId('')
+        setUploadTargetDeviceHash('')
+        setUploadFile(null)
+        setUploadNotes('')
+
+        // Clear file input
+        const fileInput = document.getElementById('adminUploadFile') as HTMLInputElement
+        if (fileInput) fileInput.value = ''
+
+        // Refresh package status if it's for current user
+        if (uploadTargetUserId === userData?.device?.user_id) {
+          checkPackageStatus()
+        }
+      } else {
+        setError(`アップロードエラー: ${result.error}`)
+      }
+    } catch (error: any) {
+      console.error('Admin upload error:', error)
+      setError(error.message || 'アップロードに失敗しました')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -791,14 +707,14 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Download .ate Package Section */}
+            {/* Download Package Section */}
             {userData.device && (
               <div className="bg-gradient-to-br from-orange-800/30 via-yellow-800/20 to-amber-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-orange-500/10">
-                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">📦 専用.ateパッケージダウンロード</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">📦 専用パッケージダウンロード</h3>
                 <div className="space-y-4">
                   <div className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
                     <p className="text-white/80 text-sm md:text-base mb-3">
-                      あなた専用のsmartgram.ateファイルを生成・ダウンロードできます。このファイルには以下が含まれています：
+                      管理者が準備したあなた専用のパッケージファイルをダウンロードできます。このファイルには以下が含まれています：
                     </p>
                     <ul className="space-y-1 text-sm text-white/70 mb-4">
                       <li className="flex items-center gap-2">
@@ -811,7 +727,7 @@ export default function DashboardPage() {
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="text-green-400">✅</span>
-                        <span>完全ローカル認証システム（API通信不要）</span>
+                        <span>管理者による品質管理済み</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="text-green-400">✅</span>
@@ -819,120 +735,206 @@ export default function DashboardPage() {
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="text-blue-400">🔒</span>
-                        <span>AES-256-GCM暗号化保護</span>
+                        <span>暗号化保護</span>
                       </li>
                     </ul>
                   </div>
 
-                  {/* File Status */}
+                  {/* Package Status */}
                   <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="font-medium text-blue-300 text-sm md:text-base">
-                          {ateStatus?.is_ready ? '✅ ダウンロード準備完了' :
-                           isGenerating ? '🔄 生成中...' :
-                           ateStatus ? '📋 ファイル未生成' :
+                          {packageStatus?.is_ready ? '✅ ダウンロード準備完了' :
+                           packageStatus?.message === 'Package system not yet initialized' ? '⚙️ パッケージシステム初期化中' :
+                           packageStatus ? '⚠️ パッケージが準備されていません' :
                            '📋 状態確認中...'}
                         </p>
-                          {ateStatus?.filename && (
-                            <p className="text-white/70 text-xs md:text-sm">
-                              ファイル名: {ateStatus.filename}
-                            </p>
-                          )}
-                          {ateStatus?.file_size_bytes && (
-                            <p className="text-white/70 text-xs md:text-sm">
-                              サイズ: {formatFileSize(ateStatus.file_size_bytes)}
-                            </p>
-                          )}
-                          {ateStatus && ateStatus.download_count > 0 && (
-                            <p className="text-white/70 text-xs md:text-sm">
-                              ダウンロード回数: {ateStatus.download_count}回
-                            </p>
-                          )}
-                        </div>
-                        {ateStatus?.is_ready && (
-                          <Button
-                            onClick={handleDownloadAteFile}
-                            disabled={isDownloading}
-                            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg border border-white/20 disabled:opacity-50"
-                            size="md"
-                          >
-                            {isDownloading ? '⬇️ ダウンロード中...' : '⬇️ ダウンロード'}
-                          </Button>
+                        {packageStatus?.file_name && (
+                          <p className="text-white/70 text-xs md:text-sm">
+                            ファイル名: {packageStatus.file_name}
+                          </p>
+                        )}
+                        {packageStatus?.file_size && (
+                          <p className="text-white/70 text-xs md:text-sm">
+                            サイズ: {formatFileSize(packageStatus.file_size)}
+                          </p>
+                        )}
+                        {packageStatus?.version && (
+                          <p className="text-white/70 text-xs md:text-sm">
+                            バージョン: {packageStatus.version}
+                          </p>
+                        )}
+                        {packageStatus && packageStatus.download_count > 0 && (
+                          <p className="text-white/70 text-xs md:text-sm">
+                            ダウンロード回数: {packageStatus.download_count}回
+                          </p>
                         )}
                       </div>
                     </div>
+                  </div>
 
                   <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                     <h4 className="font-medium text-blue-300 mb-2 text-sm md:text-base">📋 設置方法</h4>
                     <ol className="space-y-1 text-xs md:text-sm text-white/70">
-                      <li>1. 下のボタンから.ateファイルを生成/ダウンロード</li>
+                      <li>1. 下のボタンからパッケージファイルをダウンロード</li>
                       <li>2. Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置</li>
                       <li>3. AutoTouchでmain.luaを実行してツールを起動</li>
                     </ol>
                   </div>
 
-                  {/* Progress Bar */}
-                  {isGenerating && (
-                    <div className="mb-6">
-                      <ProgressBar
-                        isActive={isGenerating}
-                        duration={30000} // 30 seconds
-                        steps={[
-                          'キューイング',
-                          'スケジューラー起動',
-                          'ファイル生成開始',
-                          '処理中',
-                          '完了'
-                        ]}
-                        currentStep={currentGenerationStep}
-                        className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm"
-                      />
-                    </div>
-                  )}
-
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    {!ateStatus?.is_ready && (
-                      <Button
-                        onClick={handleGenerateAteFile}
-                        disabled={isGenerating}
-                        className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
-                        size="lg"
-                      >
-                        {isGenerating ? '🔄 生成中...' : '🔧 .ateファイルを生成'}
-                      </Button>
-                    )}
-                    {ateStatus?.is_ready && (
+                    {packageStatus?.is_ready ? (
                       <div className="flex flex-col items-center gap-3">
-                        {/* Download Progress (short duration) */}
-                        {isDownloading && (
-                          <div className="w-full max-w-md">
-                            <ProgressBar
-                              isActive={isDownloading}
-                              duration={3000} // 3 seconds
-                              steps={['準備中', 'ダウンロード']}
-                              className="bg-black/20 border border-white/10 p-3 rounded-lg backdrop-blur-sm text-sm"
-                            />
-                          </div>
-                        )}
-
                         <Button
-                          onClick={handleDownloadAteFile}
+                          onClick={handleDownloadPackage}
                           disabled={isDownloading}
                           className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
                           size="lg"
                         >
-                          {isDownloading ? '⬇️ ダウンロード中...' : '📦 .ateファイルをダウンロード'}
+                          {isDownloading ? '⬇️ ダウンロード中...' : '📦 パッケージをダウンロード'}
                         </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className={`border p-4 rounded-xl backdrop-blur-sm mb-4 ${
+                          packageStatus?.message === 'Package system not yet initialized'
+                            ? 'bg-blue-500/10 border-blue-400/30'
+                            : 'bg-yellow-500/10 border-yellow-400/30'
+                        }`}>
+                          <p className={`text-sm md:text-base ${
+                            packageStatus?.message === 'Package system not yet initialized'
+                              ? 'text-blue-300'
+                              : 'text-yellow-300'
+                          }`}>
+                            {packageStatus?.message === 'Package system not yet initialized'
+                              ? '⚙️ パッケージシステム初期化中'
+                              : '📦 パッケージがまだ準備されていません'
+                            }
+                          </p>
+                          <p className={`text-xs md:text-sm mt-1 ${
+                            packageStatus?.message === 'Package system not yet initialized'
+                              ? 'text-blue-300/70'
+                              : 'text-yellow-300/70'
+                          }`}>
+                            {packageStatus?.message === 'Package system not yet initialized'
+                              ? 'システムのセットアップが完了するまでお待ちください'
+                              : '管理者がパッケージを準備するまでお待ちください'
+                            }
+                          </p>
+                        </div>
                       </div>
                     )}
                     <Button
-                      onClick={checkAteStatus}
+                      onClick={checkPackageStatus}
                       className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm px-4 py-3"
                       size="lg"
                     >
                       🔄 状態更新
                     </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Admin Section */}
+            {isAdmin && userData.device && (
+              <div className="bg-gradient-to-br from-purple-800/30 via-indigo-800/20 to-violet-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-purple-500/10">
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">👑 管理者専用 - パッケージアップロード</h3>
+                <div className="space-y-4">
+                  <div className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
+                    <p className="text-purple-300 text-sm md:text-base mb-2">
+                      🔐 管理者権限が認証されました
+                    </p>
+                    <p className="text-white/70 text-xs md:text-sm">
+                      ユーザー専用のパッケージファイルをアップロードできます
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        対象ユーザーID *
+                      </label>
+                      <input
+                        type="text"
+                        value={uploadTargetUserId}
+                        onChange={(e) => setUploadTargetUserId(e.target.value)}
+                        placeholder="ユーザーIDを入力"
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400 text-sm md:text-base"
+                        disabled={uploading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        デバイスハッシュ *
+                      </label>
+                      <input
+                        type="text"
+                        value={uploadTargetDeviceHash}
+                        onChange={(e) => setUploadTargetDeviceHash(e.target.value)}
+                        placeholder="デバイスハッシュを入力"
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400 text-sm md:text-base"
+                        disabled={uploading}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      パッケージファイル (.ate) *
+                    </label>
+                    <input
+                      type="file"
+                      id="adminUploadFile"
+                      accept=".ate"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white text-sm md:text-base"
+                      disabled={uploading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      メモ（任意）
+                    </label>
+                    <input
+                      type="text"
+                      value={uploadNotes}
+                      onChange={(e) => setUploadNotes(e.target.value)}
+                      placeholder="バージョン情報やメモを入力"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400 text-sm md:text-base"
+                      disabled={uploading}
+                    />
+                  </div>
+
+                  {uploadFile && (
+                    <div className="bg-purple-500/10 border border-purple-400/30 p-3 rounded-lg">
+                      <p className="text-purple-300 text-sm">
+                        <strong>選択ファイル:</strong> {uploadFile.name} ({(uploadFile.size / 1024).toFixed(2)} KB)
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleAdminUpload}
+                      disabled={uploading || !uploadFile || !uploadTargetUserId || !uploadTargetDeviceHash}
+                      className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
+                      size="lg"
+                    >
+                      {uploading ? '📤 アップロード中...' : '📤 パッケージをアップロード'}
+                    </Button>
+                  </div>
+
+                  <div className="bg-purple-500/10 border border-purple-400/30 p-3 rounded-xl">
+                    <h4 className="font-medium text-purple-300 mb-2 text-sm">ℹ️ 使用方法</h4>
+                    <ul className="space-y-1 text-xs text-white/70">
+                      <li>• 対象ユーザーのIDとデバイスハッシュを入力</li>
+                      <li>• .ateファイルを選択してアップロード</li>
+                      <li>• アップロード後、ユーザーのダッシュボードでダウンロード可能になります</li>
+                      <li>• 同じユーザー・デバイスの古いファイルは自動的に無効化されます</li>
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -1136,6 +1138,133 @@ export default function DashboardPage() {
                   </a>
                 </div>
               </div>
+            </div>
+
+            {/* Plan Features & Limitations */}
+            <div className="bg-gradient-to-br from-indigo-800/30 via-purple-800/20 to-pink-800/30 backdrop-blur-xl border border-indigo-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-indigo-500/10">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📊 プラン制限</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="space-y-3 md:space-y-4">
+                  <div>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">現在のプラン</p>
+                    <p className="text-white/80 text-sm md:text-base font-medium">
+                      {userData.plan?.display_name || (userData.device?.status === 'trial' ? 'TRIAL (STARTER相当)' : 'STARTER')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">利用可能機能</p>
+                    <div className="space-y-1">
+                      {(userData.isTrialActive || userData.isSubscriptionActive) ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400">✅</span>
+                            <span className="text-white/80 text-sm">timeline.lua (タイムライン自動いいね)</span>
+                          </div>
+                          {(userData.plan?.plan_name === 'pro' || userData.plan?.plan_name === 'pro_yearly' || userData.plan?.plan_name === 'max') && (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-400">✅</span>
+                                <span className="text-white/80 text-sm">follow.lua (自動フォロー)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-400">✅</span>
+                                <span className="text-white/80 text-sm">unfollow.lua (自動アンフォロー)</span>
+                              </div>
+                            </>
+                          )}
+                          {userData.plan?.plan_name === 'max' && (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-400">✅</span>
+                                <span className="text-white/80 text-sm">hashtaglike.lua (ハッシュタグいいね)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-400">✅</span>
+                                <span className="text-white/80 text-sm">activelike.lua (アクティブユーザーいいね)</span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-400">❌</span>
+                          <span className="text-white/60 text-sm">サービス未開始または期限切れ</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 md:space-y-4">
+                  <div>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">制限機能</p>
+                    <div className="space-y-1">
+                      {(!userData.plan?.plan_name || userData.plan?.plan_name === 'starter' || userData.device?.status === 'trial') && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">follow.lua (PRO+で解除)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">unfollow.lua (PRO+で解除)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                          </div>
+                        </>
+                      )}
+                      {(userData.plan?.plan_name === 'pro' || userData.plan?.plan_name === 'pro_yearly') && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">🔒</span>
+                            <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                          </div>
+                        </>
+                      )}
+                      {userData.plan?.plan_name === 'max' && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-400">✅</span>
+                          <span className="text-white/80 text-sm">制限なし - 全機能利用可能</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs md:text-sm text-white/60 mb-1">1日の実行回数制限</p>
+                    <p className="text-white/80 text-sm md:text-base font-medium text-green-400">
+                      無制限
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">
+                      以前の1000回制限は撤廃されました
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {(!userData.plan?.plan_name || userData.plan?.plan_name === 'starter' || userData.device?.status === 'trial') && (
+                <div className="mt-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                  <p className="text-blue-300 text-sm md:text-base font-medium mb-1">
+                    💎 もっと多くの機能を使用しませんか？
+                  </p>
+                  <p className="text-blue-300/80 text-xs md:text-sm mb-2">
+                    PROプランでフォロー/アンフォロー機能、MAXプランで全機能が解除されます
+                  </p>
+                  <Link href="/" className="inline-block">
+                    <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-xs md:text-sm px-3 py-1">
+                      プランを比較
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </>
         )}

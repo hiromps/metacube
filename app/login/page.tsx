@@ -239,7 +239,7 @@ function LoginForm() {
 
                 <div className="mt-4 md:mt-6 grid grid-cols-2 gap-2 md:gap-3">
                   <Button
-                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur-sm text-xs md:text-sm"
+                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium"
                     size="md"
                     fullWidth
                   >
@@ -252,7 +252,7 @@ function LoginForm() {
                     Google
                   </Button>
                   <Button
-                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur-sm text-xs md:text-sm"
+                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium"
                     size="md"
                     fullWidth
                   >
