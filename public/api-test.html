@@ -62,9 +62,19 @@
         <div id="device-result" class="test-result"></div>
     </div>
 
+    <!-- .ate ファイル生成API -->
+    <div class="test-section">
+        <h2>3. .ateファイル生成API</h2>
+        <button onclick="testAteGenerate()">Generate .ate file</button>
+        <button onclick="testAteStatus()">Check .ate status</button>
+        <button onclick="testSchedulerRun()">Run scheduler</button>
+        <button onclick="testSchedulerStatus()">Scheduler status</button>
+        <div id="ate-result" class="test-result"></div>
+    </div>
+
     <!-- PayPal API群 -->
     <div class="test-section">
-        <h2>3. PayPal API群</h2>
+        <h2>4. PayPal API群</h2>
         <button onclick="testPayPalSuccess()">Success エンドポイント</button>
         <button onclick="testPayPalCancel()">Cancel エンドポイント</button>
         <button onclick="testPayPalWebhook()">Webhook エンドポイント</button>
@@ -73,7 +83,7 @@
 
     <!-- 全APIテスト -->
     <div class="test-section">
-        <h2>4. 統合テスト</h2>
+        <h2>5. 統合テスト</h2>
         <button onclick="runAllTests()">全APIを順番にテスト</button>
         <div id="all-result" class="test-result"></div>
     </div>
@@ -150,6 +160,30 @@ Response: ${JSON.stringify(result.data || result.error, null, 2)}`;
             displayResult('device-result', result, 'Device Register POST');
         }
 
+        // .ate ファイル生成API テスト
+        async function testAteGenerate() {
+            const result = await makeRequest('/ate/generate', 'POST', {
+                device_hash: 'FFMZ3GTSJC6J',
+                priority: 1
+            });
+            displayResult('ate-result', result, 'Generate .ate file');
+        }
+
+        async function testAteStatus() {
+            const result = await makeRequest('/ate/status?device_hash=FFMZ3GTSJC6J');
+            displayResult('ate-result', result, 'Check .ate status');
+        }
+
+        async function testSchedulerRun() {
+            const result = await makeRequest('/ate/scheduler/run', 'POST');
+            displayResult('ate-result', result, 'Run scheduler');
+        }
+
+        async function testSchedulerStatus() {
+            const result = await makeRequest('/ate/scheduler/status');
+            displayResult('ate-result', result, 'Scheduler status');
+        }
+
         // PayPal API テスト
         async function testPayPalSuccess() {
             const result = await makeRequest('/paypal/success?subscription_id=test123&token=abc');
@@ -177,6 +211,10 @@ Response: ${JSON.stringify(result.data || result.error, null, 2)}`;
                 { name: 'License Verify POST', fn: () => makeRequest('/license/verify', 'POST', { device_hash: 'test' }) },
                 { name: 'Device Register GET', fn: () => makeRequest('/device/register') },
                 { name: 'Device Register POST', fn: () => makeRequest('/device/register', 'POST', { device_hash: 'test', email: 'test@test.com' }) },
+                { name: '.ate Generate', fn: () => makeRequest('/ate/generate', 'POST', { device_hash: 'FFMZ3GTSJC6J', priority: 1 }) },
+                { name: '.ate Status', fn: () => makeRequest('/ate/status?device_hash=FFMZ3GTSJC6J') },
+                { name: 'Scheduler Run', fn: () => makeRequest('/ate/scheduler/run', 'POST') },
+                { name: 'Scheduler Status', fn: () => makeRequest('/ate/scheduler/status') },
                 { name: 'PayPal Success', fn: () => makeRequest('/paypal/success') },
                 { name: 'PayPal Cancel', fn: () => makeRequest('/paypal/cancel') },
                 { name: 'PayPal Webhook', fn: () => makeRequest('/paypal/webhook') },

@@ -202,11 +202,51 @@ export async function handleAteStatus(request: Request, env: any) {
       });
     }
 
-    // For now, return no file found until tables are properly set up
+    const supabase = getSupabaseClient(env);
+
+    // Get download info using helper function
+    const { data: downloadInfo, error } = await supabase.rpc('get_download_info', {
+      device_hash_param: device_hash
+    });
+
+    if (error) {
+      console.error('Error getting download info:', error);
+      // Fallback response for database issues
+      return new Response(JSON.stringify({
+        success: true,
+        is_ready: false,
+        message: 'No .ate file found. Generate one first.',
+        device_hash: device_hash
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    if (!downloadInfo || downloadInfo.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        is_ready: false,
+        message: 'No .ate file found. Generate one first.',
+        device_hash: device_hash
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const fileInfo = downloadInfo[0];
+
     return new Response(JSON.stringify({
       success: true,
-      is_ready: false,
-      message: 'No .ate file found. Generate one first.',
+      is_ready: fileInfo.is_ready,
+      ate_file_id: fileInfo.ate_file_id,
+      filename: fileInfo.filename,
+      file_size_bytes: fileInfo.file_size_bytes,
+      expires_at: fileInfo.expires_at,
+      download_count: fileInfo.download_count,
+      last_downloaded_at: fileInfo.last_downloaded_at,
+      download_url: fileInfo.is_ready ? `/api/ate/download/${fileInfo.ate_file_id}` : null,
       device_hash: device_hash
     }), {
       status: 200,
@@ -214,6 +254,7 @@ export async function handleAteStatus(request: Request, env: any) {
     });
 
   } catch (error) {
+    console.error('Error in handleAteStatus:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get status'
