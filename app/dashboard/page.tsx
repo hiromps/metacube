@@ -266,6 +266,14 @@ export default function DashboardPage() {
     }
   }, [userData?.device?.device_hash, checkAteStatus])
 
+  // Reset generation states on component mount to prevent stuck states
+  useEffect(() => {
+    setIsGenerating(false)
+    setIsDownloading(false)
+    setGenerationProgress(0)
+    setCurrentGenerationStep(0)
+  }, [])
+
   const handleGenerateAteFile = async () => {
     if (!userData?.device?.device_hash || isGenerating) return
 
@@ -275,9 +283,9 @@ export default function DashboardPage() {
     setCurrentGenerationStep(0)
 
     try {
-      // Step 1: Queue generation
+      console.log('🔄 Starting immediate .ate generation');
       setCurrentGenerationStep(0)
-      setGenerationProgress(10)
+      setGenerationProgress(20)
 
       const generateResponse = await fetch('/api/ate/generate', {
         method: 'POST',
@@ -291,78 +299,73 @@ export default function DashboardPage() {
         })
       })
 
+      console.log('📥 Generation response status:', generateResponse.status);
+
       const generateResult = await generateResponse.json()
+      console.log('📋 Generation result:', generateResult);
 
       if (!generateResponse.ok) {
         throw new Error(generateResult.error || '.ateファイル生成に失敗しました')
       }
 
-      setGenerationProgress(30)
-      setCurrentGenerationStep(1)
-
-      // Step 2: Trigger scheduler
-      const schedulerResponse = await fetch('/api/ate-scheduler/run', {
-        method: 'POST'
-      })
-
-      setGenerationProgress(50)
+      setGenerationProgress(60)
       setCurrentGenerationStep(2)
 
-      if (schedulerResponse.ok) {
-        setGenerationProgress(70)
+      // Check if this is immediate success response
+      if (generateResult.success && generateResult.generated && generateResult.status === 'completed') {
+        console.log('✅ Immediate generation success detected');
+
+        setGenerationProgress(90)
         setCurrentGenerationStep(3)
 
-        // Step 3: Monitor progress with periodic checks
-        const monitorProgress = async () => {
-          let attempts = 0
-          const maxAttempts = 20 // 40 seconds total (2s * 20)
+        // Handle immediate download if download_direct is available
+        if (generateResult.download_direct) {
+          console.log('💾 Starting immediate download');
 
-          const checkProgress = async () => {
-            attempts++
+          // Create download link and trigger download
+          const a = document.createElement('a')
+          a.style.display = 'none'
+          a.href = generateResult.download_direct
+          a.download = generateResult.filename || 'smartgram.ate'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
 
-            try {
-              await checkAteStatus()
+          setGenerationProgress(100)
+          setCurrentGenerationStep(4)
+          setIsGenerating(false)
 
-              // Update progress based on attempts
-              const progressIncrement = 30 / maxAttempts // Remaining 30%
-              setGenerationProgress(prev => Math.min(prev + progressIncrement, 95))
+          // Update the ate status to show it's ready
+          setAteStatus({
+            success: true,
+            is_ready: true,
+            ate_file_id: generateResult.ate_file_id,
+            filename: generateResult.filename,
+            file_size_bytes: generateResult.file_size || 0,
+            expires_at: generateResult.expires_at,
+            download_count: 1,
+            device_hash: userData.device.device_hash
+          })
 
-              // Check if file is ready
-              if (ateStatus?.is_ready) {
-                setGenerationProgress(100)
-                setCurrentGenerationStep(4)
-                setIsGenerating(false)
-                return
-              }
+          alert(`🎉 ${generateResult.filename || 'smartgram.ate'} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
 
-              if (attempts < maxAttempts) {
-                setTimeout(checkProgress, 2000) // Check every 2 seconds
-              } else {
-                // Timeout - but file might still be processing
-                setGenerationProgress(95)
-                setIsGenerating(false)
-                setError('生成に時間がかかっています。しばらく待ってからページを更新してください。')
-              }
-            } catch (error) {
-              console.error('Progress check error:', error)
-              if (attempts < maxAttempts) {
-                setTimeout(checkProgress, 2000)
-              } else {
-                setIsGenerating(false)
-                setError('ステータス確認に失敗しました。ページを更新してください。')
-              }
-            }
-          }
-
-          // Start monitoring after a short delay
-          setTimeout(checkProgress, 2000)
+          return;
         }
 
-        monitorProgress()
-      } else {
-        setError('⚠️ 生成はキューに追加されましたが、スケジューラーの開始に失敗しました。')
+        // If no download_direct but success, update status
+        setGenerationProgress(100)
+        setCurrentGenerationStep(4)
         setIsGenerating(false)
+
+        // Refresh ate status
+        await checkAteStatus()
+
+        return;
       }
+
+      // Fallback: If not immediate success, show error
+      setError('生成レスポンスが期待された形式ではありませんでした。ページを更新してください。')
+      setIsGenerating(false)
 
     } catch (error: any) {
       console.error('Generate .ate file error:', error)
@@ -751,30 +754,32 @@ export default function DashboardPage() {
                   </div>
 
                   {/* File Status */}
-                  {ateStatus && (
-                    <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-blue-300 text-sm md:text-base">
-                            {ateStatus.is_ready ? '✅ ダウンロード準備完了' : '🔄 生成中...'}
-                          </p>
-                          {ateStatus.filename && (
+                  <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-blue-300 text-sm md:text-base">
+                          {ateStatus?.is_ready ? '✅ ダウンロード準備完了' :
+                           isGenerating ? '🔄 生成中...' :
+                           ateStatus ? '📋 ファイル未生成' :
+                           '📋 状態確認中...'}
+                        </p>
+                          {ateStatus?.filename && (
                             <p className="text-white/70 text-xs md:text-sm">
                               ファイル名: {ateStatus.filename}
                             </p>
                           )}
-                          {ateStatus.file_size_bytes && (
+                          {ateStatus?.file_size_bytes && (
                             <p className="text-white/70 text-xs md:text-sm">
                               サイズ: {formatFileSize(ateStatus.file_size_bytes)}
                             </p>
                           )}
-                          {ateStatus.download_count > 0 && (
+                          {ateStatus && ateStatus.download_count > 0 && (
                             <p className="text-white/70 text-xs md:text-sm">
                               ダウンロード回数: {ateStatus.download_count}回
                             </p>
                           )}
                         </div>
-                        {ateStatus.is_ready && (
+                        {ateStatus?.is_ready && (
                           <Button
                             onClick={handleDownloadAteFile}
                             disabled={isDownloading}
@@ -786,7 +791,6 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
-                  )}
 
                   <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                     <h4 className="font-medium text-blue-300 mb-2 text-sm md:text-base">📋 設置方法</h4>
