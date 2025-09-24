@@ -2600,6 +2600,9 @@ async function handleAteGenerate(request: Request, env: any) {
       status: 'queued'
     };
 
+    console.log('Attempting to insert queue entry with data:', insertData);
+    console.log('Device info:', device);
+
     let queueId, error;
 
     try {
@@ -2610,19 +2613,45 @@ async function handleAteGenerate(request: Request, env: any) {
         .select('id')
         .single();
 
+      console.log('Insert result:', result);
       queueId = result.data?.id;
       error = result.error;
+
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+      }
     } catch (insertError) {
-      console.error('Insert failed:', insertError);
+      console.error('Insert exception:', insertError);
+      console.error('Exception details:', {
+        name: insertError instanceof Error ? insertError.name : 'Unknown',
+        message: insertError instanceof Error ? insertError.message : String(insertError),
+        stack: insertError instanceof Error ? insertError.stack : 'No stack'
+      });
       error = insertError;
     }
 
     if (error) {
-      console.error('Error queuing .ate generation:', error);
+      console.error('Final error queuing .ate generation:', error);
+
+      // Return detailed error information for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorDetails = error && typeof error === 'object' ?
+        JSON.stringify(error, Object.getOwnPropertyNames(error)) : 'No details';
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to queue generation'
+          error: `Failed to queue generation: ${errorMessage}`,
+          debug: {
+            errorDetails,
+            insertData,
+            deviceId: device.id
+          }
         }),
         {
           status: 400,
