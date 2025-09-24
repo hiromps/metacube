@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTGRAM テスト用ダウンロード</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .info {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #4ecdc4;
+        }
+
+        .info p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #4ecdc4;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SMARTGRAM</h1>
+        <div class="subtitle">AutoTouch互換 .ateファイル</div>
+
+        <button class="download-btn" onclick="downloadAteFile()">
+            📱 テスト用.ateファイルをダウンロード
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>ファイル生成中...</p>
+        </div>
+
+        <div class="info">
+            <h3>📋 ファイル情報</h3>
+            <p><strong>デバイスハッシュ:</strong> FFMZ3GTSJC6J</p>
+            <p><strong>パスワード:</strong> 1111</p>
+            <p><strong>暗号化:</strong> AutoTouch互換 AES-256</p>
+            <p><strong>修正内容:</strong> PBKDF2反復回数を1回に設定</p>
+        </div>
+
+        <div class="info">
+            <h3>🔧 使用方法</h3>
+            <p>1. ダウンロードしたファイルをiPhoneに転送</p>
+            <p>2. AutoTouchで開く</p>
+            <p>3. パスワード「1111」を入力</p>
+            <p>4. スクリプトが実行されることを確認</p>
+        </div>
+    </div>
+
+    <script>
+        async function downloadAteFile() {
+            const button = document.querySelector('.download-btn');
+            const loading = document.getElementById('loading');
+
+            // Show loading
+            button.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/ate/generate-complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_hash: 'FFMZ3GTSJC6J'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('ファイル生成に失敗しました');
+                }
+
+                // Get blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'smartgram_autotech_fixed_v3.ate';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Success message
+                button.textContent = '✅ ダウンロード完了！';
+                button.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+
+            } catch (error) {
+                console.error('Error:', error);
+                button.textContent = '❌ エラーが発生しました';
+                button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+            } finally {
+                loading.style.display = 'none';
+                button.style.display = 'inline-block';
+
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    button.textContent = '📱 テスト用.ateファイルをダウンロード';
+                    button.style.background = 'linear-gradient(45deg, #ff6b6b, #4ecdc4)';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
