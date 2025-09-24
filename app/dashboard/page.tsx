@@ -251,12 +251,19 @@ export default function DashboardPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadNotes, setUploadNotes] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [usersList, setUsersList] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
 
   // Check admin status
   const checkAdminStatus = useCallback(async () => {
     try {
       const adminStatus = await isCurrentUserAdmin()
       setIsAdmin(adminStatus)
+
+      // If admin, fetch users list
+      if (adminStatus) {
+        fetchUsersList()
+      }
     } catch (error) {
       console.error('Admin status check failed:', error)
       setIsAdmin(false)
@@ -402,6 +409,34 @@ export default function DashboardPage() {
       setError(error.message || 'アップロードに失敗しました')
     } finally {
       setUploading(false)
+    }
+  }
+
+  // Fetch users list for admin
+  const fetchUsersList = async () => {
+    setLoadingUsers(true)
+    try {
+      const { data: devices, error } = await supabase
+        .from('devices')
+        .select(`
+          id,
+          user_id,
+          device_hash,
+          status,
+          created_at,
+          users!inner(email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) throw error
+
+      setUsersList(devices || [])
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      setError('ユーザー一覧の取得に失敗しました')
+    } finally {
+      setLoadingUsers(false)
     }
   }
 
@@ -953,16 +988,34 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-white mb-2">
-                        対象ユーザーID *
+                        対象ユーザー選択 *
                       </label>
-                      <input
-                        type="text"
-                        value={uploadTargetUserId}
-                        onChange={(e) => setUploadTargetUserId(e.target.value)}
-                        placeholder="ユーザーIDを入力"
-                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400 text-sm md:text-base"
-                        disabled={uploading}
-                      />
+                      {loadingUsers ? (
+                        <div className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-gray-400 text-sm md:text-base flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          ユーザーを読み込み中...
+                        </div>
+                      ) : (
+                        <select
+                          value={uploadTargetUserId}
+                          onChange={(e) => {
+                            const selectedUser = usersList.find(user => user.user_id === e.target.value)
+                            setUploadTargetUserId(e.target.value)
+                            if (selectedUser) {
+                              setUploadTargetDeviceHash(selectedUser.device_hash)
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white text-sm md:text-base appearance-none"
+                          disabled={uploading}
+                        >
+                          <option value="" className="bg-gray-800 text-white">ユーザーを選択してください</option>
+                          {usersList.map((user) => (
+                            <option key={user.id} value={user.user_id} className="bg-gray-800 text-white">
+                              {user.users.email} (ID: {user.user_id.substring(0, 8)}...)
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-white mb-2">
@@ -972,9 +1025,10 @@ export default function DashboardPage() {
                         type="text"
                         value={uploadTargetDeviceHash}
                         onChange={(e) => setUploadTargetDeviceHash(e.target.value)}
-                        placeholder="デバイスハッシュを入力"
-                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400 text-sm md:text-base"
+                        placeholder="ユーザー選択で自動入力されます"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-500 text-sm md:text-base"
                         disabled={uploading}
+                        readOnly={uploadTargetUserId !== ''}
                       />
                     </div>
                   </div>
