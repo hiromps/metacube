@@ -231,3 +231,4 @@ Private - SocialTouch Project
 ---
 
 **注意**: このシステムはiPhone 7/8デバイス専用です。他のデバイスでは動作しません。
+# Trigger redeploy to remove cached download-test page
