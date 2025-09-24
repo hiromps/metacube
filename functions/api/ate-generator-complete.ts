@@ -135,7 +135,7 @@ export async function generateCompleteAteFile(env: any, device_hash: string): Pr
 
       zipEntries.push({
         name: fileName,
-        content: content,
+        content: content as string,
         isText: true
       })
       console.log(`📄 Added Lua script: ${fileName}`)
