@@ -390,6 +390,13 @@ export default function DashboardPage() {
   const handleAdminUpload = async () => {
     if (!uploadFile || !uploadTargetUserId || !uploadTargetDeviceHash || uploading) return
 
+    // UUID format validation for user_id
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(uploadTargetUserId)) {
+      setError(`無効なユーザーID形式です: ${uploadTargetUserId}`)
+      return
+    }
+
     setUploading(true)
     setError('')
 
@@ -435,9 +442,20 @@ export default function DashboardPage() {
       console.log('Upload response status:', response.status)
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Upload failed:', response.status, errorText)
-        throw new Error(`Upload failed with status ${response.status}: ${errorText}`)
+        let errorText = ''
+        try {
+          errorText = await response.text()
+          console.error('Upload failed:', response.status, errorText)
+        } catch (e) {
+          console.error('Upload failed and could not read response:', response.status)
+          errorText = 'Could not read error response'
+        }
+
+        if (response.status === 404) {
+          throw new Error('アップロードAPIが見つかりません。システムの更新をお待ちください。')
+        } else {
+          throw new Error(`アップロードに失敗しました (${response.status}): ${errorText}`)
+        }
       }
 
       const result = await response.json()
