@@ -33,57 +33,47 @@ async function getUserTemplateData(env: any, device_hash: string): Promise<Templ
     console.log(`🔍 Getting user data for device: ${device_hash}`)
     const supabase = getSupabaseClient(env)
 
-    // Get device and plan information using the existing RPC function
-    const { data: deviceInfo, error: deviceError } = await supabase.rpc('get_download_info', {
-      device_hash_param: device_hash
-    })
-
-    if (deviceError) {
-      throw new Error(`Failed to get device info: ${deviceError.message}`)
-    }
-
-    if (!deviceInfo || deviceInfo.length === 0) {
-      throw new Error('Device not found or not authorized')
-    }
-
-    const deviceData = deviceInfo[0]
-    console.log('📋 Device data retrieved:', {
-      device_hash: deviceData.device_hash,
-      plan_name: deviceData.plan_name,
-      device_status: deviceData.device_status
-    })
-
-    // Get plan details
+    // Get device and plan information directly from device_plan_view (more reliable than RPC)
     const { data: planData, error: planError } = await supabase
       .from('device_plan_view')
-      .select('plan_name, plan_display_name, plan_features, plan_limitations')
+      .select('device_hash, device_status, trial_ends_at, plan_name, plan_display_name, plan_features, plan_limitations')
       .eq('device_hash', device_hash)
       .single()
 
     if (planError) {
-      console.error('Error getting plan data:', planError)
-      // Use basic plan info from device data as fallback
+      throw new Error(`Failed to get device plan info: ${planError.message}`)
     }
+
+    if (!planData) {
+      throw new Error('Device not found or not authorized')
+    }
+
+    console.log('📋 Device data retrieved from plan view:', {
+      device_hash: planData.device_hash,
+      plan_name: planData.plan_name,
+      device_status: planData.device_status,
+      trial_ends_at: planData.trial_ends_at
+    })
 
     // Calculate expiration date
     let expiresAt = '2099-12-31 23:59:59' // Default far future
 
-    if (deviceData.trial_ends_at) {
-      const trialEnd = new Date(deviceData.trial_ends_at)
+    if (planData.trial_ends_at) {
+      const trialEnd = new Date(planData.trial_ends_at)
       expiresAt = trialEnd.toISOString().replace('T', ' ').substring(0, 19)
     }
 
     // Determine status
     let status = 'expired'
-    if (deviceData.device_status === 'trial') {
+    if (planData.device_status === 'trial') {
       status = 'trial'
-    } else if (deviceData.device_status === 'active') {
+    } else if (planData.device_status === 'active') {
       status = 'active'
     }
 
     const templateVars: TemplateVariables = {
       DEVICE_HASH: device_hash,
-      PLAN_TYPE: planData?.plan_name || deviceData.plan_name || 'starter',
+      PLAN_TYPE: planData.plan_name || 'starter',
       EXPIRES_AT: expiresAt,
       STATUS: status
     }
