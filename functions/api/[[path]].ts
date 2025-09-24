@@ -3220,19 +3220,19 @@ async function handleGuidesList(request: Request, env: any): Promise<Response> {
 
     if (error) {
       console.error('Failed to fetch guides:', error);
-      return new Response(JSON.stringify({ error: 'Failed to fetch guides' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Failed to fetch guides: ' + error.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    return new Response(JSON.stringify({ guides }), {
+    return new Response(JSON.stringify({ success: true, guides: guides || [] }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (error: any) {
     console.error('Guides list error:', error);
-    return new Response(JSON.stringify({ error: 'Failed to get guides list' }), {
+    return new Response(JSON.stringify({ success: false, error: 'Failed to get guides list: ' + error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
