@@ -176,12 +176,12 @@ Response: ${JSON.stringify(result.data || result.error, null, 2)}`;
         }
 
         async function testSchedulerRun() {
-            const result = await makeRequest('/ate/scheduler/run', 'POST');
+            const result = await makeRequest('/ate-scheduler/run', 'POST');
             displayResult('ate-result', result, 'Run scheduler');
         }
 
         async function testSchedulerStatus() {
-            const result = await makeRequest('/ate/scheduler/status');
+            const result = await makeRequest('/ate-scheduler/status');
             displayResult('ate-result', result, 'Scheduler status');
         }
 
@@ -214,8 +214,8 @@ Response: ${JSON.stringify(result.data || result.error, null, 2)}`;
                 { name: 'Device Register POST', fn: () => makeRequest('/device/register', 'POST', { device_hash: 'test', email: 'test@test.com' }) },
                 { name: '.ate Generate', fn: () => makeRequest('/ate/generate', 'POST', { device_hash: 'FFMZ3GTSJC6J', template_name: 'smartgram', priority: 1 }) },
                 { name: '.ate Status', fn: () => makeRequest('/ate/status?device_hash=FFMZ3GTSJC6J') },
-                { name: 'Scheduler Run', fn: () => makeRequest('/ate/scheduler/run', 'POST') },
-                { name: 'Scheduler Status', fn: () => makeRequest('/ate/scheduler/status') },
+                { name: 'Scheduler Run', fn: () => makeRequest('/ate-scheduler/run', 'POST') },
+                { name: 'Scheduler Status', fn: () => makeRequest('/ate-scheduler/status') },
                 { name: 'PayPal Success', fn: () => makeRequest('/paypal/success') },
                 { name: 'PayPal Cancel', fn: () => makeRequest('/paypal/cancel') },
                 { name: 'PayPal Webhook', fn: () => makeRequest('/paypal/webhook') },

@@ -2549,27 +2549,95 @@ async function handleAteGenerate(request: Request, env: any) {
 
     const supabase = getSupabaseClient(env);
 
-    // Queue .ate file generation using helper function
-    // Try the simplified version (migration 18) first, fallback to template version
-    let queueId, error;
-    try {
-      const result = await supabase.rpc('queue_ate_generation', {
-        device_hash_param: device_hash,
-        priority_param: priority
-      });
-      queueId = result.data;
-      error = result.error;
-    } catch (firstError) {
-      console.warn('Simplified function failed, trying with template_name:', firstError);
-      // Fallback to version with template_name parameter
-      const result = await supabase.rpc('queue_ate_generation', {
-        device_hash_param: device_hash,
-        template_name_param: template_name,
-        priority_param: priority
-      });
-      queueId = result.data;
-      error = result.error;
+    // First, find the device to get device_id
+    const { data: devices, error: deviceError } = await supabase
+      .from('devices')
+      .select('id, user_id')
+      .eq('device_hash', device_hash.toUpperCase())
+      .limit(1);
+
+    if (deviceError) {
+      console.error('Error finding device:', deviceError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Device lookup failed: ${deviceError.message}`
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
     }
+
+    if (!devices || devices.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Device not found: ${device_hash}`
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const device = devices[0];
+
+    // Get or create a default template_id
+    let templateId;
+    const { data: templates, error: templateError } = await supabase
+      .from('templates')
+      .select('id')
+      .eq('name', 'smartgram')
+      .limit(1);
+
+    if (templateError || !templates || templates.length === 0) {
+      // Create a default template if it doesn't exist
+      const { data: newTemplate, error: createError } = await supabase
+        .from('templates')
+        .insert({
+          name: 'smartgram',
+          display_name: 'SMARTGRAM Default',
+          description: 'Default template for SMARTGRAM automation',
+          config: {},
+          is_active: true
+        })
+        .select('id')
+        .single();
+
+      if (createError || !newTemplate) {
+        // If we can't create template, use a UUID
+        console.warn('Could not create template, using random UUID');
+        templateId = crypto.randomUUID();
+      } else {
+        templateId = newTemplate.id;
+      }
+    } else {
+      templateId = templates[0].id;
+    }
+
+    // Insert directly into file_generation_queue
+    const { data: queueEntry, error } = await supabase
+      .from('file_generation_queue')
+      .insert({
+        device_id: device.id,
+        template_id: templateId,
+        template_name: template_name,
+        priority: priority,
+        status: 'queued'
+      })
+      .select('id')
+      .single();
+
+    const queueId = queueEntry?.id;
 
     if (error) {
       console.error('Error queuing .ate generation:', error);
