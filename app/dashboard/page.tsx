@@ -865,17 +865,17 @@ export default function DashboardPage() {
                     <>
                       <div className="flex items-center gap-2">
                         <span className="text-green-400 text-sm">✅</span>
-                        <span className="text-white/80 text-sm">timeline.lua (タイムライン自動いいね)</span>
+                        <span className="text-white/80 text-sm">タイムライン自動いいね</span>
                       </div>
                       {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly' || userData.plan?.name === 'max') && (
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-green-400 text-sm">✅</span>
-                            <span className="text-white/80 text-sm">follow.lua (自動フォロー)</span>
+                            <span className="text-white/80 text-sm">自動フォロー</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-green-400 text-sm">✅</span>
-                            <span className="text-white/80 text-sm">unfollow.lua (自動アンフォロー)</span>
+                            <span className="text-white/80 text-sm">自動アンフォロー</span>
                           </div>
                         </>
                       )}
@@ -883,11 +883,11 @@ export default function DashboardPage() {
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-green-400 text-sm">✅</span>
-                            <span className="text-white/80 text-sm">hashtaglike.lua (ハッシュタグいいね)</span>
+                            <span className="text-white/80 text-sm">ハッシュタグいいね</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-green-400 text-sm">✅</span>
-                            <span className="text-white/80 text-sm">activelike.lua (アクティブユーザーいいね)</span>
+                            <span className="text-white/80 text-sm">アクティブユーザーいいね</span>
                           </div>
                         </>
                       )}
@@ -907,19 +907,19 @@ export default function DashboardPage() {
                     <>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">follow.lua (PROで解除)</span>
+                        <span className="text-white/60 text-sm">自動フォロー (PROで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">unfollow.lua (PROで解除)</span>
+                        <span className="text-white/60 text-sm">自動アンフォロー (PROで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                        <span className="text-white/60 text-sm">ハッシュタグいいね (MAXで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                        <span className="text-white/60 text-sm">アクティブユーザーいいね (MAXで解除)</span>
                       </div>
                     </>
                   )}
@@ -927,11 +927,11 @@ export default function DashboardPage() {
                     <>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                        <span className="text-white/60 text-sm">ハッシュタグいいね (MAXで解除)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                        <span className="text-white/60 text-sm">アクティブユーザーいいね (MAXで解除)</span>
                       </div>
                     </>
                   )}
