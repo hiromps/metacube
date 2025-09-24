@@ -129,6 +129,11 @@ export async function onRequest(context: any) {
     // Simple ZIP-based .ate generation (no encryption)
     console.log('🎯 Routing to SIMPLE ZIP .ate generation (no encryption)');
     return handleAteGenerateSimple(request, env);
+  } else if (path === 'ate/generate-exact') {
+    // EXACT AutoTouch ATE generation (vendor 0x0003)
+    console.log('🎯 Routing to EXACT AutoTouch ATE generation');
+    const { handleAteGenerateExact } = await import('./ate-exact');
+    return handleAteGenerateExact(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);
@@ -206,7 +211,7 @@ export async function onRequest(context: any) {
       method: request.method,
       url: request.url,
       available_routes: [
-        'ate/generate', 'ate/generate-complete', 'ate/generate-simple', 'ate/status', 'ate/download/{id}',
+        'ate/generate', 'ate/generate-complete', 'ate/generate-simple', 'ate/generate-exact', 'ate/status', 'ate/download/{id}',
         'license/verify', 'device/register', 'device/login',
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
         'health'
