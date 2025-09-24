@@ -11,7 +11,6 @@ import { Badge } from '@/app/components/ui/Badge'
 import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
-import { PlanInfoCard } from '@/app/components/PlanInfoCard'
 import { ProgressBar } from '@/app/components/ui/ProgressBar'
 import { isCurrentUserAdmin } from '@/lib/auth/admin'
 
@@ -700,15 +699,114 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Plan Information */}
-            <div className="mb-4 md:mb-6">
-              <PlanInfoCard
-                planInfo={userData.plan}
-                onUpgrade={() => {
-                  // プラン変更機能は後で実装
-                  alert('プラン変更機能は準備中です')
-                }}
-              />
+            {/* Plan Features & Limitations */}
+            <div className="bg-gradient-to-br from-indigo-800/30 via-purple-800/20 to-pink-800/30 backdrop-blur-xl border border-indigo-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-indigo-500/10">
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">📊 利用可能機能</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                <div className="space-y-1">
+                  <div className="mb-2">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">現在のプラン</p>
+                    <p className="text-white/80 text-sm md:text-base font-medium">
+                      {userData.plan?.display_name || (userData.device?.status === 'trial' ? 'TRIAL (STARTER相当)' : 'STARTER')}
+                    </p>
+                  </div>
+                  {(userData.isTrialActive || userData.isSubscriptionActive) ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400 text-sm">✅</span>
+                        <span className="text-white/80 text-sm">timeline.lua (タイムライン自動いいね)</span>
+                      </div>
+                      {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly' || userData.plan?.name === 'max') && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 text-sm">✅</span>
+                            <span className="text-white/80 text-sm">follow.lua (自動フォロー)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 text-sm">✅</span>
+                            <span className="text-white/80 text-sm">unfollow.lua (自動アンフォロー)</span>
+                          </div>
+                        </>
+                      )}
+                      {userData.plan?.name === 'max' && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 text-sm">✅</span>
+                            <span className="text-white/80 text-sm">hashtaglike.lua (ハッシュタグいいね)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 text-sm">✅</span>
+                            <span className="text-white/80 text-sm">activelike.lua (アクティブユーザーいいね)</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-red-400 text-sm">❌</span>
+                      <span className="text-white/60 text-sm">サービス未開始または期限切れ</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <div className="mb-2">
+                    <p className="text-xs md:text-sm text-white/60 mb-1">制限機能</p>
+                  </div>
+                  {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">follow.lua (PRO+で解除)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">unfollow.lua (PRO+で解除)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                      </div>
+                    </>
+                  )}
+                  {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly') && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">hashtaglike.lua (MAXで解除)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">🔒</span>
+                        <span className="text-white/60 text-sm">activelike.lua (MAXで解除)</span>
+                      </div>
+                    </>
+                  )}
+                  {userData.plan?.name === 'max' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400 text-sm">✅</span>
+                      <span className="text-white/80 text-sm">制限なし - 全機能利用可能</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
+                <div className="mt-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                  <p className="text-blue-300 text-sm md:text-base font-medium mb-1">
+                    💎 もっと多くの機能を使用しませんか？
+                  </p>
+                  <p className="text-blue-300/80 text-xs md:text-sm mb-2">
+                    PROプランでフォロー/アンフォロー機能、MAXプランで全機能が解除されます
+                  </p>
+                  <Link href="/" className="inline-block">
+                    <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-xs md:text-sm px-3 py-1">
+                      プランを比較
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Download Package Section */}
@@ -740,106 +838,6 @@ export default function DashboardPage() {
                     </ul>
                   </div>
 
-                  {/* Plan Features */}
-                  <div className="bg-indigo-500/10 border border-indigo-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
-                    <h4 className="font-medium text-indigo-300 mb-2 text-sm md:text-base">📊 利用可能機能</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                      <div className="space-y-1">
-                        {(userData.isTrialActive || userData.isSubscriptionActive) ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <span className="text-green-400 text-xs">✅</span>
-                              <span className="text-white/80 text-xs md:text-sm">timeline.lua (タイムライン自動いいね)</span>
-                            </div>
-                            {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly' || userData.plan?.name === 'max') && (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-400 text-xs">✅</span>
-                                  <span className="text-white/80 text-xs md:text-sm">follow.lua (自動フォロー)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-400 text-xs">✅</span>
-                                  <span className="text-white/80 text-xs md:text-sm">unfollow.lua (自動アンフォロー)</span>
-                                </div>
-                              </>
-                            )}
-                            {userData.plan?.name === 'max' && (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-400 text-xs">✅</span>
-                                  <span className="text-white/80 text-xs md:text-sm">hashtaglike.lua (ハッシュタグいいね)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-400 text-xs">✅</span>
-                                  <span className="text-white/80 text-xs md:text-sm">activelike.lua (アクティブユーザーいいね)</span>
-                                </div>
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-red-400 text-xs">❌</span>
-                            <span className="text-white/60 text-xs md:text-sm">サービス未開始または期限切れ</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">follow.lua (PRO+で解除)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">unfollow.lua (PRO+で解除)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">hashtaglike.lua (MAXで解除)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">activelike.lua (MAXで解除)</span>
-                            </div>
-                          </>
-                        )}
-                        {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly') && (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">hashtaglike.lua (MAXで解除)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-yellow-400 text-xs">🔒</span>
-                              <span className="text-white/60 text-xs md:text-sm">activelike.lua (MAXで解除)</span>
-                            </div>
-                          </>
-                        )}
-                        {userData.plan?.name === 'max' && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-400 text-xs">✅</span>
-                            <span className="text-white/80 text-xs md:text-sm">制限なし - 全機能利用可能</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {(!userData.plan?.name || userData.plan?.name === 'starter' || userData.device?.status === 'trial') && (
-                      <div className="mt-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 p-2 md:p-3 rounded-lg">
-                        <p className="text-blue-300 text-xs md:text-sm font-medium mb-1">
-                          💎 もっと多くの機能を使用しませんか？
-                        </p>
-                        <p className="text-blue-300/80 text-xs mb-2">
-                          PROプランでフォロー/アンフォロー機能、MAXプランで全機能が解除されます
-                        </p>
-                        <Link href="/" className="inline-block">
-                          <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-xs px-3 py-1">
-                            プランを比較
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
-                  </div>
 
                   {/* Package Status */}
                   <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
