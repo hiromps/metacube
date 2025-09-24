@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTGRAM シンプルZIPテスト</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .info {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #4ecdc4;
+        }
+
+        .info p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #4ecdc4;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SMARTGRAM</h1>
+        <div class="subtitle">シンプルZIP版テスト（暗号化なし）</div>
+
+        <button class="download-btn" onclick="generateSimpleZIP()">
+            📦 シンプルZIPファイルを生成
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>ファイル生成中...</p>
+        </div>
+
+        <div class="info">
+            <h3>📋 テスト情報</h3>
+            <p><strong>形式:</strong> 標準ZIP（AES暗号化なし）</p>
+            <p><strong>ファイル構成:</strong> worker.js + index.js</p>
+            <p><strong>パスワード:</strong> 不要</p>
+            <p><strong>発見:</strong> Filzaで解凍可能 = 標準ZIP形式</p>
+        </div>
+
+        <div class="info">
+            <h3>🔬 テスト手順</h3>
+            <p>1. シンプルZIPファイルを生成</p>
+            <p>2. 生成されたファイルをiPhoneに転送</p>
+            <p>3. Filzaで開けるか確認</p>
+            <p>4. AutoTouchで実行できるか確認</p>
+        </div>
+    </div>
+
+    <script>
+        async function generateSimpleZIP() {
+            const button = document.querySelector('.download-btn');
+            const loading = document.getElementById('loading');
+
+            // Show loading
+            button.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                // Generate simple ZIP locally using our simple-zip logic
+                const zipData = createSimpleZipManually();
+
+                // Download the generated file
+                const blob = new Blob([zipData], { type: 'application/zip' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'smartgram_simple_test.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Success message
+                button.textContent = '✅ シンプルZIPファイル作成完了！';
+                button.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+
+            } catch (error) {
+                console.error('Error:', error);
+                button.textContent = '❌ エラーが発生しました';
+                button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+            } finally {
+                loading.style.display = 'none';
+                button.style.display = 'inline-block';
+
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    button.textContent = '📦 シンプルZIPファイルを生成';
+                    button.style.background = 'linear-gradient(45deg, #4ecdc4, #44a08d)';
+                }, 3000);
+            }
+        }
+
+        function createSimpleZipManually() {
+            // Create simple ZIP file manually for testing
+            const workerContent = `-- SMARTGRAM Worker Script
+-- Device: FFMZ3GTSJC6J
+-- Generated: ${new Date().toISOString()}
+
+function main()
+    alert("SMARTGRAM Worker Script - Simple ZIP Test")
+    toast("This is a simple ZIP file test")
+end
+
+main()`;
+
+            const indexContent = `-- SMARTGRAM Index Script
+-- Device: FFMZ3GTSJC6J
+-- Generated: ${new Date().toISOString()}
+
+require("worker")
+
+function init()
+    alert("SMARTGRAM Index - Simple ZIP Test")
+end
+
+init()`;
+
+            return createZipFile([
+                { name: 'worker.js', content: workerContent },
+                { name: 'index.js', content: indexContent }
+            ]);
+        }
+
+        function createZipFile(files) {
+            // Simple ZIP file creation in JavaScript
+            const encoder = new TextEncoder();
+            let zipData = new Uint8Array(0);
+            let centralDirectory = [];
+            let offset = 0;
+
+            // Add files
+            for (const file of files) {
+                const nameBytes = encoder.encode(file.name);
+                const contentBytes = encoder.encode(file.content);
+                const crc32 = calculateCRC32(contentBytes);
+
+                // Local file header
+                const header = new ArrayBuffer(30 + nameBytes.length);
+                const view = new DataView(header);
+
+                view.setUint32(0, 0x04034b50, true); // Signature
+                view.setUint16(4, 20, true); // Version needed
+                view.setUint16(6, 0, true); // Flags
+                view.setUint16(8, 0, true); // Compression method
+                view.setUint16(10, 0, true); // Time
+                view.setUint16(12, 0, true); // Date
+                view.setUint32(14, crc32, true); // CRC32
+                view.setUint32(18, contentBytes.length, true); // Compressed size
+                view.setUint32(22, contentBytes.length, true); // Uncompressed size
+                view.setUint16(26, nameBytes.length, true); // Name length
+                view.setUint16(28, 0, true); // Extra length
+
+                // Combine header, name, content
+                const entryData = new Uint8Array(header.byteLength + nameBytes.length + contentBytes.length);
+                entryData.set(new Uint8Array(header), 0);
+                entryData.set(nameBytes, header.byteLength);
+                entryData.set(contentBytes, header.byteLength + nameBytes.length);
+
+                // Append to ZIP
+                const newZipData = new Uint8Array(zipData.length + entryData.length);
+                newZipData.set(zipData);
+                newZipData.set(entryData, zipData.length);
+                zipData = newZipData;
+
+                // Store central directory info
+                centralDirectory.push({
+                    name: file.name,
+                    nameBytes,
+                    contentBytes,
+                    crc32,
+                    offset
+                });
+
+                offset += entryData.length;
+            }
+
+            // Central directory (simplified)
+            const centralOffset = zipData.length;
+            let centralSize = 0;
+
+            for (const entry of centralDirectory) {
+                const centralHeader = new ArrayBuffer(46 + entry.nameBytes.length);
+                const view = new DataView(centralHeader);
+
+                view.setUint32(0, 0x02014b50, true); // Central signature
+                view.setUint16(4, 20, true); // Version made by
+                view.setUint16(6, 20, true); // Version needed
+                view.setUint16(8, 0, true); // Flags
+                view.setUint16(10, 0, true); // Compression method
+                view.setUint16(12, 0, true); // Time
+                view.setUint16(14, 0, true); // Date
+                view.setUint32(16, entry.crc32, true); // CRC32
+                view.setUint32(20, entry.contentBytes.length, true); // Compressed size
+                view.setUint32(24, entry.contentBytes.length, true); // Uncompressed size
+                view.setUint16(28, entry.nameBytes.length, true); // Name length
+                view.setUint16(30, 0, true); // Extra length
+                view.setUint16(32, 0, true); // Comment length
+                view.setUint16(34, 0, true); // Disk number
+                view.setUint16(36, 0, true); // Internal attr
+                view.setUint32(38, 0, true); // External attr
+                view.setUint32(42, entry.offset, true); // Local header offset
+
+                const centralEntry = new Uint8Array(centralHeader.byteLength + entry.nameBytes.length);
+                centralEntry.set(new Uint8Array(centralHeader), 0);
+                centralEntry.set(entry.nameBytes, centralHeader.byteLength);
+
+                const newZipData = new Uint8Array(zipData.length + centralEntry.length);
+                newZipData.set(zipData);
+                newZipData.set(centralEntry, zipData.length);
+                zipData = newZipData;
+
+                centralSize += centralEntry.length;
+            }
+
+            // End of central directory
+            const endRecord = new ArrayBuffer(22);
+            const endView = new DataView(endRecord);
+            endView.setUint32(0, 0x06054b50, true); // End signature
+            endView.setUint16(4, 0, true); // Disk number
+            endView.setUint16(6, 0, true); // Central dir disk
+            endView.setUint16(8, files.length, true); // Entries this disk
+            endView.setUint16(10, files.length, true); // Total entries
+            endView.setUint32(12, centralSize, true); // Central dir size
+            endView.setUint32(16, centralOffset, true); // Central dir offset
+            endView.setUint16(20, 0, true); // Comment length
+
+            const finalZipData = new Uint8Array(zipData.length + endRecord.byteLength);
+            finalZipData.set(zipData);
+            finalZipData.set(new Uint8Array(endRecord), zipData.length);
+
+            return finalZipData;
+        }
+
+        function calculateCRC32(data) {
+            // Simple CRC32 calculation
+            const table = [];
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 0; j < 8; j++) {
+                    c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                }
+                table[i] = c;
+            }
+
+            let crc = 0xFFFFFFFF;
+            for (let i = 0; i < data.length; i++) {
+                crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+            }
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+    </script>
+</body>
+</html>
