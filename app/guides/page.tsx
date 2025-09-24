@@ -36,33 +36,49 @@ export default function GuidesPage() {
   const fetchGuides = useCallback(async () => {
     try {
       setGuidesLoading(true)
-      const response = await fetch('/api/guides/list')
+      const apiUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/api/guides/list`
+        : '/api/guides/list'
+
+      console.log('Fetching guides from:', apiUrl)
+      const response = await fetch(apiUrl)
+
+      console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'))
 
       // Check if response is HTML (404 page) instead of JSON
       const contentType = response.headers.get('content-type')
-      if (!response.ok || (contentType && contentType.includes('text/html'))) {
-        console.warn('Guides API not available yet - database migration may be required')
-        setGuides([])
-        setError('ガイドコンテンツを読み込むためにはデータベースマイグレーションが必要です。管理者にお問い合わせください。')
-        return
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+
+        if (contentType && contentType.includes('text/html')) {
+          console.warn('Guides API returned HTML (404 page)')
+          setGuides([])
+          setError('ガイドAPIが見つかりません。システム管理者にお問い合わせください。')
+          return
+        } else {
+          setError(`API エラー (${response.status}): ${errorText}`)
+          return
+        }
       }
 
       const result = await response.json()
+      console.log('API Response:', result)
 
       if (result.success) {
-        setGuides(result.guides)
+        setGuides(result.guides || [])
         // Set first guide as default if available
-        if (result.guides.length > 0 && !selectedGuide) {
+        if (result.guides && result.guides.length > 0 && !selectedGuide) {
           setSelectedGuide(result.guides[0].slug)
         }
       } else {
-        setError('ガイドの読み込みに失敗しました: ' + result.error)
+        setError('ガイドの読み込みに失敗しました: ' + (result.error || 'Unknown error'))
       }
     } catch (error: any) {
       console.error('Failed to fetch guides:', error)
       // Handle JSON parse errors specifically
       if (error.message.includes('Unexpected token')) {
-        setError('ガイドAPIが利用できません。データベースマイグレーションが必要な可能性があります。')
+        setError('ガイドAPIからの応答が正しくありません。システム管理者にお問い合わせください。')
       } else {
         setError('ガイドの読み込みに失敗しました: ' + error.message)
       }
