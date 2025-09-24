@@ -3029,6 +3029,21 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
       });
     }
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(packageId)) {
+      return new Response(JSON.stringify({
+        error: 'Invalid package ID format. Expected UUID format.',
+        details: `Received: "${packageId}"`
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     console.log('Downloading package:', packageId);
 
     const supabase = getSupabaseClient(env);
@@ -3066,6 +3081,20 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
           error: 'Package not found'
         }), {
           status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+
+      // UUID format error
+      if (packageError.code === '22P02' && packageError.message?.includes('invalid input syntax for type uuid')) {
+        return new Response(JSON.stringify({
+          error: 'Invalid package ID format. Expected UUID.',
+          details: `Package ID "${packageId}" is not a valid UUID format.`
+        }), {
+          status: 400,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
