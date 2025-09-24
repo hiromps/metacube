@@ -68,7 +68,8 @@ export async function processAteGeneration(queueId: string, env: any): Promise<b
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Create a simple test .ate file content (Base64 encoded ZIP-like structure)
-    const testFileContent = Buffer.from('PK\x03\x04\x14\x00\x00\x00\x00\x00test.ate').toString('base64');
+    const encoder = new TextEncoder();
+    const testFileContent = btoa(String.fromCharCode(...encoder.encode('PK\x03\x04\x14\x00\x00\x00\x00\x00test.ate')));
     const fileName = `smartgram_${queueItem.device_id}.ate`;
     const filePath = `generated/${queueId}/${fileName}`;
 
