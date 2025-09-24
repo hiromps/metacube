@@ -237,76 +237,128 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDownloadPackage = async () => {
+  // .ate file download states
+  const [ateStatus, setAteStatus] = useState<any>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  // Check .ate file status on mount and data change
+  useEffect(() => {
+    if (userData?.device?.device_hash) {
+      checkAteStatus()
+    }
+  }, [userData?.device?.device_hash])
+
+  const checkAteStatus = async () => {
+    if (!userData?.device?.device_hash) return
+
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error('認証が必要です')
+      const response = await fetch(`/api/ate/status?device_hash=${userData.device.device_hash}`)
+      const result = await response.json()
+
+      if (result.success) {
+        setAteStatus(result)
+      }
+    } catch (error) {
+      console.error('Failed to check .ate status:', error)
+    }
+  }
+
+  const handleGenerateAteFile = async () => {
+    if (!userData?.device?.device_hash || isGenerating) return
+
+    setIsGenerating(true)
+    setError('')
+
+    try {
+      // Step 1: Queue generation
+      const generateResponse = await fetch('/api/ate/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_hash: userData.device.device_hash,
+          template: 'smartgram',
+          priority: 1
+        })
+      })
+
+      const generateResult = await generateResponse.json()
+
+      if (!generateResponse.ok) {
+        throw new Error(generateResult.error || '.ateファイル生成に失敗しました')
       }
 
-      const response = await fetch('/api/download/package', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+      // Step 2: Trigger scheduler
+      const schedulerResponse = await fetch('/api/ate-scheduler/run', {
+        method: 'POST'
       })
+
+      if (schedulerResponse.ok) {
+        // Step 3: Wait a moment then check status
+        setTimeout(() => {
+          checkAteStatus()
+        }, 3000)
+
+        alert(`✅ .ateファイル生成を開始しました！\n\n推定完了時間: ${generateResult.estimated_time}\nページを更新すると最新の状態を確認できます。`)
+      } else {
+        alert('⚠️ 生成はキューに追加されましたが、スケジューラーの開始に失敗しました。しばらく待ってからページを更新してください。')
+      }
+
+    } catch (error: any) {
+      console.error('Generate .ate file error:', error)
+      setError(error.message || '.ateファイル生成に失敗しました')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleDownloadAteFile = async () => {
+    if (!ateStatus?.ate_file_id || isDownloading) return
+
+    setIsDownloading(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/ate/download/${ateStatus.ate_file_id}`)
 
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'ダウンロードに失敗しました')
       }
 
-      // ファイルダウンロード処理
+      // Download file
       const blob = await response.blob()
-      const packageType = response.headers.get('X-Package-Type') || 'unknown'
-      const packageVersion = response.headers.get('X-Package-Version')
-      const uploadDate = response.headers.get('X-Upload-Date')
-
-      // ファイル名を決定
-      let fileName = 'smartgram.ate'
-      const contentDisposition = response.headers.get('Content-Disposition')
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/)
-        if (match) {
-          fileName = match[1]
-        }
-      }
-
-      // ダウンロード実行
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.style.display = 'none'
       a.href = url
-      a.download = fileName
+      a.download = ateStatus.filename
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      // パッケージタイプに応じたメッセージ
-      let message = '🔒 セキュア.ateパッケージをダウンロードしました！\n\n'
+      // Update status
+      checkAteStatus()
 
-      if (packageType === 'custom') {
-        message += '🎯 管理者カスタム.ateパッケージ\n'
-        if (packageVersion) message += `バージョン: ${packageVersion}\n`
-        if (uploadDate) message += `作成日: ${new Date(uploadDate).toLocaleString()}\n`
-        message += '\n✅ コード保護済み（.ateファイル形式）\n'
-        message += '✅ 完全ローカル認証（API通信不要）\n\n'
-        message += 'Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置してください。'
-      } else {
-        message += '🔧 自動生成.ateパッケージ\n'
-        message += '✅ コード保護済み（.ateファイル形式）\n'
-        message += '✅ 完全ローカル認証（API通信不要）\n\n'
-        message += 'Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置してください。'
-      }
-
-      alert(message)
+      alert(`🎉 ${ateStatus.filename} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
 
     } catch (error: any) {
-      console.error('Download package error:', error)
+      console.error('Download .ate file error:', error)
       setError(error.message || 'ダウンロードに失敗しました')
+    } finally {
+      setIsDownloading(false)
     }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   const formatDate = (dateString: string | null) => {
@@ -606,14 +658,14 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Download Package Section */}
+            {/* Download .ate Package Section */}
             {userData.device && (
               <div className="bg-gradient-to-br from-orange-800/30 via-yellow-800/20 to-amber-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-orange-500/10">
-                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">📦 専用パッケージダウンロード</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-3">📦 専用.ateパッケージダウンロード</h3>
                 <div className="space-y-4">
                   <div className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
                     <p className="text-white/80 text-sm md:text-base mb-3">
-                      あなた専用のsmartgram.ateファイルをダウンロードできます。このファイルには以下が含まれています：
+                      あなた専用のsmartgram.ateファイルを生成・ダウンロードできます。このファイルには以下が含まれています：
                     </p>
                     <ul className="space-y-1 text-sm text-white/70 mb-4">
                       <li className="flex items-center gap-2">
@@ -634,27 +686,85 @@ export default function DashboardPage() {
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="text-blue-400">🔒</span>
-                        <span>コード保護済み（.ateファイル形式）</span>
+                        <span>AES-256-GCM暗号化保護</span>
                       </li>
                     </ul>
                   </div>
 
+                  {/* File Status */}
+                  {ateStatus && (
+                    <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-blue-300 text-sm md:text-base">
+                            {ateStatus.is_ready ? '✅ ダウンロード準備完了' : '🔄 生成中...'}
+                          </p>
+                          {ateStatus.filename && (
+                            <p className="text-white/70 text-xs md:text-sm">
+                              ファイル名: {ateStatus.filename}
+                            </p>
+                          )}
+                          {ateStatus.file_size_bytes && (
+                            <p className="text-white/70 text-xs md:text-sm">
+                              サイズ: {formatFileSize(ateStatus.file_size_bytes)}
+                            </p>
+                          )}
+                          {ateStatus.download_count > 0 && (
+                            <p className="text-white/70 text-xs md:text-sm">
+                              ダウンロード回数: {ateStatus.download_count}回
+                            </p>
+                          )}
+                        </div>
+                        {ateStatus.is_ready && (
+                          <Button
+                            onClick={handleDownloadAteFile}
+                            disabled={isDownloading}
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg border border-white/20 disabled:opacity-50"
+                            size="md"
+                          >
+                            {isDownloading ? '⬇️ ダウンロード中...' : '⬇️ ダウンロード'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-blue-500/10 border border-blue-400/30 p-3 md:p-4 rounded-xl backdrop-blur-sm">
                     <h4 className="font-medium text-blue-300 mb-2 text-sm md:text-base">📋 設置方法</h4>
                     <ol className="space-y-1 text-xs md:text-sm text-white/70">
-                      <li>1. 下のボタンからダウンロード</li>
+                      <li>1. 下のボタンから.ateファイルを生成/ダウンロード</li>
                       <li>2. Filza File Managerを使って var/mobile/Library/AutoTouch/Scripts ディレクトリに配置</li>
-                      <li>3. main.luaを実行してツールを起動</li>
+                      <li>3. AutoTouchでmain.luaを実行してツールを起動</li>
                     </ol>
                   </div>
 
-                  <div className="flex justify-center">
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {!ateStatus?.is_ready && (
+                      <Button
+                        onClick={handleGenerateAteFile}
+                        disabled={isGenerating}
+                        className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
+                        size="lg"
+                      >
+                        {isGenerating ? '🔄 生成中...' : '🔧 .ateファイルを生成'}
+                      </Button>
+                    )}
+                    {ateStatus?.is_ready && (
+                      <Button
+                        onClick={handleDownloadAteFile}
+                        disabled={isDownloading}
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
+                        size="lg"
+                      >
+                        {isDownloading ? '⬇️ ダウンロード中...' : '📦 .ateファイルをダウンロード'}
+                      </Button>
+                    )}
                     <Button
-                      onClick={handleDownloadPackage}
-                      className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-xl border border-white/20 px-6 py-3"
+                      onClick={checkAteStatus}
+                      className="bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-sm px-4 py-3"
                       size="lg"
                     >
-                      📦 専用パッケージをダウンロード
+                      🔄 状態更新
                     </Button>
                   </div>
                 </div>
