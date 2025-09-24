@@ -36,6 +36,7 @@ export async function onRequest(context: any) {
 
   console.log('🚀 API Request received - Path:', path, 'URL:', request.url, 'Method:', request.method);
   console.log('🔍 Full params:', params);
+  console.log('🔍 Raw path array:', params.path);
 
   // Health check endpoint for debugging
   if (path === 'health' || path === '') {
@@ -101,7 +102,7 @@ export async function onRequest(context: any) {
     return handleFeatureCheck(request, env);
   } else if (path === 'download/package') {
     return handleDownloadPackage(request, env);
-  } else if (path === 'admin/upload-package') {
+  } else if (path === 'admin/upload-package' || path === 'admin/upload-package/') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
   } else if (path === 'user-packages/status' || path === 'user-packages/status/' || path.startsWith('user-packages/status?')) {
@@ -109,7 +110,7 @@ export async function onRequest(context: any) {
   } else if (path.startsWith('user-packages/download/')) {
     const packageId = path.split('/')[2];
     return handleUserPackageDownload(request, env, packageId);
-  } else if (path === 'admin/users-list') {
+  } else if (path === 'admin/users-list' || path === 'admin/users-list/') {
     return handleAdminUsersList(request, env);
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
