@@ -7,12 +7,9 @@ SET plan_id = CASE
     WHEN plan_id = 'smartgram_monthly_2980' THEN 'starter'
     WHEN plan_id = 'smartgram_monthly_8800' THEN 'pro'
     WHEN plan_id = 'smartgram_monthly_15000' THEN 'max'
-    WHEN plan_id = 'socialtouch_monthly_2980' THEN 'starter'
-    WHEN plan_id = 'socialtouch_monthly_8800' THEN 'pro'
-    WHEN plan_id = 'socialtouch_monthly_15000' THEN 'max'
     ELSE plan_id
 END
-WHERE plan_id IN ('smartgram_monthly_2980', 'smartgram_monthly_8800', 'smartgram_monthly_15000', 'socialtouch_monthly_2980', 'socialtouch_monthly_8800', 'socialtouch_monthly_15000');
+WHERE plan_id IN ('smartgram_monthly_2980', 'smartgram_monthly_8800', 'smartgram_monthly_15000');
 
 -- Update any other references in devices table if they exist
 UPDATE devices
@@ -61,9 +58,6 @@ BEGIN
         WHEN device_record.plan_id = 'smartgram_monthly_2980' THEN 'starter'
         WHEN device_record.plan_id = 'smartgram_monthly_8800' THEN 'pro'
         WHEN device_record.plan_id = 'smartgram_monthly_15000' THEN 'max'
-        WHEN device_record.plan_id = 'socialtouch_monthly_2980' THEN 'starter'
-        WHEN device_record.plan_id = 'socialtouch_monthly_8800' THEN 'pro'
-        WHEN device_record.plan_id = 'socialtouch_monthly_15000' THEN 'max'
         WHEN device_record.plan_id IS NULL THEN 'starter'
         ELSE COALESCE(device_record.plan_id, 'starter')
     END;
