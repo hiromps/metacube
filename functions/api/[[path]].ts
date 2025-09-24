@@ -20,6 +20,7 @@ import { testTemplateLoad } from './template-manager'
 import { testTemplateLoadSimple } from './template-manager-simple'
 import { testTemplateProcess } from './template-processor'
 import { debugDevices } from './debug-devices'
+import { testCompleteAteGeneration } from './ate-generator-complete'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -168,6 +169,16 @@ export async function onRequest(context: any) {
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
     const result = await debugDevices(env);
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  } else if (path === 'ate/test-complete') {
+    // Test complete .ate generation with encryption
+    const result = await testCompleteAteGeneration(env);
     return new Response(JSON.stringify(result, null, 2), {
       status: 200,
       headers: {
