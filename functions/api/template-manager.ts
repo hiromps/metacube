@@ -18,54 +18,75 @@ function getSupabaseClient(env: any) {
   })
 }
 
-// Load individual files from Supabase Storage
+// Load individual files from Supabase Storage (non-recursive approach)
 async function loadFilesFromStorage(supabase: any, basePath: string): Promise<Map<string, Uint8Array>> {
   const files = new Map<string, Uint8Array>();
 
   try {
     console.log(`🔍 Loading files from storage path: ${basePath}`);
 
-    // Recursively list all files
-    const loadDirectory = async (path: string) => {
+    // Queue-based directory traversal to avoid recursion stack overflow
+    const pathsToProcess = [basePath];
+    const processedPaths = new Set<string>();
+
+    while (pathsToProcess.length > 0) {
+      const currentPath = pathsToProcess.shift()!;
+
+      if (processedPaths.has(currentPath)) {
+        console.log(`⚠️ Skipping already processed path: ${currentPath}`);
+        continue;
+      }
+
+      processedPaths.add(currentPath);
+      console.log(`🔍 Processing path: ${currentPath}`);
+
       const { data: items, error: listError } = await supabase.storage
         .from('templates')
-        .list(path, { limit: 100 });
+        .list(currentPath, { limit: 100 });
 
       if (listError) {
-        throw new Error(`Failed to list files in ${path}: ${listError.message}`);
+        console.error(`❌ Failed to list files in ${currentPath}:`, listError.message);
+        continue;
       }
 
       for (const item of items) {
-        const fullPath = path ? `${path}/${item.name}` : item.name;
+        const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
 
         if (item.metadata?.size !== undefined) {
           // It's a file
-          console.log(`📄 Loading file: ${fullPath}`);
+          console.log(`📄 Loading file: ${fullPath} (${item.metadata.size} bytes)`);
 
-          const { data: fileData, error: downloadError } = await supabase.storage
-            .from('templates')
-            .download(fullPath);
+          try {
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('templates')
+              .download(fullPath);
 
-          if (downloadError) {
-            console.error(`❌ Failed to download ${fullPath}:`, downloadError.message);
+            if (downloadError) {
+              console.error(`❌ Failed to download ${fullPath}:`, downloadError.message);
+              continue;
+            }
+
+            const arrayBuffer = await fileData.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            files.set(fullPath, uint8Array);
+
+            console.log(`✅ Loaded: ${fullPath} (${uint8Array.length} bytes)`);
+          } catch (fileError) {
+            console.error(`❌ Error processing file ${fullPath}:`, fileError);
             continue;
           }
-
-          const arrayBuffer = await fileData.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          files.set(fullPath, uint8Array);
-
-          console.log(`✅ Loaded: ${fullPath} (${uint8Array.length} bytes)`);
         } else {
-          // It's a directory, recurse
-          console.log(`📁 Entering directory: ${fullPath}`);
-          await loadDirectory(fullPath);
+          // It's a directory, add to queue for processing
+          console.log(`📁 Found directory: ${fullPath} - adding to queue`);
+          if (!processedPaths.has(fullPath)) {
+            pathsToProcess.push(fullPath);
+          }
         }
       }
-    };
+    }
 
-    await loadDirectory(basePath);
     console.log(`🎯 Total files loaded: ${files.size}`);
+    console.log(`🎯 Processed paths: ${Array.from(processedPaths)}`);
     return files;
 
   } catch (error) {
