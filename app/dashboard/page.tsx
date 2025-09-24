@@ -322,20 +322,10 @@ export default function DashboardPage() {
         if (generateResult.download_direct) {
           console.log('💾 Starting immediate download');
 
-          // Create download link and trigger download
-          const a = document.createElement('a')
-          a.style.display = 'none'
-          a.href = generateResult.download_direct
-          a.download = generateResult.filename || 'smartgram.ate'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-
-          setGenerationProgress(100)
+          setGenerationProgress(95)
           setCurrentGenerationStep(4)
-          setIsGenerating(false)
 
-          // Update the ate status to show it's ready
+          // Update the ate status FIRST to show it's ready
           setAteStatus({
             success: true,
             is_ready: true,
@@ -343,11 +333,92 @@ export default function DashboardPage() {
             filename: generateResult.filename,
             file_size_bytes: generateResult.file_size || 0,
             expires_at: generateResult.expires_at,
-            download_count: 1,
+            download_count: 0, // Start at 0, will increment when downloaded
             device_hash: userData.device.device_hash
           })
 
-          alert(`🎉 ${generateResult.filename || 'smartgram.ate'} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
+          // Wait a moment to ensure UI updates, then trigger download
+          setTimeout(() => {
+            try {
+              console.log('🚀 Triggering download for:', generateResult.filename);
+
+              // Try multiple download methods for better compatibility
+              const filename = generateResult.filename || 'smartgram.ate'
+
+              // Method 1: Direct data URL download
+              try {
+                const a = document.createElement('a')
+                a.style.display = 'none'
+                a.href = generateResult.download_direct
+                a.download = filename
+                document.body.appendChild(a)
+                a.click()
+
+                // Clean up
+                setTimeout(() => {
+                  if (document.body.contains(a)) {
+                    document.body.removeChild(a)
+                  }
+                }, 1000)
+
+                console.log('✅ Direct data URL download triggered')
+              } catch (directError) {
+                console.log('⚠️ Direct download failed, trying blob method:', directError)
+
+                // Method 2: Blob download (fallback)
+                try {
+                  // Extract base64 data from data URL
+                  const base64Data = generateResult.download_direct.split(',')[1]
+                  const binaryString = atob(base64Data)
+                  const bytes = new Uint8Array(binaryString.length)
+
+                  for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i)
+                  }
+
+                  const blob = new Blob([bytes], { type: 'application/octet-stream' })
+                  const url = window.URL.createObjectURL(blob)
+
+                  const a = document.createElement('a')
+                  a.style.display = 'none'
+                  a.href = url
+                  a.download = filename
+                  document.body.appendChild(a)
+                  a.click()
+
+                  // Clean up
+                  setTimeout(() => {
+                    window.URL.revokeObjectURL(url)
+                    if (document.body.contains(a)) {
+                      document.body.removeChild(a)
+                    }
+                  }, 1000)
+
+                  console.log('✅ Blob download triggered')
+                } catch (blobError) {
+                  console.error('❌ Both download methods failed:', blobError)
+                  throw blobError
+                }
+              }
+
+              setGenerationProgress(100)
+
+              // Keep generation UI open for a moment to show success
+              setTimeout(() => {
+                setIsGenerating(false)
+
+                // Show success message after UI has time to update
+                setTimeout(() => {
+                  alert(`🎉 ${generateResult.filename || 'smartgram.ate'} をダウンロードしました！\n\n✅ 個人専用暗号化ファイル\n✅ デバイスハッシュ事前設定済み\n✅ プラン機能制限適用済み\n\nFilza File Managerでvar/mobile/Library/AutoTouch/Scriptsに配置してください。`)
+                }, 500)
+              }, 1500) // Keep UI open for 1.5 seconds to show completion
+
+            } catch (downloadError) {
+              console.error('Download error:', downloadError)
+              setIsGenerating(false)
+              setError('ダウンロードに失敗しました。ページを更新してください。')
+            }
+          }, 500) // Wait 500ms before triggering download
 
           return;
         }
