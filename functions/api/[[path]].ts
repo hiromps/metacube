@@ -2634,22 +2634,49 @@ async function handleAteGenerate(request: Request, env: any) {
       templateId = templates[0].id;
     }
 
-    // Get or create a valid plan_id from plans table
+    // Try to get ANY existing plan_id from plans table
     let planId;
+    console.log('Looking for existing plans...');
+
     const { data: plans, error: planError } = await supabase
       .from('plans')
       .select('id')
-      .eq('name', 'basic')
       .limit(1);
 
-    if (planError || !plans || plans.length === 0) {
-      // Create a default plan if it doesn't exist
+    console.log('Plans query result:', { plans, planError });
+
+    if (planError) {
+      console.error('Plans table query failed:', planError);
+      // Plans table might not exist - return error instead of random UUID
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Plans table access failed: ${planError.message}`,
+          debug: {
+            planError: planError,
+            suggestion: 'Plans table may not exist or access is restricted'
+          }
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (!plans || plans.length === 0) {
+      // No plans exist, try to create one
+      console.log('No plans found, attempting to create default plan...');
       const { data: newPlan, error: createPlanError } = await supabase
         .from('plans')
         .insert({
           name: 'basic',
           display_name: 'Basic Plan',
           price: 2980,
+          billing_cycle: 'monthly',
           features: {},
           limitations: {},
           is_active: true
@@ -2657,15 +2684,32 @@ async function handleAteGenerate(request: Request, env: any) {
         .select('id')
         .single();
 
+      console.log('Plan creation result:', { newPlan, createPlanError });
+
       if (createPlanError || !newPlan) {
         console.error('Failed to create plan:', createPlanError);
-        // If we can't create plan, try with existing random UUID
-        planId = crypto.randomUUID();
-      } else {
-        planId = newPlan.id;
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Failed to create default plan: ${createPlanError?.message || 'Unknown error'}`,
+            debug: {
+              createPlanError,
+              suggestion: 'Plan creation failed - check table schema and permissions'
+            }
+          }),
+          {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
       }
+      planId = newPlan.id;
     } else {
       planId = plans[0].id;
+      console.log('Using existing plan_id:', planId);
     }
 
     // Insert directly into file_generation_queue
