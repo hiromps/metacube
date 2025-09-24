@@ -12,6 +12,7 @@ import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { PlanInfoCard } from '@/app/components/PlanInfoCard'
+import { ProgressBar } from '@/app/components/ui/ProgressBar'
 
 
 export default function DashboardPage() {
@@ -240,6 +241,8 @@ export default function DashboardPage() {
   const [ateStatus, setAteStatus] = useState<any>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
+  const [currentGenerationStep, setCurrentGenerationStep] = useState(0)
 
   const checkAteStatus = useCallback(async () => {
     if (!userData?.device?.device_hash) return
@@ -268,9 +271,14 @@ export default function DashboardPage() {
 
     setIsGenerating(true)
     setError('')
+    setGenerationProgress(0)
+    setCurrentGenerationStep(0)
 
     try {
       // Step 1: Queue generation
+      setCurrentGenerationStep(0)
+      setGenerationProgress(10)
+
       const generateResponse = await fetch('/api/ate/generate', {
         method: 'POST',
         headers: {
@@ -289,27 +297,79 @@ export default function DashboardPage() {
         throw new Error(generateResult.error || '.ateファイル生成に失敗しました')
       }
 
+      setGenerationProgress(30)
+      setCurrentGenerationStep(1)
+
       // Step 2: Trigger scheduler
       const schedulerResponse = await fetch('/api/ate-scheduler/run', {
         method: 'POST'
       })
 
-      if (schedulerResponse.ok) {
-        // Step 3: Wait a moment then check status
-        setTimeout(() => {
-          checkAteStatus()
-        }, 3000)
+      setGenerationProgress(50)
+      setCurrentGenerationStep(2)
 
-        alert(`✅ .ateファイル生成を開始しました！\n\n推定完了時間: ${generateResult.estimated_time}\nページを更新すると最新の状態を確認できます。`)
+      if (schedulerResponse.ok) {
+        setGenerationProgress(70)
+        setCurrentGenerationStep(3)
+
+        // Step 3: Monitor progress with periodic checks
+        const monitorProgress = async () => {
+          let attempts = 0
+          const maxAttempts = 20 // 40 seconds total (2s * 20)
+
+          const checkProgress = async () => {
+            attempts++
+
+            try {
+              await checkAteStatus()
+
+              // Update progress based on attempts
+              const progressIncrement = 30 / maxAttempts // Remaining 30%
+              setGenerationProgress(prev => Math.min(prev + progressIncrement, 95))
+
+              // Check if file is ready
+              if (ateStatus?.is_ready) {
+                setGenerationProgress(100)
+                setCurrentGenerationStep(4)
+                setIsGenerating(false)
+                return
+              }
+
+              if (attempts < maxAttempts) {
+                setTimeout(checkProgress, 2000) // Check every 2 seconds
+              } else {
+                // Timeout - but file might still be processing
+                setGenerationProgress(95)
+                setIsGenerating(false)
+                setError('生成に時間がかかっています。しばらく待ってからページを更新してください。')
+              }
+            } catch (error) {
+              console.error('Progress check error:', error)
+              if (attempts < maxAttempts) {
+                setTimeout(checkProgress, 2000)
+              } else {
+                setIsGenerating(false)
+                setError('ステータス確認に失敗しました。ページを更新してください。')
+              }
+            }
+          }
+
+          // Start monitoring after a short delay
+          setTimeout(checkProgress, 2000)
+        }
+
+        monitorProgress()
       } else {
-        alert('⚠️ 生成はキューに追加されましたが、スケジューラーの開始に失敗しました。しばらく待ってからページを更新してください。')
+        setError('⚠️ 生成はキューに追加されましたが、スケジューラーの開始に失敗しました。')
+        setIsGenerating(false)
       }
 
     } catch (error: any) {
       console.error('Generate .ate file error:', error)
       setError(error.message || '.ateファイル生成に失敗しました')
-    } finally {
       setIsGenerating(false)
+      setGenerationProgress(0)
+      setCurrentGenerationStep(0)
     }
   }
 
@@ -737,6 +797,25 @@ export default function DashboardPage() {
                     </ol>
                   </div>
 
+                  {/* Progress Bar */}
+                  {isGenerating && (
+                    <div className="mb-6">
+                      <ProgressBar
+                        isActive={isGenerating}
+                        duration={30000} // 30 seconds
+                        steps={[
+                          'キューイング',
+                          'スケジューラー起動',
+                          'ファイル生成開始',
+                          '処理中',
+                          '完了'
+                        ]}
+                        currentStep={currentGenerationStep}
+                        className="bg-black/20 border border-white/10 p-4 rounded-xl backdrop-blur-sm"
+                      />
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     {!ateStatus?.is_ready && (
                       <Button
@@ -749,14 +828,28 @@ export default function DashboardPage() {
                       </Button>
                     )}
                     {ateStatus?.is_ready && (
-                      <Button
-                        onClick={handleDownloadAteFile}
-                        disabled={isDownloading}
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
-                        size="lg"
-                      >
-                        {isDownloading ? '⬇️ ダウンロード中...' : '📦 .ateファイルをダウンロード'}
-                      </Button>
+                      <div className="flex flex-col items-center gap-3">
+                        {/* Download Progress (short duration) */}
+                        {isDownloading && (
+                          <div className="w-full max-w-md">
+                            <ProgressBar
+                              isActive={isDownloading}
+                              duration={3000} // 3 seconds
+                              steps={['準備中', 'ダウンロード']}
+                              className="bg-black/20 border border-white/10 p-3 rounded-lg backdrop-blur-sm text-sm"
+                            />
+                          </div>
+                        )}
+
+                        <Button
+                          onClick={handleDownloadAteFile}
+                          disabled={isDownloading}
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-xl border border-white/20 px-6 py-3 disabled:opacity-50"
+                          size="lg"
+                        >
+                          {isDownloading ? '⬇️ ダウンロード中...' : '📦 .ateファイルをダウンロード'}
+                        </Button>
+                      </div>
                     )}
                     <Button
                       onClick={checkAteStatus}
