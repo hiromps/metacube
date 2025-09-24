@@ -54,7 +54,7 @@ export default function GuidesPage() {
     } finally {
       setGuidesLoading(false)
     }
-  }, [selectedGuide])
+  }, [])
 
   const checkAccess = useCallback(async () => {
     try {

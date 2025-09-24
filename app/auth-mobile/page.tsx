@@ -88,7 +88,7 @@ function AuthMobileContent() {
       setStatus('❌ 登録エラー: ' + (error as Error).message)
       await saveResultToFile({ error: (error as Error).message })
     }
-  }, [searchParams])
+  }, [searchParams, saveResultToFile])
 
   // 結果をファイルに保存（AutoTouchが読み取り可能な場所）
   const saveResultToFile = useCallback(async (data: any) => {

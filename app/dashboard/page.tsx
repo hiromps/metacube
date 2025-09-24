@@ -344,7 +344,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setIsDownloading(false)
     checkAdminStatus()
-  }, [])
+  }, [checkAdminStatus])
 
   const handleDownloadPackage = async () => {
     if (!packageStatus?.package_id || isDownloading) return

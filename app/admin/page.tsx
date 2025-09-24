@@ -763,9 +763,9 @@ export default function AdminPage() {
             <ul className="list-disc list-inside space-y-1">
               <li>Create and manage guide pages that appear on the /guides page</li>
               <li>Use Markdown formatting in the content field for rich text</li>
-              <li>Set "Requires Access" to true for premium content</li>
+              <li>Set &quot;Requires Access&quot; to true for premium content</li>
               <li>Sort order determines the display order (lower numbers first)</li>
-              <li>Unpublished guides are drafts and won't appear to users</li>
+              <li>Unpublished guides are drafts and won&apos;t appear to users</li>
             </ul>
           </div>
         </div>
