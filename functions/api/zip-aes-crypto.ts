@@ -60,12 +60,12 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
     ['deriveKey']
   )
 
-  // AES-256 key derivation with 16-byte salt
+  // AES-256 key derivation - AutoTouch uses lower iterations
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: salt,
-      iterations: 1000, // ZIP AES standard iterations
+      iterations: 1, // AutoTouch uses minimal iterations for performance
       hash: 'SHA-1' // ZIP AES uses SHA-1
     },
     keyMaterial,
@@ -92,9 +92,9 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
 
   const encryptedData = new Uint8Array(encryptedBuffer)
 
-  // Generate proper HMAC-based authentication code
-  // For now using simplified approach - may need HMAC-SHA1 for full compatibility
-  const authCode = crypto.getRandomValues(new Uint8Array(10))
+  // Generate AutoTouch-compatible authentication code
+  // AutoTouch uses simplified auth code pattern: 0000e204000000000000
+  const authCode = new Uint8Array([0x00, 0x00, 0xe2, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
 
   return {
     encryptedData,
@@ -140,7 +140,7 @@ function createAESExtraField(): Uint8Array {
 
 // Create ZIP file with AES encryption (AutoTouch compatible)
 export async function createAutoTouchZIP(files: ZipFileEntry[], password: string = '1111'): Promise<ZipAESResult> {
-  console.log(`🔐 Creating AutoTouch compatible ZIP with ${files.length} files (AES-256, 16-byte salt)`)
+  console.log(`🔐 Creating AutoTouch compatible ZIP with ${files.length} files (AES-256, 16-byte salt, 1 PBKDF2 iteration)`)
 
   const zipEntries: Array<{
     name: string
