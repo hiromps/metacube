@@ -33,13 +33,54 @@ export async function generateExactATE(device_hash: string, env?: any) {
       }
     }
 
-    // Ensure both files have content (AutoTouch requires both)
-    if (!workerContent) {
-      workerContent = '-- AutoTouch Worker Script\n-- Device: ' + device_hash + '\n\nprint("Worker initialized")\n'
-    }
-    if (!indexContent) {
-      indexContent = '-- AutoTouch Index Script\n-- Device: ' + device_hash + '\n\nrequire("worker")\nprint("Index initialized")\n'
-    }
+    // Create simple test Lua scripts for AutoTouch
+    workerContent = `-- SMARTGRAM Worker Script
+-- Device: ${device_hash}
+-- Protected by ATE encryption
+
+print("SMARTGRAM Worker initialized")
+print("Device Hash: ${device_hash}")
+
+-- Simple demo function
+function demo_automation()
+    print("Starting demo automation...")
+    toast("SMARTGRAM Script Running!", 2)
+
+    -- Wait 2 seconds
+    mSleep(2000)
+
+    print("Demo automation completed")
+    return true
+end
+
+-- Export the function
+return { demo = demo_automation }
+`
+
+    indexContent = `-- SMARTGRAM Index Script
+-- Main entry point
+
+print("SMARTGRAM Index loaded")
+print("Device: ${device_hash}")
+
+-- Load worker module
+local worker = require("worker")
+
+-- Execute demo
+if worker and worker.demo then
+    local success = worker.demo()
+    if success then
+        print("Script execution successful")
+        toast("SMARTGRAM Demo Complete!", 2)
+    else
+        print("Script execution failed")
+    end
+else
+    print("Worker module not found")
+end
+
+print("Index script finished")
+`
 
     const ateEntries: AutoTouchFileEntry[] = [
       {

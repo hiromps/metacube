@@ -38,38 +38,11 @@ class CRC32 {
   }
 }
 
-// Deflate compression (simplified implementation - uses pako library concept)
-async function deflateCompress(data: Uint8Array): Promise<Uint8Array> {
-  // For Cloudflare Workers, we'll use the Compression Streams API
-  const cs = new CompressionStream('deflate')
-  const writer = cs.writable.getWriter()
-
-  // Convert Uint8Array to ArrayBuffer for CompressionStream
-  const buffer = new ArrayBuffer(data.byteLength)
-  new Uint8Array(buffer).set(data)
-
-  writer.write(buffer)
-  writer.close()
-
-  const chunks: Uint8Array[] = []
-  const reader = cs.readable.getReader()
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    chunks.push(value)
-  }
-
-  // Combine chunks
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0)
-  const result = new Uint8Array(totalLength)
-  let offset = 0
-  for (const chunk of chunks) {
-    result.set(chunk, offset)
-    offset += chunk.length
-  }
-
-  return result
+// Use stored (no compression) to avoid Deflate64 compatibility issues
+async function storeData(data: Uint8Array): Promise<Uint8Array> {
+  // Return data as-is (stored method)
+  console.log(`📦 Using stored method (no compression) for ${data.length} bytes`)
+  return data
 }
 
 // AES encryption for AutoTouch (vendor version 0x0003)
@@ -167,8 +140,8 @@ function createAutoTouchExtraField(): Uint8Array {
   // AES strength (0x08 for AutoTouch custom)
   extraField[8] = 0x08
 
-  // Actual compression method (0x0009 for Deflate64)
-  view.setUint16(9, 0x0009, true)
+  // Actual compression method (0x0000 for stored, no compression)
+  view.setUint16(9, 0x0000, true)
 
   return extraField
 }
@@ -206,8 +179,8 @@ export async function createAutoTouchATE(files: AutoTouchFileEntry[], password: 
     // Calculate CRC32 of original data
     const crc32 = CRC32.calculate(fileBytes)
 
-    // Compress data using Deflate
-    const compressedData = await deflateCompress(fileBytes)
+    // Use stored method (no compression) for AutoTouch compatibility
+    const compressedData = await storeData(fileBytes)
 
     // Encrypt the compressed data
     const encryptionResult = await encryptFileAutoTouch(compressedData, password)
