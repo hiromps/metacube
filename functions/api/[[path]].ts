@@ -2591,13 +2591,15 @@ async function handleAteGenerate(request: Request, env: any) {
 
     const device = devices[0];
 
-    // Generate a template_id since it's required by the database
+    // Generate required IDs since they are required by the database
     const templateId = crypto.randomUUID();
+    const planId = crypto.randomUUID();
 
     // Insert directly into file_generation_queue
     const insertData = {
       device_id: device.id,
       template_id: templateId,
+      plan_id: planId,
       priority: priority,
       status: 'queued'
     };
