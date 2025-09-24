@@ -2738,10 +2738,25 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
     }
     planId = plans[0].id;
 
-    // Create file record immediately (no queue)
-    const fileName = `smartgram_${device.id}.ate`;
+    // Get user's plan information for script access control
+    const { data: devicePlan } = await supabase
+      .from('device_plan_view')
+      .select('plan_name, plan_features')
+      .eq('device_hash', device_hash.toUpperCase())
+      .single();
+
+    const planFeatures = devicePlan?.plan_features || {
+      timeline_lua: true,
+      follow_lua: false,
+      unfollow_lua: false,
+      hashtaglike_lua: false,
+      activelike_lua: false
+    };
+
+    // Create real .ate file content with plan-based scripts
+    const ateContent = await generateRealAteFile(device_hash, planFeatures);
+    const fileName = `smartgram_${device_hash}_${Date.now()}.ate`;
     const filePath = `generated/${device_hash}/${fileName}`;
-    const testContent = Buffer.from(`SMARTGRAM AutoTouch Package\nDevice: ${device_hash}\nGenerated: ${new Date().toISOString()}\n\nThis is a test .ate file.`).toString('base64');
 
     const { data: fileRecord, error: fileError } = await supabase
       .from('ate_files')
@@ -2751,16 +2766,18 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
         plan_id: planId,
         filename: fileName,
         file_path: filePath,
-        file_size_bytes: testContent.length,
+        file_size_bytes: ateContent.content.length,
         checksum: 'test-' + Date.now(),
         encryption_key_hash: 'test-key-' + Date.now(),
         encryption_algorithm: 'AES-256-GCM',
         generated_variables: {
           device_hash: device_hash,
-          plan_name: 'starter',
+          plan_name: devicePlan?.plan_name || 'starter',
           template_name: 'smartgram',
           generated_at: new Date().toISOString(),
-          version: '1.0.0'
+          version: '1.0.0',
+          included_scripts: ateContent.includedScripts,
+          plan_features: planFeatures
         },
         generation_status: 'success',
         is_active: true,
@@ -2795,11 +2812,20 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
       }
     );
   } catch (error) {
-    console.error('Error in immediate generation:', error);
+    console.error('Detailed error in immediate generation:', error);
+
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack
+      name: error.name
+    } : { message: String(error) };
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Failed to generate .ate file immediately'
+        error: 'Failed to generate .ate file immediately',
+        details: errorDetails,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 500,
@@ -2810,6 +2836,413 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
       }
     );
   }
+}
+
+// Generate real AutoTouch .ate file content with plan-based scripts
+async function generateRealAteFile(deviceHash: string, planFeatures: any): Promise<{ content: string; includedScripts: string[] }> {
+  const includedScripts: string[] = [];
+
+  // Main script (always included)
+  const mainLua = `-- SMARTGRAM AutoTouch Main Script
+-- Generated for device: ${deviceHash}
+-- Plan features: ${JSON.stringify(planFeatures)}
+-- Generated at: ${new Date().toISOString()}
+
+toast("SMARTGRAM v1.0 - Device: ${deviceHash}", 3);
+
+-- License verification
+local device_hash = "${deviceHash}"
+local license_info = nil
+
+function checkLicense()
+    local http = require("http")
+    local url = "https://smartgram.jp/api/license/verify"
+    local data = '{"device_hash":"' .. device_hash .. '"}'
+
+    local response = http.post(url, data, {["Content-Type"] = "application/json"})
+    if response and response.statusCode == 200 then
+        license_info = json.decode(response.body)
+        if license_info.is_valid then
+            toast("ライセンス認証成功: " .. license_info.license_type, 2)
+            return true
+        else
+            toast("ライセンス無効: " .. (license_info.message or "Unknown error"), 3)
+            return false
+        end
+    else
+        toast("ライセンス確認失敗", 3)
+        return false
+    end
+end
+
+-- Main menu
+function showMainMenu()
+    if not checkLicense() then
+        return
+    end
+
+    local script_access = license_info.script_access or {}
+    local available_tools = {}
+
+    ${planFeatures.timeline_lua ? 'if script_access.timeline_lua then table.insert(available_tools, "Timeline Auto Like") end' : ''}
+    ${planFeatures.follow_lua ? 'if script_access.follow_lua then table.insert(available_tools, "Auto Follow") end' : ''}
+    ${planFeatures.unfollow_lua ? 'if script_access.unfollow_lua then table.insert(available_tools, "Auto Unfollow") end' : ''}
+    ${planFeatures.hashtaglike_lua ? 'if script_access.hashtaglike_lua then table.insert(available_tools, "Hashtag Like") end' : ''}
+    ${planFeatures.activelike_lua ? 'if script_access.activelike_lua then table.insert(available_tools, "Active Like") end' : ''}
+
+    table.insert(available_tools, "Exit")
+
+    local choice = alert("SMARTGRAM - " .. license_info.license_type, "利用可能な機能を選択してください:", 0, unpack(available_tools))
+
+    if choice == 1 and script_access.timeline_lua then
+        runTimelineScript()
+    elseif choice == 2 and script_access.follow_lua then
+        runFollowScript()
+    elseif choice == 3 and script_access.unfollow_lua then
+        runUnfollowScript()
+    elseif choice == 4 and script_access.hashtaglike_lua then
+        runHashtagLikeScript()
+    elseif choice == 5 and script_access.activelike_lua then
+        runActiveLikeScript()
+    end
+end
+
+showMainMenu()
+`;
+  includedScripts.push('main.lua');
+
+  // Timeline script (STARTER and above)
+  let timelineLua = '';
+  if (planFeatures.timeline_lua) {
+    timelineLua = `-- Timeline Auto Like Script
+-- SMARTGRAM Timeline Automation
+
+function runTimelineScript()
+    toast("Timeline自動いいね開始", 2)
+
+    -- Instagram app activation
+    activateApplication("com.burbn.instagram")
+    usleep(2000000)
+
+    -- Navigate to timeline
+    touchDown(0, 195, 812)
+    usleep(100000)
+    touchUp(0, 195, 812)
+    usleep(2000000)
+
+    -- Auto-like posts
+    local like_count = 0
+    local max_likes = 50
+
+    for i = 1, max_likes do
+        -- Double tap to like
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(100000)
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(1000000)
+
+        -- Scroll down
+        touchDown(0, 400, 700)
+        usleep(100000)
+        touchMove(0, 400, 300)
+        usleep(100000)
+        touchUp(0, 400, 300)
+        usleep(2000000)
+
+        like_count = like_count + 1
+
+        if i % 10 == 0 then
+            toast("いいね数: " .. like_count, 1)
+        end
+    end
+
+    toast("Timeline自動いいね完了: " .. like_count .. "件", 3)
+end
+`;
+    includedScripts.push('timeline.lua');
+  }
+
+  // Follow script (PRO and above)
+  let followLua = '';
+  if (planFeatures.follow_lua) {
+    followLua = `-- Auto Follow Script
+-- SMARTGRAM Follow Automation
+
+function runFollowScript()
+    toast("自動フォロー開始", 2)
+
+    activateApplication("com.burbn.instagram")
+    usleep(2000000)
+
+    -- Navigate to explore page
+    touchDown(0, 268, 812)
+    usleep(100000)
+    touchUp(0, 268, 812)
+    usleep(2000000)
+
+    local follow_count = 0
+    local max_follows = 20
+
+    for i = 1, max_follows do
+        -- Tap on user profile
+        touchDown(0, 200 + (i % 3) * 100, 400 + (i % 4) * 150)
+        usleep(100000)
+        touchUp(0, 200 + (i % 3) * 100, 400 + (i % 4) * 150)
+        usleep(3000000)
+
+        -- Follow button
+        touchDown(0, 350, 250)
+        usleep(100000)
+        touchUp(0, 350, 250)
+        usleep(1000000)
+
+        -- Back
+        touchDown(0, 50, 100)
+        usleep(100000)
+        touchUp(0, 50, 100)
+        usleep(2000000)
+
+        follow_count = follow_count + 1
+
+        if i % 5 == 0 then
+            toast("フォロー数: " .. follow_count, 1)
+        end
+    end
+
+    toast("自動フォロー完了: " .. follow_count .. "件", 3)
+end
+`;
+    includedScripts.push('follow.lua');
+  }
+
+  // Unfollow script (PRO and above)
+  let unfollowLua = '';
+  if (planFeatures.unfollow_lua) {
+    unfollowLua = `-- Auto Unfollow Script
+-- SMARTGRAM Unfollow Automation
+
+function runUnfollowScript()
+    toast("自動アンフォロー開始", 2)
+
+    activateApplication("com.burbn.instagram")
+    usleep(2000000)
+
+    -- Navigate to profile
+    touchDown(0, 487, 812)
+    usleep(100000)
+    touchUp(0, 487, 812)
+    usleep(2000000)
+
+    -- Following list
+    touchDown(0, 300, 300)
+    usleep(100000)
+    touchUp(0, 300, 300)
+    usleep(3000000)
+
+    local unfollow_count = 0
+    local max_unfollows = 10
+
+    for i = 1, max_unfollows do
+        -- Following button
+        touchDown(0, 400, 200 + i * 80)
+        usleep(100000)
+        touchUp(0, 400, 200 + i * 80)
+        usleep(1000000)
+
+        -- Confirm unfollow
+        touchDown(0, 300, 400)
+        usleep(100000)
+        touchUp(0, 300, 400)
+        usleep(2000000)
+
+        unfollow_count = unfollow_count + 1
+
+        if i % 3 == 0 then
+            toast("アンフォロー数: " .. unfollow_count, 1)
+        end
+    end
+
+    toast("自動アンフォロー完了: " .. unfollow_count .. "件", 3)
+end
+`;
+    includedScripts.push('unfollow.lua');
+  }
+
+  // Hashtag Like script (MAX only)
+  let hashtagLikeLua = '';
+  if (planFeatures.hashtaglike_lua) {
+    hashtagLikeLua = `-- Hashtag Like Script
+-- SMARTGRAM Hashtag Automation
+
+function runHashtagLikeScript()
+    local hashtag = inputText("ハッシュタグ入力", "いいねするハッシュタグを入力してください:", "", "実行", "キャンセル")
+    if not hashtag or hashtag == "" then
+        return
+    end
+
+    toast("ハッシュタグ #" .. hashtag .. " でいいね開始", 2)
+
+    activateApplication("com.burbn.instagram")
+    usleep(2000000)
+
+    -- Search tab
+    touchDown(0, 268, 812)
+    usleep(100000)
+    touchUp(0, 268, 812)
+    usleep(2000000)
+
+    -- Search box
+    touchDown(0, 200, 150)
+    usleep(100000)
+    touchUp(0, 200, 150)
+    usleep(1000000)
+
+    -- Type hashtag
+    inputText("", "", hashtag, "検索", "")
+    usleep(3000000)
+
+    -- Select hashtag
+    touchDown(0, 200, 250)
+    usleep(100000)
+    touchUp(0, 200, 250)
+    usleep(3000000)
+
+    local like_count = 0
+    local max_likes = 30
+
+    for i = 1, max_likes do
+        -- Tap post
+        touchDown(0, 100 + (i % 3) * 100, 300 + (i % 3) * 100)
+        usleep(100000)
+        touchUp(0, 100 + (i % 3) * 100, 300 + (i % 3) * 100)
+        usleep(3000000)
+
+        -- Double tap like
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(100000)
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(1000000)
+
+        -- Back
+        touchDown(0, 50, 100)
+        usleep(100000)
+        touchUp(0, 50, 100)
+        usleep(2000000)
+
+        like_count = like_count + 1
+
+        if i % 5 == 0 then
+            toast("ハッシュタグいいね数: " .. like_count, 1)
+        end
+    end
+
+    toast("ハッシュタグいいね完了: " .. like_count .. "件", 3)
+end
+`;
+    includedScripts.push('hashtaglike.lua');
+  }
+
+  // Active Like script (MAX only)
+  let activeLikeLua = '';
+  if (planFeatures.activelike_lua) {
+    activeLikeLua = `-- Active Like Script
+-- SMARTGRAM Active User Targeting
+
+function runActiveLikeScript()
+    toast("アクティブユーザーいいね開始", 2)
+
+    activateApplication("com.burbn.instagram")
+    usleep(2000000)
+
+    -- Navigate to activity tab
+    touchDown(0, 410, 812)
+    usleep(100000)
+    touchUp(0, 410, 812)
+    usleep(2000000)
+
+    -- Following tab
+    touchDown(0, 300, 200)
+    usleep(100000)
+    touchUp(0, 300, 200)
+    usleep(2000000)
+
+    local active_likes = 0
+    local max_active_likes = 25
+
+    for i = 1, max_active_likes do
+        -- Tap on activity
+        touchDown(0, 200, 250 + i * 60)
+        usleep(100000)
+        touchUp(0, 200, 250 + i * 60)
+        usleep(3000000)
+
+        -- Like the post
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(100000)
+        touchDown(0, 400, 600)
+        usleep(50000)
+        touchUp(0, 400, 600)
+        usleep(1000000)
+
+        -- Back to activity
+        touchDown(0, 50, 100)
+        usleep(100000)
+        touchUp(0, 50, 100)
+        usleep(2000000)
+
+        active_likes = active_likes + 1
+
+        if i % 5 == 0 then
+            toast("アクティブいいね数: " .. active_likes, 1)
+        end
+    end
+
+    toast("アクティブいいね完了: " .. active_likes .. "件", 3)
+end
+`;
+    includedScripts.push('activelike.lua');
+  }
+
+  // Create .ate file structure (JSON format representing ZIP contents)
+  const ateStructure = {
+    format: "SMARTGRAM_ATE_v1.0",
+    device_hash: deviceHash,
+    generated_at: new Date().toISOString(),
+    plan_features: planFeatures,
+    files: {
+      "main.lua": mainLua,
+      ...(timelineLua && { "timeline.lua": timelineLua }),
+      ...(followLua && { "follow.lua": followLua }),
+      ...(unfollowLua && { "unfollow.lua": unfollowLua }),
+      ...(hashtagLikeLua && { "hashtaglike.lua": hashtagLikeLua }),
+      ...(activeLikeLua && { "activelike.lua": activeLikeLua }),
+      "config.json": JSON.stringify({
+        device_hash: deviceHash,
+        version: "1.0.0",
+        plan_features: planFeatures,
+        included_scripts: includedScripts,
+        generated_at: new Date().toISOString()
+      }, null, 2)
+    }
+  };
+
+  // Convert to base64 for storage
+  const content = Buffer.from(JSON.stringify(ateStructure, null, 2)).toString('base64');
+
+  return {
+    content,
+    includedScripts
+  };
 }
 
 // Queue .ate file generation (original async method)
