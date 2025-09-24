@@ -1,5 +1,6 @@
 // Template Manager for reading and processing .at templates from Supabase Storage
 import { createClient } from '@supabase/supabase-js'
+import { unzip } from 'fflate'
 
 // Initialize Supabase client
 function getSupabaseClient(env: any) {
@@ -18,81 +19,41 @@ function getSupabaseClient(env: any) {
   })
 }
 
-// Extract ZIP archive in Cloudflare Workers environment
+// Extract ZIP archive using fflate library
 async function extractZipArchive(zipBuffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
-  const files = new Map<string, Uint8Array>();
+  return new Promise((resolve, reject) => {
+    try {
+      console.log(`🔍 Starting ZIP extraction with fflate - buffer size: ${zipBuffer.byteLength} bytes`);
 
-  try {
-    // Simple ZIP parsing for Cloudflare Workers
-    const dataView = new DataView(zipBuffer);
-    const decoder = new TextDecoder('utf-8');
+      const zipData = new Uint8Array(zipBuffer);
 
-    // Find End of Central Directory Record
-    let eocdOffset = -1;
-    for (let i = zipBuffer.byteLength - 22; i >= 0; i--) {
-      if (dataView.getUint32(i, true) === 0x06054b50) { // EOCD signature
-        eocdOffset = i;
-        break;
-      }
-    }
+      unzip(zipData, (err, extracted) => {
+        if (err) {
+          console.error('❌ ZIP extraction error:', err);
+          reject(new Error(`ZIP extraction failed: ${err.message}`));
+          return;
+        }
 
-    if (eocdOffset === -1) {
-      throw new Error('Invalid ZIP file: EOCD not found');
-    }
+        const files = new Map<string, Uint8Array>();
 
-    const centralDirEntries = dataView.getUint16(eocdOffset + 8, true);
-    const centralDirOffset = dataView.getUint32(eocdOffset + 16, true);
-
-    // Read central directory entries
-    let currentOffset = centralDirOffset;
-    for (let i = 0; i < centralDirEntries; i++) {
-      if (dataView.getUint32(currentOffset, true) !== 0x02014b50) { // Central dir header signature
-        break;
-      }
-
-      const fileNameLength = dataView.getUint16(currentOffset + 28, true);
-      const extraFieldLength = dataView.getUint16(currentOffset + 30, true);
-      const commentLength = dataView.getUint16(currentOffset + 32, true);
-      const localHeaderOffset = dataView.getUint32(currentOffset + 42, true);
-
-      // Extract file name
-      const fileNameBytes = new Uint8Array(zipBuffer, currentOffset + 46, fileNameLength);
-      const fileName = decoder.decode(fileNameBytes);
-
-      // Skip directories
-      if (!fileName.endsWith('/')) {
-        // Read local file header
-        const localSig = dataView.getUint32(localHeaderOffset, true);
-        if (localSig === 0x04034b50) { // Local file header signature
-          const compMethod = dataView.getUint16(localHeaderOffset + 8, true);
-          const compSize = dataView.getUint32(localHeaderOffset + 18, true);
-          const uncompSize = dataView.getUint32(localHeaderOffset + 22, true);
-          const localFileNameLength = dataView.getUint16(localHeaderOffset + 26, true);
-          const localExtraLength = dataView.getUint16(localHeaderOffset + 28, true);
-
-          const fileDataOffset = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
-
-          if (compMethod === 0) { // No compression
-            const fileData = new Uint8Array(zipBuffer, fileDataOffset, uncompSize);
+        for (const [fileName, fileData] of Object.entries(extracted)) {
+          if (!fileName.endsWith('/')) { // Skip directories
             files.set(fileName, fileData);
+            console.log(`📄 Extracted: ${fileName} (${fileData.length} bytes)`);
           } else {
-            console.warn(`⚠️ Skipping compressed file: ${fileName} (compression method: ${compMethod})`);
-            // For now, we'll skip compressed files as decompression requires additional libraries
-            // In production, we'd need to implement deflate decompression or use a library
+            console.log(`📁 Skipped directory: ${fileName}`);
           }
         }
-      }
 
-      currentOffset += 46 + fileNameLength + extraFieldLength + commentLength;
+        console.log(`✅ Successfully extracted ${files.size} files from ZIP archive`);
+        resolve(files);
+      });
+
+    } catch (error) {
+      console.error('❌ ZIP extraction setup error:', error);
+      reject(error);
     }
-
-    console.log(`📦 Extracted ${files.size} files from ZIP archive`);
-    return files;
-
-  } catch (error) {
-    console.error('❌ ZIP extraction error:', error);
-    throw error;
-  }
+  });
 }
 
 // Load template from Supabase Storage
