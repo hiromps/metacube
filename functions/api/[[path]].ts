@@ -3033,44 +3033,9 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
 
     const supabase = getSupabaseClient(env);
 
-    // Check if user_packages table exists by trying to query it
-    console.log('Checking user_packages table...');
-    const { data: tableCheck, error: tableError } = await supabase
-      .from('user_packages')
-      .select('count(*)')
-      .limit(1);
+    console.log('Querying package data...');
 
-    if (tableError) {
-      console.error('user_packages table error:', tableError);
-
-      if (tableError.code === '42P01' || tableError.message?.includes('relation "user_packages" does not exist')) {
-        return new Response(JSON.stringify({
-          error: 'Package system not available yet. Please contact administrator.',
-          details: 'user_packages table does not exist'
-        }), {
-          status: 503,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      } else {
-        return new Response(JSON.stringify({
-          error: 'Database connection issue',
-          details: tableError.message
-        }), {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      }
-    }
-
-    console.log('Table check passed, querying package data...');
-
-    // Get package data
+    // Get package data (this will catch table existence errors)
     const { data: packageData, error: packageError } = await supabase
       .from('user_packages')
       .select('*')
@@ -3081,6 +3046,21 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
     if (packageError) {
       console.error('Package query error:', packageError);
 
+      // Check for table not found error
+      if (packageError.code === '42P01' || packageError.message?.includes('relation "user_packages" does not exist')) {
+        return new Response(JSON.stringify({
+          error: 'Package system not available yet. Please contact administrator.',
+          details: 'user_packages table does not exist'
+        }), {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+
+      // Check for no rows returned
       if (packageError.code === 'PGRST116') {
         return new Response(JSON.stringify({
           error: 'Package not found'
@@ -3091,18 +3071,20 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
             'Access-Control-Allow-Origin': '*'
           }
         });
-      } else {
-        return new Response(JSON.stringify({
-          error: 'Failed to query package',
-          details: packageError.message
-        }), {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
       }
+
+      // Other database errors
+      return new Response(JSON.stringify({
+        error: 'Failed to query package',
+        details: packageError.message,
+        code: packageError.code
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
     }
 
     if (!packageData) {
