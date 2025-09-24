@@ -138,7 +138,7 @@ export async function onRequest(context: any) {
         'plans/list', 'plans/upgrade', 'plans/downgrade',
         'usage/check', 'usage/increment', 'feature/check',
         'download/package', 'debug/devices', 'health',
-        'admin/upload-package', 'user-packages/status', 'user-packages/download/{id}'
+        'admin/upload-package', 'admin/users-list', 'user-packages/status', 'user-packages/download/{id}'
       ],
       debug_info: {
         raw_params: params,
