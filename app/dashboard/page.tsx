@@ -287,19 +287,49 @@ export default function DashboardPage() {
       const response = await fetch(url)
 
       if (!response.ok) {
+        if (response.status === 404) {
+          console.log('Package system not available yet')
+          setPackageStatus({
+            success: true,
+            is_ready: false,
+            message: 'Package system not yet initialized'
+          })
+          return
+        }
+
         const errorText = await response.text()
-        console.error('Package status check failed:', response.status, errorText)
+        console.warn('Package status check failed:', response.status, errorText)
+
+        // Set a default "not ready" status instead of failing silently
+        setPackageStatus({
+          success: true,
+          is_ready: false,
+          message: 'Package system temporarily unavailable'
+        })
         return
       }
 
       const result = await response.json()
       console.log('Package status result:', result)
 
-      if (result.success) {
+      // Handle both success and expected failure cases
+      if (result.success || result.message) {
         setPackageStatus(result)
+      } else {
+        setPackageStatus({
+          success: true,
+          is_ready: false,
+          message: 'No package available'
+        })
       }
     } catch (error) {
-      console.error('Failed to check package status:', error)
+      console.warn('Failed to check package status:', error)
+      // Set a default status on error instead of leaving undefined
+      setPackageStatus({
+        success: true,
+        is_ready: false,
+        message: 'Unable to check package status'
+      })
     }
   }, [userData?.device?.device_hash])
 
