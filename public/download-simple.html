@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTGRAM Simple AT Package</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #4a6741 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            color: #ecf0f1;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            color: white;
+            padding: 18px 36px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .info {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            text-align: left;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #3498db;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .workflow-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #e67e22, #d35400);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .step {
+            margin: 10px 0;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .step-number {
+            font-weight: bold;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="workflow-badge">📦 AutoTouch ワークフロー対応</div>
+
+        <h1>SMARTGRAM Simple AT</h1>
+        <div class="subtitle">非暗号化パッケージ生成 (.at形式)</div>
+
+        <button class="download-btn" onclick="downloadSimpleAT()">
+            📦 Simple AT パッケージをダウンロード
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>シンプルATパッケージ生成中...</p>
+        </div>
+
+        <div class="info">
+            <h3>🔄 AutoTouch ワークフロー</h3>
+            <div class="step">
+                <span class="step-number">1.</span> このページで .at パッケージをダウンロード
+            </div>
+            <div class="step">
+                <span class="step-number">2.</span> iPhoneのAutotouchに転送
+            </div>
+            <div class="step">
+                <span class="step-number">3.</span> AutoTouchで「Encrypt」を選択
+            </div>
+            <div class="step">
+                <span class="step-number">4.</span> パスワード設定（空白でも可）
+            </div>
+            <div class="step">
+                <span class="step-number">5.</span> .ate ファイルが生成される
+            </div>
+            <div class="step">
+                <span class="step-number">6.</span> 生成された .ate ファイルを実行
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>📋 パッケージ仕様</h3>
+            <p>• <strong>形式:</strong> 標準ZIP（非暗号化）</p>
+            <p>• <strong>ファイル:</strong> worker.js + index.js</p>
+            <p>• <strong>内容:</strong> 簡単なprint文とtoast通知</p>
+            <p>• <strong>圧縮:</strong> 無圧縮（stored）</p>
+            <p>• <strong>目的:</strong> AutoTouchの暗号化テスト</p>
+        </div>
+
+        <div class="info">
+            <h3>💡 重要事項</h3>
+            <p><strong>このファイルは.atファイルです：</strong></p>
+            <p>• AutoTouchで直接実行はできません</p>
+            <p>• AutoTouchの「Encrypt」機能で .ate に変換が必要</p>
+            <p>• 変換後の .ate ファイルが実行可能形式です</p>
+        </div>
+    </div>
+
+    <script>
+        async function downloadSimpleAT() {
+            const button = document.querySelector('.download-btn');
+            const loading = document.getElementById('loading');
+
+            // Show loading
+            button.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/at/generate-simple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_hash: 'FFMZ3GTSJC6J'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                // Check if response is binary or JSON error
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Generation failed');
+                }
+
+                // Get binary data and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'smartgram_simple.at';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Success message
+                button.textContent = '✅ Simple AT生成完了！';
+                button.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+
+            } catch (error) {
+                console.error('Error:', error);
+                button.textContent = '❌ 生成エラー';
+                button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+                alert('エラー: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+                button.style.display = 'inline-block';
+
+                // Reset button after 5 seconds
+                setTimeout(() => {
+                    button.textContent = '📦 Simple AT パッケージをダウンロード';
+                    button.style.background = 'linear-gradient(45deg, #3498db, #2980b9)';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

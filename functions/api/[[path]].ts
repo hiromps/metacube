@@ -134,6 +134,11 @@ export async function onRequest(context: any) {
     console.log('🎯 Routing to EXACT AutoTouch ATE generation');
     const { handleAteGenerateExact } = await import('./ate-exact');
     return handleAteGenerateExact(request, env);
+  } else if (path === 'at/generate-simple') {
+    // Simple .at package generation (for AutoTouch to encrypt)
+    console.log('📦 Routing to simple .at package generation');
+    const { handleATGenerate } = await import('./autotouch-simple');
+    return handleATGenerate(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);
