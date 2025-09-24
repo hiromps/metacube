@@ -388,3 +388,69 @@ export async function handleAteGenerateSuper(request: Request, env: any) {
     );
   }
 }
+
+// Simple ZIP-based .ate generation handler (no encryption)
+export async function handleAteGenerateSimple(request: Request, env: any): Promise<Response> {
+  console.log('🚀 Simple ZIP .ate generation started');
+
+  try {
+    const body = await request.json() as { device_hash: string }
+    const { device_hash } = body
+
+    if (!device_hash) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Device hash is required',
+          message: 'Please provide device_hash parameter'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+
+    console.log(`📱 Generating simple ZIP .ate file for device: ${device_hash}`)
+
+    // Import and use simple ATE generator
+    const { generateSimpleATE } = await import('./ate-simple')
+    const result = await generateSimpleATE(device_hash)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Simple ATE generation failed')
+    }
+
+    console.log(`✅ Simple .ate file generated: ${result.data.byteLength} bytes`)
+
+    // Return binary data directly
+    return new Response(result.data, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment; filename="smartgram_simple.ate"',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Simple ZIP .ate generation error:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Simple .ate generation failed'
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    )
+  }
+}
