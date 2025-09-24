@@ -10,13 +10,17 @@ import { Badge } from '@/app/components/ui/Badge'
 import { UserStatus, ContentAccess, getAccessLevel } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 
-interface GuideSection {
+interface Guide {
   id: string
   title: string
+  slug: string
   description: string
-  requiresAccess: boolean
   content: string
-  locked?: boolean
+  requires_access: boolean
+  sort_order: number
+  is_published: boolean
+  created_at: string
+  updated_at: string
 }
 
 export default function GuidesPage() {
@@ -25,271 +29,32 @@ export default function GuidesPage() {
   const [access, setAccess] = useState<ContentAccess | null>(null)
   const [selectedGuide, setSelectedGuide] = useState<string>('')
   const [error, setError] = useState('')
+  const [guides, setGuides] = useState<Guide[]>([])
+  const [guidesLoading, setGuidesLoading] = useState(true)
 
-  const guides: GuideSection[] = [
-    {
-      id: 'overview',
-      title: '概要とシステム要件',
-      description: 'SocialTouchの基本情報と必要環境',
-      requiresAccess: false,
-      content: `
-# SocialTouch 概要
+  // Fetch guides from database
+  const fetchGuides = useCallback(async () => {
+    try {
+      setGuidesLoading(true)
+      const response = await fetch('/api/guides/list')
+      const result = await response.json()
 
-SocialTouchは、iPhone 7/8専用のInstagram自動化ツールです。
-
-## 必要環境
-- iPhone 7/8（必須）
-- iOS 15.x推奨
-- Jailbreak環境
-- AutoTouch（有料アプリ）
-- 安定したインターネット接続
-
-## 機能
-- タイムライン自動スクロール
-- 自動いいね
-- フォロー/アンフォロー管理
-- エンゲージメント分析
-
-## 注意事項
-- Instagramの利用規約をご確認ください
-- 過度な使用はアカウント制限の原因となります
-- 1日の操作回数には制限を設けてください
-      `
-    },
-    {
-      id: 'jailbreak',
-      title: 'Jailbreak手順',
-      description: 'iPhone 7/8のJailbreak詳細ガイド',
-      requiresAccess: true,
-      content: `
-# iPhone 7/8 Jailbreak完全ガイド
-
-## 対応ツール
-
-### iOS 14.0 - 14.8.1
-**checkra1n（推奨）**
-1. checkra1n公式サイトからダウンロード
-2. iPhoneをDFUモードで起動
-3. checkra1nを実行
-4. 画面の指示に従って進行
-
-### iOS 15.0 - 15.7.1
-**palera1n**
-1. macOS/Linux環境を準備
-2. palera1nをダウンロード
-3. ターミナルから実行
-4. rootless/rootful選択
-
-## DFUモード進入方法
-
-### iPhone 7
-1. 電源ボタン + 音量下げボタンを10秒長押し
-2. 電源ボタンを離し、音量下げボタンをさらに5秒
-3. 画面が真っ黒のままならDFUモード成功
-
-### iPhone 8
-1. 音量上げボタンを押して離す
-2. 音量下げボタンを押して離す
-3. サイドボタンを10秒長押し
-4. サイドボタンを押したまま音量下げボタンを5秒
-5. サイドボタンを離し、音量下げボタンをさらに10秒
-
-## Cydia/Sileo設定
-1. リポジトリ追加
-2. 必要なTweaksインストール
-3. AutoTouchリポジトリ追加
-
-## トラブルシューティング
-- ブートループ: セーフモードで起動
-- Cydiaクラッシュ: リフレッシュ実行
-- リスプリング: UserSpace Reboot
-      `
-    },
-    {
-      id: 'autotouch',
-      title: 'AutoTouch導入',
-      description: 'AutoTouchのインストールと初期設定',
-      requiresAccess: true,
-      content: `
-# AutoTouch インストールガイド
-
-## 購入とインストール
-
-### 1. ライセンス購入
-- AutoTouch公式サイトでライセンス購入（$4.99）
-- デバイスUDID登録
-- アクティベーションキー受信
-
-### 2. Cydiaからインストール
-\`\`\`
-リポジトリURL: https://apt.autotouch.net/
-パッケージ名: AutoTouch
-\`\`\`
-
-### 3. アクティベーション
-1. AutoTouchアプリを開く
-2. Settings → License
-3. アクティベーションキー入力
-
-## 初期設定
-
-### 基本設定
-- Recording Quality: High
-- Play Speed: 1.0x
-- Coordinate System: Absolute
-- Allow Remote Access: OFF（セキュリティ）
-
-### スクリプトフォルダ
-\`\`\`
-/var/mobile/Library/AutoTouch/Scripts/
-\`\`\`
-
-### smartgram.ate配置
-1. PCからiFunBoxやFilzaを使用
-2. Scriptsフォルダにsmartgram.ate転送
-3. 権限設定: 755
-
-## 動作確認
-1. AutoTouchアプリでScripts確認
-2. smartgram.ate選択
-3. Playボタンで実行
-4. デバイスハッシュ表示確認
-
-## よくある問題
-- スクリプトが見えない: 権限確認
-- 実行エラー: Lua構文確認
-- タッチが効かない: Accessibility設定
-      `
-    },
-    {
-      id: 'scripts',
-      title: 'スクリプト設定',
-      description: 'smartgram.ateとツールスクリプトの設定',
-      requiresAccess: true,
-      content: `
-# スクリプト設定ガイド
-
-## ファイル構成
-\`\`\`
-/var/mobile/Library/AutoTouch/Scripts/
-├── smartgram.ate     # メインメニュー
-├── timeline.lua      # タイムラインツール
-├── like.lua         # いいねツール
-├── follow.lua       # フォローツール
-└── config.lua       # 設定ファイル
-\`\`\`
-
-## smartgram.ate設定
-
-### デバイスハッシュ取得
-初回実行時に自動表示されます：
-1. AutoTouchでsmartgram.ate実行
-2. デバイスハッシュをメモ
-3. Webサイトで登録
-
-### ライセンス認証設定
-\`\`\`lua
--- config.lua内
-LICENSE_SERVER = "https://smartgram.jp/api"
-CACHE_DURATION = 86400  -- 24時間
-\`\`\`
-
-## 各ツール設定
-
-### timeline.lua
-- スクロール速度: 調整可能
-- いいね頻度: 3-5投稿に1回
-- 休憩時間: 30分ごと
-
-### like.lua
-- 1日の上限: 200いいね
-- 間隔: 15-30秒ランダム
-- ハッシュタグ指定可能
-
-### follow.lua
-- 1日の上限: 50フォロー
-- アンフォロー: 3日後
-- ターゲット設定可能
-
-## セキュリティ設定
-
-### API通信
-- HTTPS必須
-- デバイスハッシュ暗号化
-- キャッシュ期限管理
-
-### Instagram対策
-- ランダム遅延
-- 人間らしい動作パターン
-- 1日の操作制限
-
-## デバッグ方法
-1. AutoTouchコンソール確認
-2. エラーログ: /var/mobile/Library/AutoTouch/Log/
-3. alert()関数でデバッグ出力
-      `
-    },
-    {
-      id: 'activation',
-      title: 'アクティベーション',
-      description: '体験期間の開始方法',
-      requiresAccess: true,
-      content: `
-# アクティベーション手順
-
-## セットアップ完了後の手順
-
-### 1. デバイスハッシュ確認
-1. AutoTouchでsmartgram.ate実行
-2. 表示されるデバイスハッシュをコピー
-3. 形式例: F2LXJ7XXHG7F
-
-### 2. Webダッシュボード
-1. https://smartgram.app/dashboard にログイン
-2. セットアップ期間中であることを確認
-3. 「体験期間をアクティベート」セクションへ
-
-### 3. アクティベート実行
-1. デバイスハッシュを入力
-2. 「体験期間を開始する」ボタンクリック
-3. 確認ダイアログで「はい」選択
-
-## アクティベート後
-
-### 体験期間（3日間）
-- 全機能利用可能
-- 制限なし
-- 自動更新設定済み
-
-### 期間終了後
-- 自動的に有料会員へ移行
-- PayPal自動課金開始
-- サービス継続利用可能
-
-## 注意事項
-- アクティベートは1回のみ
-- 取り消し不可
-- セットアップ期限内に実行必要
-
-## トラブルシューティング
-
-### デバイスハッシュが表示されない
-- AutoTouch再インストール
-- smartgram.ate権限確認
-- iPhoneを再起動
-
-### アクティベート失敗
-- デバイスハッシュ確認
-- ネットワーク接続確認
-- セットアップ期限確認
-
-### 体験期間が始まらない
-- ダッシュボード更新
-- ブラウザキャッシュクリア
-- サポート連絡
-      `
+      if (result.success) {
+        setGuides(result.guides)
+        // Set first guide as default if available
+        if (result.guides.length > 0 && !selectedGuide) {
+          setSelectedGuide(result.guides[0].slug)
+        }
+      } else {
+        setError('Failed to load guides: ' + result.error)
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch guides:', error)
+      setError('Failed to load guides: ' + error.message)
+    } finally {
+      setGuidesLoading(false)
     }
-  ]
+  }, [selectedGuide])
 
   const checkAccess = useCallback(async () => {
     try {
@@ -366,16 +131,17 @@ CACHE_DURATION = 86400  -- 24時間
 
   useEffect(() => {
     checkAccess()
-  }, [checkAccess])
+    fetchGuides()
+  }, [checkAccess, fetchGuides])
 
-  const getGuideAccess = (guide: GuideSection): boolean => {
-    if (!guide.requiresAccess) return true
+  const getGuideAccess = (guide: Guide): boolean => {
+    if (!guide.requires_access) return true
     // Allow access for any registered user (not just paid users)
     return access?.status !== UserStatus.VISITOR
   }
 
   const getSelectedContent = (): string => {
-    const guide = guides.find(g => g.id === selectedGuide)
+    const guide = guides.find(g => g.slug === selectedGuide)
     if (!guide) return ''
 
     if (!getGuideAccess(guide)) {
@@ -409,7 +175,7 @@ CACHE_DURATION = 86400  -- 24時間
     return guide.content
   }
 
-  if (loading) {
+  if (loading || guidesLoading) {
     return <LoadingScreen message="ガイドを読み込み中..." />
   }
 
@@ -498,13 +264,13 @@ CACHE_DURATION = 86400  -- 24時間
                   return (
                     <button
                       key={guide.id}
-                      onClick={() => setSelectedGuide(guide.id)}
+                      onClick={() => setSelectedGuide(guide.slug)}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                        selectedGuide === guide.id
+                        selectedGuide === guide.slug
                           ? 'bg-blue-500/20 border-l-4 border-blue-400'
                           : 'hover:bg-white/10'
                       } ${!hasAccess ? 'opacity-50' : ''}`}
-                      disabled={!hasAccess && guide.requiresAccess}
+                      disabled={!hasAccess && guide.requires_access}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -515,7 +281,7 @@ CACHE_DURATION = 86400  -- 24時間
                             {guide.description}
                           </p>
                         </div>
-                        {guide.requiresAccess && !hasAccess && (
+                        {guide.requires_access && !hasAccess && (
                           <span className="text-xs">🔒</span>
                         )}
                       </div>
@@ -551,7 +317,7 @@ CACHE_DURATION = 86400  -- 24時間
             </div>
 
             {/* CTA for locked content */}
-            {selectedGuide && guides.find(g => g.id === selectedGuide)?.requiresAccess && access?.status === UserStatus.VISITOR && (
+            {selectedGuide && guides.find(g => g.slug === selectedGuide)?.requires_access && access?.status === UserStatus.VISITOR && (
               <div className="mt-6 bg-gradient-to-br from-blue-800/30 via-purple-800/20 to-indigo-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-blue-500/10">
                 <div className="text-center">
                   <h3 className="text-xl md:text-2xl font-bold text-white mb-4">

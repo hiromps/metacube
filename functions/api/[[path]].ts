@@ -112,6 +112,21 @@ export async function onRequest(context: any) {
     return handleUserPackageDownload(request, env, packageId);
   } else if (path === 'admin/users-list' || path === 'admin/users-list/') {
     return handleAdminUsersList(request, env);
+  } else if (path === 'guides/list' || path === 'guides/list/') {
+    return handleGuidesList(request, env);
+  } else if (path.startsWith('guides/')) {
+    const guideSlug = path.split('/')[1];
+    return handleGuidesGet(request, env, guideSlug);
+  } else if (path === 'admin/guides/list' || path === 'admin/guides/list/') {
+    return handleAdminGuidesList(request, env);
+  } else if (path === 'admin/guides/create' || path === 'admin/guides/create/') {
+    return handleAdminGuidesCreate(request, env);
+  } else if (path.startsWith('admin/guides/update/')) {
+    const guideId = path.split('/')[3];
+    return handleAdminGuidesUpdate(request, env, guideId);
+  } else if (path.startsWith('admin/guides/delete/')) {
+    const guideId = path.split('/')[3];
+    return handleAdminGuidesDelete(request, env, guideId);
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
     const result = await debugDevices(env);
@@ -3187,6 +3202,248 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
       }
+    });
+  }
+}
+
+// ===== GUIDES MANAGEMENT FUNCTIONS =====
+
+async function handleGuidesList(request: Request, env: Env): Promise<Response> {
+  try {
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: guides, error } = await supabaseAdmin
+      .from('guides')
+      .select('id, title, slug, description, requires_access, sort_order')
+      .eq('is_published', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('Failed to fetch guides:', error);
+      return new Response(JSON.stringify({ error: 'Failed to fetch guides' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ guides }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Guides list error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to get guides list' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
+async function handleGuidesGet(request: Request, env: Env, slug: string): Promise<Response> {
+  try {
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: guide, error } = await supabaseAdmin
+      .from('guides')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_published', true)
+      .single();
+
+    if (error) {
+      console.error('Failed to fetch guide:', error);
+      return new Response(JSON.stringify({ error: 'Guide not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ guide }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Guide get error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to get guide' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
+async function handleAdminGuidesList(request: Request, env: Env): Promise<Response> {
+  try {
+    // Check admin authorization
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: guides, error } = await supabaseAdmin
+      .from('guides')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('Failed to fetch admin guides:', error);
+      return new Response(JSON.stringify({ error: 'Failed to fetch guides' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ guides }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Admin guides list error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to get admin guides list' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
+async function handleAdminGuidesCreate(request: Request, env: Env): Promise<Response> {
+  try {
+    // Check admin authorization
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const { title, slug, description, content, requires_access, sort_order, is_published } = await request.json();
+
+    if (!title || !slug || !content) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: guide, error } = await supabaseAdmin
+      .from('guides')
+      .insert({
+        title,
+        slug,
+        description,
+        content,
+        requires_access: requires_access || false,
+        sort_order: sort_order || 0,
+        is_published: is_published !== false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create guide:', error);
+      return new Response(JSON.stringify({ error: 'Failed to create guide', details: error.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ guide }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Admin guides create error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to create guide' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
+async function handleAdminGuidesUpdate(request: Request, env: Env, guideId: string): Promise<Response> {
+  try {
+    // Check admin authorization
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const updateData = await request.json();
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: guide, error } = await supabaseAdmin
+      .from('guides')
+      .update(updateData)
+      .eq('id', guideId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to update guide:', error);
+      return new Response(JSON.stringify({ error: 'Failed to update guide', details: error.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ guide }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Admin guides update error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to update guide' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}
+
+async function handleAdminGuidesDelete(request: Request, env: Env, guideId: string): Promise<Response> {
+  try {
+    // Check admin authorization
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const { error } = await supabaseAdmin
+      .from('guides')
+      .delete()
+      .eq('id', guideId);
+
+    if (error) {
+      console.error('Failed to delete guide:', error);
+      return new Response(JSON.stringify({ error: 'Failed to delete guide', details: error.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (error: any) {
+    console.error('Admin guides delete error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to delete guide' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 }
