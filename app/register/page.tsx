@@ -141,7 +141,7 @@ function RegisterForm() {
               アカウント作成後、デバイス登録はAutoTouchスクリプト実行時に自動で行われます
             </p>
             <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-400/30 mt-2" size="md">
-              14日間無料体験
+              3日間無料体験
             </Badge>
           </div>
 

@@ -52,9 +52,10 @@ const pricingPlans = [
     name: '⚡ STARTER',
     price: '¥2,980',
     duration: '月額',
-    badge: '3日間無料',
+    badge: '3日間無料体験',
     badgeColor: 'from-blue-500 to-cyan-500',
     features: [
+      '🔥 3日間フルアクセス体験',
       '✅ タイムライン自動いいね',
       '✅ ハッシュタグいいね',
       '📱 基本版スクリプト',
@@ -75,9 +76,10 @@ const pricingPlans = [
     subPrice: '¥69,800',
     subDuration: '年額',
     discount: '30%お得',
-    badge: '創業記念特価',
+    badge: '3日間無料体験',
     badgeColor: 'from-yellow-500 to-orange-500',
     features: [
+      '🔥 3日間フルアクセス体験',
       '✅ タイムライン自動いいね',
       '✅ ハッシュタグいいね',
       '✅ 自動フォロー',
@@ -95,9 +97,10 @@ const pricingPlans = [
     price: '¥15,800',
     originalPrice: '¥19,800',
     duration: '月額',
-    badge: '企業向け・インフルエンサー向け',
+    badge: '3日間無料体験',
     badgeColor: 'from-purple-500 to-indigo-500',
     features: [
+      '🔥 3日間フルアクセス体験',
       '✅ タイムライン自動いいね',
       '✅ ハッシュタグいいね',
       '✅ 自動フォロー',
@@ -1082,7 +1085,7 @@ export default function Home() {
                       >
                         {plan.name.includes('MAX') ? '💼 MAXプランで差をつける' :
                          plan.popular ? '🚀 特価で今すぐ始める' :
-                         '⚡ 14日間無料で体験'}
+                         '⚡ 3日間無料で体験'}
                       </Button>
                     </Link>
                   </CardFooter>
