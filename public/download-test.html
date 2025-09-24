@@ -113,19 +113,19 @@
 
         <div class="info">
             <h3>📋 ファイル情報</h3>
-            <p><strong>バージョン:</strong> v4 (Extra Field修正版)</p>
+            <p><strong>バージョン:</strong> v5 (2ファイル構造+空パスワード)</p>
             <p><strong>デバイスハッシュ:</strong> FFMZ3GTSJC6J</p>
-            <p><strong>パスワード:</strong> 1111</p>
+            <p><strong>パスワード:</strong> 空白（不要）</p>
             <p><strong>暗号化:</strong> AutoTouch互換 AES-256</p>
-            <p><strong>修正内容:</strong> ZIP構造をサンプルファイルに完全一致</p>
+            <p><strong>修正内容:</strong> worker.js + index.js の2ファイル構造</p>
         </div>
 
         <div class="info">
             <h3>🔧 使用方法</h3>
             <p>1. ダウンロードしたファイルをiPhoneに転送</p>
             <p>2. AutoTouchで開く</p>
-            <p>3. パスワード「1111」を入力</p>
-            <p>4. スクリプトが実行されることを確認</p>
+            <p>3. パスワード入力画面では空白のまま実行</p>
+            <p>4. スクリプトが正常に動作することを確認</p>
         </div>
     </div>
 
@@ -158,7 +158,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'smartgram_fixed_extrafield_v4.ate';
+                a.download = 'smartgram_2file_structure_v5.ate';
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
