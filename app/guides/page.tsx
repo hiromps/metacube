@@ -534,14 +534,15 @@ CACHE_DURATION = 86400  -- 24時間
                   className="markdown-content prose prose-blue max-w-none"
                   dangerouslySetInnerHTML={{
                     __html: getSelectedContent().replace(/\n/g, '<br>')
-                      .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/20 pb-2">$1</h1>')
+                      .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/30 pb-2">$1</h1>')
                       .replace(/^## (.*?)$/gm, '<h2 class="text-xl md:text-2xl font-semibold mb-3 mt-6 text-white">$1</h2>')
-                      .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-gray-300">$1</h3>')
-                      .replace(/\`\`\`[\s\S]*?\`\`\`/g, '<pre class="bg-black/30 border border-white/20 p-4 rounded-lg overflow-x-auto backdrop-blur-sm"><code class="text-gray-300 text-sm">$1</code></pre>')
-                      .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/20 px-2 py-1 rounded text-blue-300 text-sm border border-blue-400/30">$1</code>')
-                      .replace(/^- (.*?)$/gm, '<li class="ml-4 text-gray-300 list-disc">$1</li>')
-                      .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-gray-300 list-decimal">$1</li>')
+                      .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-white">$1</h3>')
+                      .replace(/\`\`\`[\s\S]*?\`\`\`/g, '<pre class="bg-black/40 border border-white/30 p-4 rounded-lg overflow-x-auto backdrop-blur-sm"><code class="text-white text-sm">$1</code></pre>')
+                      .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/30 px-2 py-1 rounded text-blue-200 text-sm border border-blue-400/40">$1</code>')
+                      .replace(/^- (.*?)$/gm, '<li class="ml-4 text-white list-disc marker:text-blue-400">$1</li>')
+                      .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-white list-decimal marker:text-blue-400">$1</li>')
                       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+                      .replace(/^([^#\-\d\`\*].*)$/gm, '<p class="text-white leading-relaxed mb-2">$1</p>')
                   }}
                 />
               </div>
