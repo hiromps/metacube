@@ -78,7 +78,7 @@ async function encryptData(data: ArrayBuffer, key: CryptoKey): Promise<Encryptio
 }
 
 // Create ZIP file structure for .ate archive
-function createZipFile(files: Array<{ name: string; content: string }>): ArrayBuffer {
+function createZipFile(files: Array<{ name: string; content: string }>): Uint8Array {
   // Simple ZIP implementation for .ate files
   // In production, consider using a proper ZIP library
 
@@ -289,11 +289,12 @@ async function processAteGeneration(queueId: string, env: any): Promise<void> {
     // Create ZIP archive
     console.log('Creating ZIP archive with', templateFiles.length, 'files');
     const zipBuffer = createZipFile(templateFiles);
+    const zipArrayBuffer = zipBuffer.buffer.slice(zipBuffer.byteOffset, zipBuffer.byteOffset + zipBuffer.byteLength);
 
     // Generate encryption key and encrypt
     console.log('Encrypting .ate file');
     const encryptionKey = await generateEncryptionKey();
-    const encryptionResult = await encryptData(zipBuffer, encryptionKey);
+    const encryptionResult = await encryptData(zipArrayBuffer, encryptionKey);
 
     // Combine IV + Auth Tag + Encrypted Data for final .ate file
     const finalAteFile = new Uint8Array(
