@@ -115,25 +115,24 @@ export function useUserData() {
         // Get plan information if device exists
         let plan = null;
         if (device) {
-          const { data: devicePlan, error: planError } = await supabase
-            .from('device_plan_view')
-            .select('plan_id, plan_name, plan_display_name, plan_price, plan_features, plan_limitations')
-            .eq('device_id', device.id)
-            .single();
-
-          if (planError && planError.code !== 'PGRST116') {
-            console.warn('プラン情報の取得に失敗:', planError);
-          } else if (devicePlan) {
-            plan = {
-              id: devicePlan.plan_id,
-              name: devicePlan.plan_name,
-              display_name: devicePlan.plan_display_name,
-              price: devicePlan.plan_price,
-              billing_cycle: 'monthly', // デフォルト値、後で拡張可能
-              features: devicePlan.plan_features || {},
-              limitations: devicePlan.plan_limitations || {}
-            };
-          }
+          // Simplified plan info for now - use default SMARTGRAM plan
+          plan = {
+            id: 'smartgram-basic',
+            name: 'smartgram',
+            display_name: 'SMARTGRAM Basic',
+            price: 2980,
+            billing_cycle: 'monthly',
+            features: {
+              timeline: true,
+              dm: true,
+              story: true,
+              follow: true
+            },
+            limitations: {
+              daily_actions: 1000,
+              concurrent_sessions: 1
+            }
+          };
         }
 
         setUserData({

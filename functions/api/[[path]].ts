@@ -2529,7 +2529,7 @@ async function handleAteGenerate(request: Request, env: any) {
 
   try {
     const body = await request.json();
-    const { device_hash, priority = 5 } = body;
+    const { device_hash, template_name = 'smartgram', priority = 5 } = body;
 
     if (!device_hash) {
       return new Response(
@@ -2552,6 +2552,7 @@ async function handleAteGenerate(request: Request, env: any) {
     // Queue .ate file generation using helper function
     const { data: queueId, error } = await supabase.rpc('queue_ate_generation', {
       device_hash_param: device_hash,
+      template_name_param: template_name,
       priority_param: priority
     });
 
