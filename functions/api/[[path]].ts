@@ -16,6 +16,7 @@ import {
   handleAteStatus
 } from './ate-handlers'
 import { handleAteGenerateSuper } from './ate-immediate'
+import { testTemplateLoad } from './template-manager'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -131,6 +132,16 @@ export async function onRequest(context: any) {
     return handleWorkerProcess(request, env);
   } else if (path === 'ate-worker/health') {
     return handleWorkerHealth(request, env);
+  } else if (path === 'template/test') {
+    // Test template loading functionality
+    const result = await testTemplateLoad(env);
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
   }
 
   // 404 for unknown API routes
