@@ -103,37 +103,41 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
   }
 }
 
-// Create proper WinZip AES extra field
+// Create AutoTouch-compatible extra field (matches sample file exactly)
 function createAESExtraField(): Uint8Array {
-  // WinZip AES Extra Field format (AutoTouch compatible)
-  const extraField = new Uint8Array(11) // 4 bytes header + 7 bytes data
-  const view = new DataView(extraField.buffer)
+  // AutoTouch sample: 01001000000000000000000000000000000000000199070001004145030800
+  // Total length: 31 bytes
+  const extraField = new Uint8Array(31)
 
-  let offset = 0
+  // First part: Unknown/proprietary header (20 bytes)
+  // 0100 = Header ID, 1000 = 16 bytes length
+  extraField[0] = 0x01
+  extraField[1] = 0x00
+  extraField[2] = 0x10
+  extraField[3] = 0x00
+  // 16 bytes of zeros (offset 4-19)
+  for (let i = 4; i < 20; i++) {
+    extraField[i] = 0x00
+  }
 
-  // Extra field header ID (0x9901 for AES)
-  view.setUint16(offset, 0x9901, true)
-  offset += 2
-
-  // Data size (7 bytes)
-  view.setUint16(offset, 7, true)
-  offset += 2
-
-  // AES version (1)
-  view.setUint16(offset, 1, true)
-  offset += 2
-
-  // Vendor ID ("AE")
-  extraField[offset] = 0x41 // 'A'
-  extraField[offset + 1] = 0x45 // 'E'
-  offset += 2
-
-  // AES strength (3 = AES-256)
-  extraField[offset] = 3
-  offset += 1
-
-  // Compression method (8 = deflate)
-  view.setUint16(offset, 8, true)
+  // Second part: Standard AES Extra Field (11 bytes)
+  // 0199 = AES field ID (little endian 0x9901)
+  extraField[20] = 0x01
+  extraField[21] = 0x99
+  // 0700 = 7 bytes data length
+  extraField[22] = 0x07
+  extraField[23] = 0x00
+  // 0100 = AES version 1
+  extraField[24] = 0x01
+  extraField[25] = 0x00
+  // 4145 = "AE" vendor ID (ASCII)
+  extraField[26] = 0x41 // 'A'
+  extraField[27] = 0x45 // 'E'
+  // 03 = AES-256 strength
+  extraField[28] = 0x03
+  // 0800 = deflate compression method
+  extraField[29] = 0x08
+  extraField[30] = 0x00
 
   return extraField
 }
