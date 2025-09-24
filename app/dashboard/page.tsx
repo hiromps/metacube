@@ -286,7 +286,6 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           device_hash: userData.device.device_hash,
-          template: 'smartgram',
           priority: 1
         })
       })
