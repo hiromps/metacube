@@ -3029,7 +3029,46 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
       });
     }
 
+    console.log('Downloading package:', packageId);
+
     const supabase = getSupabaseClient(env);
+
+    // Check if user_packages table exists by trying to query it
+    console.log('Checking user_packages table...');
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('user_packages')
+      .select('count(*)')
+      .limit(1);
+
+    if (tableError) {
+      console.error('user_packages table error:', tableError);
+
+      if (tableError.code === '42P01' || tableError.message?.includes('relation "user_packages" does not exist')) {
+        return new Response(JSON.stringify({
+          error: 'Package system not available yet. Please contact administrator.',
+          details: 'user_packages table does not exist'
+        }), {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } else {
+        return new Response(JSON.stringify({
+          error: 'Database connection issue',
+          details: tableError.message
+        }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    console.log('Table check passed, querying package data...');
 
     // Get package data
     const { data: packageData, error: packageError } = await supabase
@@ -3039,7 +3078,34 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
       .eq('is_active', true)
       .single();
 
-    if (packageError || !packageData) {
+    if (packageError) {
+      console.error('Package query error:', packageError);
+
+      if (packageError.code === 'PGRST116') {
+        return new Response(JSON.stringify({
+          error: 'Package not found'
+        }), {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } else {
+        return new Response(JSON.stringify({
+          error: 'Failed to query package',
+          details: packageError.message
+        }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    if (!packageData) {
       return new Response(JSON.stringify({
         error: 'Package not found'
       }), {
@@ -3051,17 +3117,22 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
       });
     }
 
-    // Increment download count
-    await supabase
+    console.log('Package found:', packageData.file_name, 'Size:', packageData.file_size);
+
+    // Increment download count (non-blocking)
+    supabase
       .from('user_packages')
       .update({
-        download_count: packageData.download_count + 1,
+        download_count: (packageData.download_count || 0) + 1,
         updated_at: new Date().toISOString()
       })
-      .eq('id', packageId);
+      .eq('id', packageId)
+      .then(() => console.log('Download count updated'))
+      .catch(err => console.warn('Failed to update download count:', err));
 
     // Return file as binary
     const fileBuffer = Buffer.from(packageData.file_content, 'base64');
+    console.log('Returning file buffer, size:', fileBuffer.length, 'bytes');
 
     return new Response(fileBuffer, {
       status: 200,
@@ -3076,7 +3147,9 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
   } catch (error: any) {
     console.error('User package download error:', error);
     return new Response(JSON.stringify({
-      error: 'Failed to download package'
+      error: 'Failed to download package',
+      details: error.message || 'Unknown error',
+      stack: error.stack
     }), {
       status: 500,
       headers: {
