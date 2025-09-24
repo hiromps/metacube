@@ -139,6 +139,11 @@ export async function onRequest(context: any) {
     console.log('📦 Routing to simple .at package generation');
     const { handleATGenerate } = await import('./autotouch-simple');
     return handleATGenerate(request, env);
+  } else if (path === 'folder/generate') {
+    // AutoTouch folder structure generation (extract -> rename -> encrypt)
+    console.log('📁 Routing to AutoTouch folder structure generation');
+    const { handleAutoTouchFolder } = await import('./autotouch-folder');
+    return handleAutoTouchFolder(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);

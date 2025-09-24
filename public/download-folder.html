@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTGRAM AutoTouch フォルダー</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 700px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            color: #ecf0f1;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            border: none;
+            color: white;
+            padding: 18px 36px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .info {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            text-align: left;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #9b59b6;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #9b59b6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .workflow-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .step {
+            margin: 15px 0;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #9b59b6;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 25px;
+            height: 25px;
+            background: #9b59b6;
+            color: white;
+            text-align: center;
+            line-height: 25px;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .file-structure {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .highlight {
+            background: rgba(155, 89, 182, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="workflow-badge">📁 正しいワークフロー対応</div>
+
+        <h1>SMARTGRAM フォルダー</h1>
+        <div class="subtitle">AutoTouchフォルダー構造生成</div>
+
+        <button class="download-btn" onclick="downloadFolder()">
+            📁 AutoTouch フォルダーをダウンロード
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>フォルダー構造生成中...</p>
+        </div>
+
+        <div class="info">
+            <h3>🔄 正しい AutoTouch ワークフロー</h3>
+
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>ZIPダウンロード:</strong> このページから <span class="highlight">smartgram-folder.zip</span> をダウンロード
+            </div>
+
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>展開:</strong> ZIPファイルを展開して <span class="highlight">smartgram/</span> フォルダを取得
+            </div>
+
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>リネーム:</strong> <span class="highlight">smartgram/</span> → <span class="highlight">smartgram.at/</span> にフォルダ名を変更
+            </div>
+
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>転送:</strong> <span class="highlight">smartgram.at/</span> フォルダをiPhoneのAutoTouchに転送
+            </div>
+
+            <div class="step">
+                <span class="step-number">5</span>
+                <strong>暗号化:</strong> AutoTouchで <span class="highlight">smartgram.at/</span> → 「Encrypt」
+            </div>
+
+            <div class="step">
+                <span class="step-number">6</span>
+                <strong>実行:</strong> 生成された <span class="highlight">smartgram.ate</span> ファイルを実行
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>📋 フォルダ構造</h3>
+            <div class="file-structure">
+smartgram/
+├── main.lua      (メインスクリプト)
+├── config.lua    (設定ファイル)
+└── utils.lua     (ユーティリティ関数)
+            </div>
+            <p><strong>特徴:</strong></p>
+            <p>• デモ用のタップ・スワイプ関数</p>
+            <p>• デバイス固有の設定</p>
+            <p>• エラーハンドリング付きユーティリティ</p>
+            <p>• 実際のAutomation用に編集可能</p>
+        </div>
+
+        <div class="info">
+            <h3>⚠️ 重要な注意事項</h3>
+            <p><strong>1. フォルダ名の変更が必須:</strong></p>
+            <p>• <span class="highlight">smartgram/</span> → <span class="highlight">smartgram.at/</span></p>
+            <p>• 拡張子 <span class="highlight">.at</span> をフォルダ名に追加</p>
+
+            <p><strong>2. AutoTouchが認識する形式:</strong></p>
+            <p>• ZIPファイルではなくフォルダ構造</p>
+            <p>• <span class="highlight">.at</span> 拡張子でパッケージとして認識</p>
+
+            <p><strong>3. 暗号化後:</strong></p>
+            <p>• <span class="highlight">smartgram.at/</span> フォルダは自動削除</p>
+            <p>• <span class="highlight">smartgram.ate</span> ファイルが生成される</p>
+        </div>
+    </div>
+
+    <script>
+        async function downloadFolder() {
+            const button = document.querySelector('.download-btn');
+            const loading = document.getElementById('loading');
+
+            // Show loading
+            button.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/folder/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_hash: 'FFMZ3GTSJC6J'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                // Check if response is binary or JSON error
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Generation failed');
+                }
+
+                // Get binary data and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'smartgram-folder.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Success message
+                button.textContent = '✅ フォルダ生成完了！';
+                button.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+
+            } catch (error) {
+                console.error('Error:', error);
+                button.textContent = '❌ 生成エラー';
+                button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+                alert('エラー: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+                button.style.display = 'inline-block';
+
+                // Reset button after 5 seconds
+                setTimeout(() => {
+                    button.textContent = '📁 AutoTouch フォルダーをダウンロード';
+                    button.style.background = 'linear-gradient(45deg, #9b59b6, #8e44ad)';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
