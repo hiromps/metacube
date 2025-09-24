@@ -867,6 +867,10 @@ export default function DashboardPage() {
                         <span className="text-green-400 text-sm">✅</span>
                         <span className="text-white/80 text-sm">タイムライン自動いいね</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400 text-sm">✅</span>
+                        <span className="text-white/80 text-sm">ハッシュタグいいね</span>
+                      </div>
                       {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly' || userData.plan?.name === 'max') && (
                         <>
                           <div className="flex items-center gap-2">
@@ -881,10 +885,6 @@ export default function DashboardPage() {
                       )}
                       {userData.plan?.name === 'max' && (
                         <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-400 text-sm">✅</span>
-                            <span className="text-white/80 text-sm">ハッシュタグいいね</span>
-                          </div>
                           <div className="flex items-center gap-2">
                             <span className="text-green-400 text-sm">✅</span>
                             <span className="text-white/80 text-sm">アクティブユーザーいいね</span>
@@ -915,20 +915,12 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">ハッシュタグいいね (MAXで解除)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-yellow-400 text-sm">🔒</span>
                         <span className="text-white/60 text-sm">アクティブユーザーいいね (MAXで解除)</span>
                       </div>
                     </>
                   )}
                   {(userData.plan?.name === 'pro' || userData.plan?.name === 'pro_yearly') && (
                     <>
-                      <div className="flex items-center gap-2">
-                        <span className="text-yellow-400 text-sm">🔒</span>
-                        <span className="text-white/60 text-sm">ハッシュタグいいね (MAXで解除)</span>
-                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-yellow-400 text-sm">🔒</span>
                         <span className="text-white/60 text-sm">アクティブユーザーいいね (MAXで解除)</span>

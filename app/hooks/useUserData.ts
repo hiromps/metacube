@@ -119,7 +119,7 @@ export function useUserData() {
           plan = {
             id: 'smartgram-basic',
             name: 'smartgram',
-            display_name: 'SMARTGRAM Basic',
+            display_name: 'STARTER',
             price: 2980,
             billing_cycle: 'monthly',
             features: {

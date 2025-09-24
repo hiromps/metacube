@@ -7,7 +7,7 @@ const PAYPAL_BASE_URL = process.env.NODE_ENV === 'production'
 export const SUBSCRIPTION_PLANS = {
   monthly_2980: {
     id: 'socialtouch_monthly_2980',
-    name: 'SocialTouch Monthly - Basic',
+    name: 'SocialTouch Monthly - STARTER',
     amount: 2980,
     currency: 'JPY',
     interval: 'MONTH',
