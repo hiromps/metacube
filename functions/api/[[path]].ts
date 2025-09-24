@@ -15,7 +15,7 @@ import {
   handleWorkerHealth,
   handleAteStatus
 } from './ate-handlers'
-import { handleAteGenerateSuper } from './ate-immediate'
+import { handleAteGenerateSuper, handleAteGenerateComplete } from './ate-immediate'
 import { testTemplateLoad } from './template-manager'
 import { testTemplateLoadSimple } from './template-manager-simple'
 import { testTemplateProcess } from './template-processor'
@@ -121,6 +121,10 @@ export async function onRequest(context: any) {
     // Use super simple version that returns success immediately
     console.log('🎯 Routing to SUPER SIMPLE .ate generation');
     return handleAteGenerateSuper(request, env);
+  } else if (path === 'ate/generate-complete') {
+    // Complete template-based .ate generation with encryption
+    console.log('🎯 Routing to COMPLETE .ate generation with templates');
+    return handleAteGenerateComplete(request, env);
   } else if (path.startsWith('ate/download/')) {
     const ateFileId = path.split('/')[2];
     return handleAteDownload(request, env, ateFileId);
@@ -198,7 +202,7 @@ export async function onRequest(context: any) {
       method: request.method,
       url: request.url,
       available_routes: [
-        'ate/generate', 'ate/status', 'ate/download/{id}',
+        'ate/generate', 'ate/generate-complete', 'ate/status', 'ate/download/{id}',
         'license/verify', 'device/register', 'device/login',
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
         'health'

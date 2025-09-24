@@ -3,6 +3,7 @@
 
 // Import Supabase client
 import { createClient } from '@supabase/supabase-js'
+import { generateCompleteAteFile } from './ate-generator-complete'
 
 // Generate scripts based on plan features
 function generateScriptsForPlan(device_hash: string, planData: any) {
@@ -190,6 +191,94 @@ function getSupabaseClient(env: any) {
       persistSession: false
     }
   })
+}
+
+// Complete template-based .ate generation with encryption
+export async function handleAteGenerateComplete(request: Request, env: any) {
+  // Handle CORS
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      }
+    })
+  }
+
+  try {
+    console.log('🚀 Complete .ate generation request received')
+
+    const requestData = await request.json()
+    const { device_hash } = requestData
+
+    if (!device_hash) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing device_hash parameter'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
+    console.log(`📱 Generating complete .ate for device: ${device_hash}`)
+
+    // Generate complete .ate file with template processing and encryption
+    const result = await generateCompleteAteFile(env, device_hash)
+
+    if (result.success) {
+      console.log(`✅ Complete .ate generation successful: ${result.fileSize} bytes`)
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: result.message,
+        fileSize: result.fileSize,
+        fileCount: result.fileCount,
+        breakdown: result.breakdown,
+        variables: result.variables,
+        downloadUrl: `data:application/octet-stream;base64,${result.downloadData}`,
+        filename: result.filename
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    } else {
+      console.error(`❌ Complete .ate generation failed: ${result.error}`)
+
+      return new Response(JSON.stringify({
+        success: false,
+        error: result.error,
+        details: result.stack
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
+  } catch (error) {
+    console.error('❌ Complete .ate generation error:', error)
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+  }
 }
 
 export async function handleAteGenerateSuper(request: Request, env: any) {
