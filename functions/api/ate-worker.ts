@@ -289,7 +289,7 @@ async function processAteGeneration(queueId: string, env: any): Promise<void> {
     // Create ZIP archive
     console.log('Creating ZIP archive with', templateFiles.length, 'files');
     const zipBuffer = createZipFile(templateFiles);
-    const zipArrayBuffer = zipBuffer.buffer.slice(zipBuffer.byteOffset, zipBuffer.byteOffset + zipBuffer.byteLength);
+    const zipArrayBuffer = zipBuffer.buffer.slice(zipBuffer.byteOffset, zipBuffer.byteOffset + zipBuffer.byteLength) as ArrayBuffer;
 
     // Generate encryption key and encrypt
     console.log('Encrypting .ate file');
