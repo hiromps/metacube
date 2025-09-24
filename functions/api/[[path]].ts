@@ -3120,15 +3120,16 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
     console.log('Package found:', packageData.file_name, 'Size:', packageData.file_size);
 
     // Increment download count (non-blocking)
-    supabase
-      .from('user_packages')
-      .update({
-        download_count: (packageData.download_count || 0) + 1,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', packageId)
-      .then(() => console.log('Download count updated'))
-      .catch(err => console.warn('Failed to update download count:', err));
+    Promise.resolve(
+      supabase
+        .from('user_packages')
+        .update({
+          download_count: (packageData.download_count || 0) + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', packageId)
+    ).then(() => console.log('Download count updated'))
+     .catch(err => console.warn('Failed to update download count:', err));
 
     // Return file as binary
     const fileBuffer = Buffer.from(packageData.file_content, 'base64');
