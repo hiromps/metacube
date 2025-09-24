@@ -43,7 +43,12 @@ async function deflateCompress(data: Uint8Array): Promise<Uint8Array> {
   // For Cloudflare Workers, we'll use the Compression Streams API
   const cs = new CompressionStream('deflate')
   const writer = cs.writable.getWriter()
-  writer.write(data)
+
+  // Convert Uint8Array to ArrayBuffer for CompressionStream
+  const buffer = new ArrayBuffer(data.byteLength)
+  new Uint8Array(buffer).set(data)
+
+  writer.write(buffer)
   writer.close()
 
   const chunks: Uint8Array[] = []
