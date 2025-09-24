@@ -14,9 +14,10 @@ export interface ZipAESResult {
 
 // CRC32 calculation for ZIP files
 class CRC32 {
-  private static table: number[]
+  private static table: number[] | undefined
 
-  static {
+  private static initTable(): void {
+    if (this.table) return
     this.table = new Array(256)
     for (let i = 0; i < 256; i++) {
       let crc = i
@@ -28,9 +29,10 @@ class CRC32 {
   }
 
   static calculate(data: Uint8Array): number {
+    this.initTable()
     let crc = 0xFFFFFFFF
     for (let i = 0; i < data.length; i++) {
-      crc = this.table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8)
+      crc = this.table![(crc ^ data[i]) & 0xFF] ^ (crc >>> 8)
     }
     return (crc ^ 0xFFFFFFFF) >>> 0
   }
