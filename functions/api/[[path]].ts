@@ -3208,7 +3208,7 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
 
 // ===== GUIDES MANAGEMENT FUNCTIONS =====
 
-async function handleGuidesList(request: Request, env: Env): Promise<Response> {
+async function handleGuidesList(request: Request, env: any): Promise<Response> {
   try {
     const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -3239,7 +3239,7 @@ async function handleGuidesList(request: Request, env: Env): Promise<Response> {
   }
 }
 
-async function handleGuidesGet(request: Request, env: Env, slug: string): Promise<Response> {
+async function handleGuidesGet(request: Request, env: any, slug: string): Promise<Response> {
   try {
     const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -3271,7 +3271,7 @@ async function handleGuidesGet(request: Request, env: Env, slug: string): Promis
   }
 }
 
-async function handleAdminGuidesList(request: Request, env: Env): Promise<Response> {
+async function handleAdminGuidesList(request: Request, env: any): Promise<Response> {
   try {
     // Check admin authorization
     const authHeader = request.headers.get('Authorization');
@@ -3310,7 +3310,7 @@ async function handleAdminGuidesList(request: Request, env: Env): Promise<Respon
   }
 }
 
-async function handleAdminGuidesCreate(request: Request, env: Env): Promise<Response> {
+async function handleAdminGuidesCreate(request: Request, env: any): Promise<Response> {
   try {
     // Check admin authorization
     const authHeader = request.headers.get('Authorization');
@@ -3367,7 +3367,7 @@ async function handleAdminGuidesCreate(request: Request, env: Env): Promise<Resp
   }
 }
 
-async function handleAdminGuidesUpdate(request: Request, env: Env, guideId: string): Promise<Response> {
+async function handleAdminGuidesUpdate(request: Request, env: any, guideId: string): Promise<Response> {
   try {
     // Check admin authorization
     const authHeader = request.headers.get('Authorization');
@@ -3409,7 +3409,7 @@ async function handleAdminGuidesUpdate(request: Request, env: Env, guideId: stri
   }
 }
 
-async function handleAdminGuidesDelete(request: Request, env: Env, guideId: string): Promise<Response> {
+async function handleAdminGuidesDelete(request: Request, env: any, guideId: string): Promise<Response> {
   try {
     // Check admin authorization
     const authHeader = request.headers.get('Authorization');
