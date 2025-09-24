@@ -37,6 +37,16 @@ export default function GuidesPage() {
     try {
       setGuidesLoading(true)
       const response = await fetch('/api/guides/list')
+
+      // Check if response is HTML (404 page) instead of JSON
+      const contentType = response.headers.get('content-type')
+      if (!response.ok || (contentType && contentType.includes('text/html'))) {
+        console.warn('Guides API not available yet - database migration may be required')
+        setGuides([])
+        setError('ガイドコンテンツを読み込むためにはデータベースマイグレーションが必要です。管理者にお問い合わせください。')
+        return
+      }
+
       const result = await response.json()
 
       if (result.success) {
@@ -46,15 +56,20 @@ export default function GuidesPage() {
           setSelectedGuide(result.guides[0].slug)
         }
       } else {
-        setError('Failed to load guides: ' + result.error)
+        setError('ガイドの読み込みに失敗しました: ' + result.error)
       }
     } catch (error: any) {
       console.error('Failed to fetch guides:', error)
-      setError('Failed to load guides: ' + error.message)
+      // Handle JSON parse errors specifically
+      if (error.message.includes('Unexpected token')) {
+        setError('ガイドAPIが利用できません。データベースマイグレーションが必要な可能性があります。')
+      } else {
+        setError('ガイドの読み込みに失敗しました: ' + error.message)
+      }
     } finally {
       setGuidesLoading(false)
     }
-  }, [])
+  }, [selectedGuide])
 
   const checkAccess = useCallback(async () => {
     try {
@@ -270,6 +285,19 @@ export default function GuidesPage() {
           <div className="lg:col-span-3">
             <div className="bg-gradient-to-br from-slate-800/30 via-gray-800/20 to-slate-800/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl shadow-lg shadow-slate-500/10">
               <div className="p-6 md:p-8">
+                {guides.length === 0 && !guidesLoading && (
+                  <div className="text-center py-12">
+                    <h2 className="text-xl font-bold text-white mb-4">📚 ガイドコンテンツ準備中</h2>
+                    <p className="text-gray-300 mb-6">
+                      管理者によるデータベース設定が完了次第、ガイドコンテンツが利用可能になります。
+                    </p>
+                    <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-4 text-blue-200">
+                      <p className="text-sm">
+                        <strong>管理者向け:</strong> Supabaseダッシュボードで`22_create_guides_table.sql`マイグレーションを実行してください。
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div
                   className="markdown-content max-w-none"
                   style={{color: '#ffffff'}}
