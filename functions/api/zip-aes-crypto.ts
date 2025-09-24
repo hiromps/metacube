@@ -72,11 +72,12 @@ async function encryptFileAES(data: Uint8Array, password: string): Promise<{
     ['encrypt']
   )
 
-  // Generate IV (12 bytes for CTR mode)
-  const iv = crypto.getRandomValues(new Uint8Array(12))
+  // Generate IV (16 bytes for CTR mode)
+  const iv = crypto.getRandomValues(new Uint8Array(16))
 
-  // Encrypt the data - convert Uint8Array to ArrayBuffer for compatibility
-  const dataBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+  // Encrypt the data - ensure proper ArrayBuffer type
+  const dataBuffer = new ArrayBuffer(data.byteLength)
+  new Uint8Array(dataBuffer).set(data)
   const encryptedBuffer = await crypto.subtle.encrypt(
     {
       name: 'AES-CTR',
@@ -155,8 +156,8 @@ export async function createAutoTouchZIP(files: ZipFileEntry[], password: string
   for (const entry of zipEntries) {
     const filenameBytes = new TextEncoder().encode(entry.name)
 
-    // Local file header (simplified for encrypted files)
-    const localHeader = new Uint8Array(30 + filenameBytes.length + entry.salt.length + entry.authCode.length)
+    // Local file header (standard ZIP format)
+    const localHeader = new Uint8Array(30 + filenameBytes.length)
     const headerView = new DataView(localHeader.buffer)
 
     let offset = 0
@@ -209,19 +210,24 @@ export async function createAutoTouchZIP(files: ZipFileEntry[], password: string
 
     // Filename
     localHeader.set(filenameBytes, offset)
-    offset += filenameBytes.length
 
-    // Append salt + encrypted data + auth code
-    localHeader.set(entry.salt, offset)
-    offset += entry.salt.length
-    localHeader.set(entry.encryptedData, offset)
-    offset += entry.encryptedData.length
-    localHeader.set(entry.authCode, offset)
+    // Create file data block (salt + encrypted data + auth code)
+    const fileDataSize = entry.salt.length + entry.encryptedData.length + entry.authCode.length
+    const fileData = new Uint8Array(fileDataSize)
+    let fileDataOffset = 0
 
-    // Append to ZIP data
-    const newZipData = new Uint8Array(zipData.length + localHeader.length)
+    fileData.set(entry.salt, fileDataOffset)
+    fileDataOffset += entry.salt.length
+    fileData.set(entry.encryptedData, fileDataOffset)
+    fileDataOffset += entry.encryptedData.length
+    fileData.set(entry.authCode, fileDataOffset)
+
+    // Append header and data to ZIP
+    const totalSize = localHeader.length + fileData.length
+    const newZipData = new Uint8Array(zipData.length + totalSize)
     newZipData.set(zipData)
     newZipData.set(localHeader, zipData.length)
+    newZipData.set(fileData, zipData.length + localHeader.length)
     zipData = newZipData
 
     // Create central directory entry
@@ -271,7 +277,7 @@ export async function createAutoTouchZIP(files: ZipFileEntry[], password: string
       filenameBytes: filenameBytes
     })
 
-    localFileOffset = zipData.length
+    localFileOffset += totalSize
   }
 
   // Write central directory
