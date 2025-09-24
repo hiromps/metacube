@@ -485,7 +485,7 @@ async function handleDeviceActivate(request: Request, env: any) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Failed to queue generation'
         }),
         {
           status: 400,
@@ -2591,60 +2591,38 @@ async function handleAteGenerate(request: Request, env: any) {
 
     const device = devices[0];
 
-    // Get or create a default template_id
-    let templateId;
-    const { data: templates, error: templateError } = await supabase
-      .from('templates')
-      .select('id')
-      .eq('name', 'smartgram')
-      .limit(1);
+    // Skip template processing - not needed for basic queue functionality
 
-    if (templateError || !templates || templates.length === 0) {
-      // Create a default template if it doesn't exist
-      const { data: newTemplate, error: createError } = await supabase
-        .from('templates')
-        .insert({
-          name: 'smartgram',
-          display_name: 'SMARTGRAM Default',
-          description: 'Default template for SMARTGRAM automation',
-          config: {},
-          is_active: true
-        })
+    // Insert directly into file_generation_queue (try minimal columns first)
+    const insertData = {
+      device_id: device.id,
+      priority: priority,
+      status: 'queued'
+    };
+
+    let queueId, error;
+
+    try {
+      // Try basic insert without template fields
+      const result = await supabase
+        .from('file_generation_queue')
+        .insert(insertData)
         .select('id')
         .single();
 
-      if (createError || !newTemplate) {
-        // If we can't create template, use a UUID
-        console.warn('Could not create template, using random UUID');
-        templateId = crypto.randomUUID();
-      } else {
-        templateId = newTemplate.id;
-      }
-    } else {
-      templateId = templates[0].id;
+      queueId = result.data?.id;
+      error = result.error;
+    } catch (insertError) {
+      console.error('Insert failed:', insertError);
+      error = insertError;
     }
-
-    // Insert directly into file_generation_queue
-    const { data: queueEntry, error } = await supabase
-      .from('file_generation_queue')
-      .insert({
-        device_id: device.id,
-        template_id: templateId,
-        template_name: template_name,
-        priority: priority,
-        status: 'queued'
-      })
-      .select('id')
-      .single();
-
-    const queueId = queueEntry?.id;
 
     if (error) {
       console.error('Error queuing .ate generation:', error);
       return new Response(
         JSON.stringify({
           success: false,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Failed to queue generation'
         }),
         {
           status: 400,
