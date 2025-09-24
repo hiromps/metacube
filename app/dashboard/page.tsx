@@ -409,6 +409,13 @@ export default function DashboardPage() {
         reader.readAsDataURL(uploadFile)
       })
 
+      console.log('Uploading to:', '/api/admin/upload-package', {
+        user_id: uploadTargetUserId,
+        device_hash: uploadTargetDeviceHash,
+        file_name: uploadFile.name,
+        file_size: uploadFile.size
+      })
+
       const response = await fetch('/api/admin/upload-package', {
         method: 'POST',
         headers: {
@@ -424,6 +431,14 @@ export default function DashboardPage() {
           notes: uploadNotes || 'Admin uploaded via dashboard'
         }),
       })
+
+      console.log('Upload response status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Upload failed:', response.status, errorText)
+        throw new Error(`Upload failed with status ${response.status}: ${errorText}`)
+      }
 
       const result = await response.json()
 
