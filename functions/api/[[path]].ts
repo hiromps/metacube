@@ -2758,9 +2758,10 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
     const fileName = `smartgram_${device_hash}_${Date.now()}.ate`;
     const filePath = `generated/${device_hash}/${fileName}`;
 
+    // Use UPSERT to handle duplicate device+template combinations
     const { data: fileRecord, error: fileError } = await supabase
       .from('ate_files')
-      .insert({
+      .upsert({
         device_id: device.id,
         template_id: templateId,
         plan_id: planId,
@@ -2782,6 +2783,8 @@ async function handleAteGenerateImmediate(request: Request, env: any) {
         generation_status: 'success',
         is_active: true,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      }, {
+        onConflict: 'device_id,template_id'
       })
       .select('id')
       .single();
