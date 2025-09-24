@@ -3036,8 +3036,10 @@ end`;
     }
   };
 
-  // Convert to base64 for storage
-  const content = Buffer.from(JSON.stringify(ateStructure, null, 2)).toString('base64');
+  // Convert to base64 for storage (Cloudflare Workers compatible)
+  const encoder = new TextEncoder();
+  const dataArray = encoder.encode(JSON.stringify(ateStructure, null, 2));
+  const content = btoa(String.fromCharCode(...dataArray));
 
   return {
     content,
