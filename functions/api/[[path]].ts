@@ -3668,20 +3668,20 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
       // Don't fail the registration for license creation error, just log it
     }
 
-    console.log('Device hash registration successful:', {
+    console.log('Serial number registration successful:', {
       device_id: newDevice.id,
       user_id: user_id,
-      device_hash: normalizedDeviceHash,
+      serial_number: normalizedSerialNumber,
       trial_ends_at: trialEndsAt.toISOString()
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'デバイスが正常に登録されました',
+        message: 'シリアル番号が正常に登録されました',
         device: {
           id: newDevice.id,
-          device_hash: normalizedDeviceHash,
+          serial_number: normalizedSerialNumber,
           device_model: deviceModel,
           status: 'trial',
           trial_ends_at: trialEndsAt.toISOString()
