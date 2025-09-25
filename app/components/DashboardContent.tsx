@@ -12,7 +12,7 @@ import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { ProgressBar } from '@/app/components/ui/ProgressBar'
-import { isCurrentUserAdmin } from '@/lib/auth/admin'
+import { isAdminEmail } from '@/lib/auth/admin'
 import SubscriptionPlansCard from '@/app/components/SubscriptionPlansCard'
 import PaymentStatusModal from '@/app/components/PaymentStatusModal'
 import { useSearchParams } from 'next/navigation'
@@ -294,7 +294,7 @@ export default function DashboardContent({}: DashboardContentProps) {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex gap-2 lg:gap-3">
-              {userData && isCurrentUserAdmin(userData.email) && (
+              {userData && isAdminEmail(userData.email) && (
                 <Link href="/admin">
                   <Button
                     variant="outline"
@@ -318,7 +318,7 @@ export default function DashboardContent({}: DashboardContentProps) {
             {/* Mobile Menu */}
             {isMenuOpen && (
               <div className="md:hidden bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl p-4 space-y-3">
-                {userData && isCurrentUserAdmin(userData.email) && (
+                {userData && isAdminEmail(userData.email) && (
                   <Link href="/admin">
                     <Button
                       variant="outline"
