@@ -200,7 +200,11 @@ export default function PlanFeatures({ plan, isActive = true }: PlanFeaturesProp
                   </div>
                   {!feature.available && (
                     <Badge variant="error" className="bg-red-500/20 text-red-300 border-red-400/30 text-xs">
-                      {planName === 'starter' ? 'PROプランで利用可能' : 'MAXプランで利用可能'}
+                      {feature.key === 'activelike.lua'
+                        ? 'MAXプランで利用可能'
+                        : (feature.key === 'follow.lua' || feature.key === 'unfollow.lua')
+                          ? 'PROプラン以上で利用可能'
+                          : 'アップグレードが必要'}
                     </Badge>
                   )}
                 </div>
