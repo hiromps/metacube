@@ -156,7 +156,33 @@ export async function signUp(email: string, password: string, deviceHash: string
   return data
 }
 
+export async function signInWithGoogle() {
+  console.log('🔑 Googleログイン開始')
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`
+    }
+  })
+
+  if (error) {
+    console.error('❌ Googleログインエラー:', error)
+    throw error
+  }
+
+  console.log('✅ Googleログイン開始成功:', data)
+  return data
+}
+
 export async function signOut() {
+  // セッション情報をクリア
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('smartgram_remember_session')
+    localStorage.removeItem('smartgram_remember_me')
+    sessionStorage.removeItem('smartgram_temp_session')
+  }
+
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signIn } from '@/lib/auth/client'
+import { signIn, signInWithGoogle } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
@@ -99,6 +99,19 @@ function LoginForm() {
       })
       setError(error.message || 'ログインに失敗しました')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      console.log('🔑 Googleログイン開始')
+      await signInWithGoogle()
+    } catch (error: any) {
+      console.error('❌ Googleログインエラー:', error)
+      setError(error.message || 'Googleログインに失敗しました')
       setLoading(false)
     }
   }
@@ -239,7 +252,9 @@ function LoginForm() {
 
                 <div className="mt-4 md:mt-6 grid grid-cols-2 gap-2 md:gap-3">
                   <Button
-                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium"
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium disabled:opacity-50"
                     size="md"
                     fullWidth
                   >
@@ -252,7 +267,8 @@ function LoginForm() {
                     Google
                   </Button>
                   <Button
-                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium"
+                    disabled={true}
+                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium opacity-50 cursor-not-allowed"
                     size="md"
                     fullWidth
                   >
