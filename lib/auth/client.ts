@@ -172,8 +172,7 @@ export async function signInWithGoogle() {
     console.error('❌ Googleログインエラー:', error)
     console.error('❌ エラー詳細:', {
       message: error.message,
-      status: error.status,
-      statusCode: error.statusCode
+      status: error.status
     })
     throw error
   }
