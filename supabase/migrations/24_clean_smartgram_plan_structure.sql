@@ -107,7 +107,7 @@ BEGIN
     END IF;
 END $$;
 
--- 6. Create simple, clean device_plan_view
+-- 6. Create simple, clean device_plan_view with only guaranteed columns
 CREATE VIEW device_plan_view AS
 SELECT
     -- Device information
@@ -119,14 +119,15 @@ SELECT
     d.trial_ends_at,
     d.created_at as device_created_at,
 
-    -- Subscription information
+    -- Subscription information (only original schema columns)
     s.id as subscription_id,
     s.status as subscription_status,
-    s.stripe_subscription_id,
-    s.stripe_customer_id,
-    s.current_period_start,
-    s.current_period_end,
+    s.plan_id as subscription_plan_id,
+    s.amount_jpy as subscription_amount,
+    s.billing_cycle,
     s.next_billing_date,
+    s.cancelled_at,
+    s.paypal_subscription_id,
 
     -- Plan information
     d.plan_id,
@@ -148,7 +149,7 @@ SELECT
         WHEN s.status = 'trialing' THEN 'トライアル中'
         WHEN d.trial_ends_at > NOW() AND s.status IS NULL THEN 'トライアル期間'
         WHEN s.status = 'past_due' THEN '支払い遅延'
-        WHEN s.status = 'canceled' THEN '解約済み'
+        WHEN s.status = 'canceled' OR s.status = 'cancelled' THEN '解約済み'
         WHEN d.status = 'expired' THEN '期限切れ'
         ELSE '未契約'
     END as status_display,
