@@ -411,7 +411,7 @@ export default function DashboardContent({}: DashboardContentProps) {
   }
 
   const handleAdminUpload = async () => {
-    if (!uploadFile || !uploadTargetUser.trim() || !uploadTargetDevice.trim()) {
+    if (!uploadFile || !uploadTargetUser || !uploadTargetDevice) {
       setError('すべての必須フィールドを入力してください')
       return
     }
@@ -430,8 +430,8 @@ export default function DashboardContent({}: DashboardContentProps) {
       const base64Content = btoa(binaryString)
 
       const uploadData = {
-        user_id: uploadTargetUser.trim(),
-        device_hash: uploadTargetDevice.trim(),
+        user_id: uploadTargetUser,
+        device_hash: uploadTargetDevice,
         file_name: uploadFile.name,
         file_content: base64Content,
         file_size: uploadFile.size,
@@ -529,24 +529,39 @@ export default function DashboardContent({}: DashboardContentProps) {
           try {
             console.log('👤 loadAvailableUsers: Processing user:', device.user_id)
 
-            // Get user email from auth
-            const { data: userData, error: userError } = await supabase.auth.admin.getUserById(device.user_id)
-
-            if (userError) {
-              console.warn('⚠️ loadAvailableUsers: Failed to get user email for:', device.user_id, userError)
+            // Try to get user email - fallback to current user session if admin access fails
+            let userEmail = `ユーザー${device.user_id.substring(0, 8)}`
+            try {
+              // First try to get email from current session if it's the same user
+              const { data: { user: currentUser } } = await supabase.auth.getUser()
+              if (currentUser && currentUser.id === device.user_id) {
+                userEmail = currentUser.email || userEmail
+              } else {
+                // For other users, we'll need to use a different approach since admin access is restricted
+                // We could store email in devices table or use a different method
+                userEmail = `ユーザー${device.user_id.substring(0, 8)}`
+              }
+            } catch (err) {
+              console.warn('⚠️ loadAvailableUsers: Could not get email for user:', device.user_id)
             }
 
-            // Get plan information
+            // Get plan information - fix the query to use correct column
             let planInfo = { name: 'unknown', display_name: 'Unknown Plan' }
             if (device.plan_id) {
-              const { data: plan } = await supabase
-                .from('plans')
-                .select('name, display_name')
-                .eq('id', device.plan_id)
-                .single()
+              try {
+                const { data: plan, error: planError } = await supabase
+                  .from('plans')
+                  .select('name, display_name')
+                  .eq('name', device.plan_id)  // Use 'name' instead of 'id'
+                  .single()
 
-              if (plan) {
-                planInfo = plan
+                if (plan && !planError) {
+                  planInfo = plan
+                } else {
+                  console.warn('⚠️ loadAvailableUsers: Plan not found for:', device.plan_id, planError)
+                }
+              } catch (planErr) {
+                console.warn('⚠️ loadAvailableUsers: Error fetching plan:', planErr)
               }
             }
 
@@ -557,7 +572,7 @@ export default function DashboardContent({}: DashboardContentProps) {
               plan_name: planInfo.name,
               plan_display_name: planInfo.display_name,
               subscription_status: device.status,
-              email: userData.user?.email || `ユーザー${device.user_id.substring(0, 8)}`,
+              email: userEmail,
               created_at: device.created_at
             }
 
@@ -926,7 +941,7 @@ export default function DashboardContent({}: DashboardContentProps) {
                   <div className="flex flex-col sm:flex-row gap-3 pt-4">
                     <Button
                       onClick={handleAdminUpload}
-                      disabled={uploading || !uploadFile || !uploadTargetUser.trim() || !uploadTargetDevice.trim()}
+                      disabled={uploading || !uploadFile || !uploadTargetUser || !uploadTargetDevice}
                       className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
                       size="sm"
                     >
