@@ -4,7 +4,8 @@
 -- First, ensure the plans table has the correct structure
 ALTER TABLE IF EXISTS plans
 ADD COLUMN IF NOT EXISTS description TEXT,
-ADD COLUMN IF NOT EXISTS original_price INTEGER,
+ADD COLUMN IF NOT EXISTS price_jpy INTEGER,
+ADD COLUMN IF NOT EXISTS original_price_jpy INTEGER,
 ADD COLUMN IF NOT EXISTS billing_cycle TEXT DEFAULT 'monthly',
 ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS limitations JSONB DEFAULT '{}',
@@ -12,14 +13,17 @@ ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
 ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Update existing price_jpy column to match our structure if it exists but is null
+UPDATE plans SET price_jpy = price WHERE price_jpy IS NULL AND price IS NOT NULL;
+
 -- Create plans table if it doesn't exist
 CREATE TABLE IF NOT EXISTS plans (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     display_name TEXT NOT NULL,
     description TEXT,
-    price INTEGER NOT NULL,
-    original_price INTEGER,
+    price_jpy INTEGER NOT NULL,
+    original_price_jpy INTEGER,
     billing_cycle TEXT DEFAULT 'monthly',
     features JSONB DEFAULT '{}',
     limitations JSONB DEFAULT '{}',
@@ -30,7 +34,7 @@ CREATE TABLE IF NOT EXISTS plans (
 );
 
 -- Insert or update plan data with correct pricing from plans/page.tsx
-INSERT INTO plans (name, display_name, price, original_price, features, limitations, sort_order, is_active)
+INSERT INTO plans (name, display_name, price_jpy, original_price_jpy, features, limitations, sort_order, is_active)
 VALUES
     (
         'starter',
@@ -96,8 +100,8 @@ VALUES
     )
 ON CONFLICT (name) DO UPDATE SET
     display_name = EXCLUDED.display_name,
-    price = EXCLUDED.price,
-    original_price = EXCLUDED.original_price,
+    price_jpy = EXCLUDED.price_jpy,
+    original_price_jpy = EXCLUDED.original_price_jpy,
     features = EXCLUDED.features,
     limitations = EXCLUDED.limitations,
     sort_order = EXCLUDED.sort_order,
@@ -144,8 +148,8 @@ SELECT
     s.status as subscription_status,
     s.plan_id,
     p.display_name as plan_display_name,
-    p.price as plan_price,
-    p.original_price as plan_original_price,
+    p.price_jpy as plan_price,
+    p.original_price_jpy as plan_original_price,
     p.features as plan_features,
     p.limitations as plan_limitations,
     CASE

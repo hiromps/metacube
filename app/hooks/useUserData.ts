@@ -135,7 +135,7 @@ export function useUserData() {
               id: planData.id,
               name: planData.name,
               display_name: planData.display_name,
-              price: planData.price,
+              price: planData.price_jpy || planData.price,
               billing_cycle: planData.billing_cycle,
               features: planData.features || {},
               limitations: planData.limitations || {}

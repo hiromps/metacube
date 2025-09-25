@@ -78,8 +78,8 @@ export interface Database {
           name: string
           display_name: string
           description: string | null
-          price: number
-          original_price: number | null
+          price_jpy: number
+          original_price_jpy: number | null
           billing_cycle: string
           features: Record<string, boolean>
           limitations: Record<string, any>
@@ -93,8 +93,8 @@ export interface Database {
           name: string
           display_name: string
           description?: string | null
-          price: number
-          original_price?: number | null
+          price_jpy: number
+          original_price_jpy?: number | null
           billing_cycle?: string
           features?: Record<string, boolean>
           limitations?: Record<string, any>
@@ -108,8 +108,8 @@ export interface Database {
           name?: string
           display_name?: string
           description?: string | null
-          price?: number
-          original_price?: number | null
+          price_jpy?: number
+          original_price_jpy?: number | null
           billing_cycle?: string
           features?: Record<string, boolean>
           limitations?: Record<string, any>
