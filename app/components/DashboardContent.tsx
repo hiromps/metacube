@@ -371,7 +371,7 @@ export default function DashboardContent({}: DashboardContentProps) {
 
                 <div className="flex flex-col items-end gap-2">
                   <Badge
-                    variant={userData?.isSubscriptionActive ? 'default' : userData?.device ? 'secondary' : 'destructive'}
+                    variant={userData?.isSubscriptionActive ? 'success' : userData?.device ? 'warning' : 'error'}
                     className={`${userData?.isSubscriptionActive
                       ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border-green-400/30'
                       : userData?.device
