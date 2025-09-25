@@ -84,6 +84,7 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [activeSection, setActiveSection] = useState<DashboardSection>('overview')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {
@@ -342,6 +343,63 @@ export default function DashboardContent({}: DashboardContentProps) {
     }
   }
 
+  const handleDownloadATE = async () => {
+    setDownloading(true)
+    setError('')
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('認証が必要です')
+      }
+
+      const response = await fetch('/api/download-package', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        throw new Error(`ダウンロードに失敗しました (${response.status}): ${errorData}`)
+      }
+
+      // Get filename from response headers or use default
+      const contentDisposition = response.headers.get('content-disposition')
+      let filename = 'smartgram.ate'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      // Show success message
+      alert('✅ ファイルのダウンロードが完了しました！\n\nAutoTouchアプリで開いてご利用ください。')
+
+    } catch (err: any) {
+      console.error('ATE download error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`ダウンロードに失敗しました: ${errorMessage}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -527,6 +585,46 @@ export default function DashboardContent({}: DashboardContentProps) {
                 📱 今すぐデバイスを登録する
               </Button>
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* ATE File Download Section - show for registered devices */}
+      {userData?.device && (
+        <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-purple-500/10">
+          <h3 className="text-lg md:text-xl font-semibold text-white mb-4">📦 ツールファイルダウンロード</h3>
+          <div className="space-y-4">
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-white font-medium mb-2">🎯 SMARTGRAM.ate</h4>
+                  <p className="text-white/70 text-sm mb-3">
+                    あなた専用のSMARTGRAM.ateファイルをダウンロードできます。このファイルをAutoTouchで実行してInstagram自動化を開始してください。
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div>
+                    <p className="text-white text-sm font-medium">SMARTGRAM.ate</p>
+                    <p className="text-white/60 text-xs">
+                      プラン: {userData.plan?.display_name || 'なし'} • デバイス: {userData.device.device_hash.substring(0, 8)}...
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleDownloadATE}
+                    disabled={downloading}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-xl"
+                    size="sm"
+                  >
+                    {downloading ? '📥 ダウンロード中...' : '📥 ダウンロード'}
+                  </Button>
+                </div>
+                <div className="text-xs text-white/50 space-y-1">
+                  <p>• ファイルはあなたのデバイス専用にカスタマイズされています</p>
+                  <p>• AutoTouchアプリで開いてご利用ください</p>
+                  <p>• 最新の機能とプラン制限が適用されます</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
