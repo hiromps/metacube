@@ -9,59 +9,63 @@ interface PlanFeaturesProps {
   isActive?: boolean
 }
 
-// プランごとの機能定義
+// プランごとの機能定義（plans/page.tsxに基づく）
 const planFeatures = {
   starter: [
     { key: 'timeline.lua', name: 'タイムライン自動いいね', available: true },
-    { key: 'follow.lua', name: 'フォロー', available: true },
     { key: 'hashtaglike.lua', name: 'ハッシュタグいいね', available: true },
-    { key: 'activelike.lua', name: 'アクティブいいね', available: false },
-    { key: 'dm.lua', name: 'DM送信', available: false }
+    { key: 'follow.lua', name: '自動フォロー', available: false },
+    { key: 'unfollow.lua', name: '自動アンフォロー', available: false },
+    { key: 'activelike.lua', name: 'アクティブユーザーいいね', available: false }
   ],
   pro: [
     { key: 'timeline.lua', name: 'タイムライン自動いいね', available: true },
-    { key: 'follow.lua', name: 'フォロー', available: true },
     { key: 'hashtaglike.lua', name: 'ハッシュタグいいね', available: true },
-    { key: 'activelike.lua', name: 'アクティブいいね', available: true },
-    { key: 'dm.lua', name: 'DM送信', available: false }
+    { key: 'follow.lua', name: '自動フォロー', available: true },
+    { key: 'unfollow.lua', name: '自動アンフォロー', available: true },
+    { key: 'activelike.lua', name: 'アクティブユーザーいいね', available: false }
   ],
   max: [
     { key: 'timeline.lua', name: 'タイムライン自動いいね', available: true },
-    { key: 'follow.lua', name: 'フォロー', available: true },
     { key: 'hashtaglike.lua', name: 'ハッシュタグいいね', available: true },
-    { key: 'activelike.lua', name: 'アクティブいいね', available: true },
-    { key: 'dm.lua', name: 'DM送信', available: true }
+    { key: 'follow.lua', name: '自動フォロー', available: true },
+    { key: 'unfollow.lua', name: '自動アンフォロー', available: true },
+    { key: 'activelike.lua', name: 'アクティブユーザーいいね', available: true }
   ],
   trial: [
     { key: 'timeline.lua', name: 'タイムライン自動いいね', available: true },
-    { key: 'follow.lua', name: 'フォロー', available: true },
-    { key: 'hashtaglike.lua', name: 'ハッシュタグいいね', available: false },
-    { key: 'activelike.lua', name: 'アクティブいいね', available: false },
-    { key: 'dm.lua', name: 'DM送信', available: false }
+    { key: 'hashtaglike.lua', name: 'ハッシュタグいいね', available: true },
+    { key: 'follow.lua', name: '自動フォロー', available: false },
+    { key: 'unfollow.lua', name: '自動アンフォロー', available: false },
+    { key: 'activelike.lua', name: 'アクティブユーザーいいね', available: false }
   ]
 }
 
-// プランごとの制限定義
+// プランごとの制限定義（回数制限なし）
 const planLimitations = {
   starter: {
-    daily_actions: 1000,
-    concurrent_sessions: 1,
-    advanced_features: false
+    price: '¥2,980',
+    support: 'LINEサポート30日間',
+    trial_days: 3
   },
   pro: {
-    daily_actions: 5000,
-    concurrent_sessions: 2,
-    advanced_features: true
+    price: '¥6,980',
+    original_price: '¥9,980',
+    support: 'LINEサポート90日間',
+    trial_days: 3,
+    time_savings: '月40時間節約'
   },
   max: {
-    daily_actions: -1, // 無制限
-    concurrent_sessions: 5,
-    advanced_features: true
+    price: '¥15,800',
+    original_price: '¥19,800',
+    support: '24時間電話サポート',
+    trial_days: 3,
+    time_savings: '月160時間節約'
   },
   trial: {
-    daily_actions: 100,
-    concurrent_sessions: 1,
-    advanced_features: false
+    price: '無料',
+    support: '基本サポート',
+    trial_days: 3
   }
 }
 
@@ -137,25 +141,41 @@ export default function PlanFeatures({ plan, isActive = true }: PlanFeaturesProp
             </Badge>
           </div>
 
-          {/* Plan Limitations */}
+          {/* Plan Information */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
-              <div className="text-sm text-white/70 mb-1">1日の実行回数</div>
+              <div className="text-sm text-white/70 mb-1">料金</div>
               <div className="text-white font-bold text-lg">
-                {limitations.daily_actions === -1 ? '無制限' : `${limitations.daily_actions}回`}
+                {limitations.original_price && (
+                  <span className="text-sm text-gray-400 line-through mr-2">{limitations.original_price}</span>
+                )}
+                {limitations.price}
+                {planName !== 'trial' && <span className="text-sm text-white/70">/月</span>}
               </div>
             </div>
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
-              <div className="text-sm text-white/70 mb-1">同時実行セッション</div>
-              <div className="text-white font-bold text-lg">{limitations.concurrent_sessions}セッション</div>
+              <div className="text-sm text-white/70 mb-1">サポート</div>
+              <div className="text-white font-bold text-sm leading-tight">{limitations.support}</div>
             </div>
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
-              <div className="text-sm text-white/70 mb-1">高度な機能</div>
-              <div className={`font-bold text-lg ${limitations.advanced_features ? 'text-green-400' : 'text-red-400'}`}>
-                {limitations.advanced_features ? '利用可能' : '制限あり'}
+              <div className="text-sm text-white/70 mb-1">体験期間</div>
+              <div className="text-white font-bold text-lg">
+                {limitations.trial_days}日間無料
               </div>
             </div>
           </div>
+
+          {limitations.time_savings && (
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⏱️</span>
+                <div>
+                  <div className="text-white font-semibold">{limitations.time_savings}</div>
+                  <div className="text-green-300 text-sm">手動運用と比較した時間節約効果</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Feature List */}
           <div>
@@ -180,7 +200,7 @@ export default function PlanFeatures({ plan, isActive = true }: PlanFeaturesProp
                   </div>
                   {!feature.available && (
                     <Badge variant="error" className="bg-red-500/20 text-red-300 border-red-400/30 text-xs">
-                      上位プランで利用可能
+                      {planName === 'starter' ? 'PROプランで利用可能' : 'MAXプランで利用可能'}
                     </Badge>
                   )}
                 </div>

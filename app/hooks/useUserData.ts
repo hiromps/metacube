@@ -123,11 +123,11 @@ export function useUserData() {
         // Use fallback plan mapping since plans table might not exist
         const planMap = {
           'starter': { name: 'starter', display_name: 'STARTER', price: 2980 },
-          'pro': { name: 'pro', display_name: 'PRO', price: 8800 },
-          'max': { name: 'max', display_name: 'MAX', price: 15000 },
+          'pro': { name: 'pro', display_name: 'PRO', price: 6980 },
+          'max': { name: 'max', display_name: 'MAX', price: 15800 },
           'smartgram_monthly_2980': { name: 'starter', display_name: 'STARTER', price: 2980 },
-          'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 8800 },
-          'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15000 }
+          'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 6980 },
+          'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15800 }
         };
 
         const fallbackPlan = planMap[subscription.plan_id] || planMap['starter'];
@@ -138,17 +138,14 @@ export function useUserData() {
           price: fallbackPlan.price,
           billing_cycle: 'monthly',
           features: {
-            timeline: true,
-            follow: true,
-            hashtaglike: fallbackPlan.name !== 'starter',
-            activelike: fallbackPlan.name === 'pro' || fallbackPlan.name === 'max',
-            dm: fallbackPlan.name === 'max'
+            'timeline.lua': true,  // タイムライン自動いいね
+            'hashtaglike.lua': true, // ハッシュタグいいね
+            'follow.lua': fallbackPlan.name !== 'starter', // 自動フォロー
+            'unfollow.lua': fallbackPlan.name !== 'starter', // 自動アンフォロー
+            'activelike.lua': fallbackPlan.name === 'max' // アクティブユーザーいいね
           },
           limitations: {
-            daily_actions: fallbackPlan.name === 'starter' ? 1000 :
-                          fallbackPlan.name === 'pro' ? 5000 : -1,
-            concurrent_sessions: fallbackPlan.name === 'starter' ? 1 :
-                               fallbackPlan.name === 'pro' ? 2 : 5
+            // 回数制限なし
           }
         };
 
@@ -162,13 +159,14 @@ export function useUserData() {
           price: 0,
           billing_cycle: 'trial',
           features: {
-            timeline: true,
-            follow: true,
-            hashtaglike: true
+            'timeline.lua': true,  // タイムライン自動いいね
+            'hashtaglike.lua': true, // ハッシュタグいいね
+            'follow.lua': false,
+            'unfollow.lua': false,
+            'activelike.lua': false
           },
           limitations: {
-            daily_actions: 100,
-            trial_days: 7
+            trial_days: 3  // 3日間体験
           }
         };
       }
