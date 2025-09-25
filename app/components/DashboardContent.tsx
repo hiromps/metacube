@@ -11,7 +11,6 @@ import { Badge } from '@/app/components/ui/Badge'
 import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
 import { useUserData, UserData } from '@/app/hooks/useUserData'
-import { ProgressBar } from '@/app/components/ui/ProgressBar'
 import { isAdminEmail } from '@/lib/auth/admin'
 import SubscriptionPlansCard from '@/app/components/SubscriptionPlansCard'
 import PaymentStatusModal from '@/app/components/PaymentStatusModal'
@@ -397,10 +396,15 @@ export default function DashboardContent({}: DashboardContentProps) {
                     <span className="text-sm text-white/70">体験期間進捗</span>
                     <span className="text-xs text-white/50">{timeLeft}</span>
                   </div>
-                  <ProgressBar
-                    value={Math.max(0, Math.min(100, ((3 - userData.trialDaysRemaining) / 3) * 100))}
-                    className="h-2"
-                  />
+                  <div className="relative w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.max(0, Math.min(100, ((3 - userData.trialDaysRemaining) / 3) * 100))}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-white/50 mt-1">
+                    {Math.round(Math.max(0, Math.min(100, ((3 - userData.trialDaysRemaining) / 3) * 100)))}% 完了
+                  </div>
                 </div>
               )}
 
