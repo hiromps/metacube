@@ -8,279 +8,777 @@ import { signOut } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
+import { UserStatus, UserProfile, getStatusColor, getStatusBadge } from '@/types/user'
 import { LoadingScreen } from '@/app/components/LoadingScreen'
+import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { isAdminEmail } from '@/lib/auth/admin'
+import SubscriptionPlansCard from '@/app/components/SubscriptionPlansCard'
+import PaymentStatusModal from '@/app/components/PaymentStatusModal'
+import PlanFeatures from '@/app/components/PlanFeatures'
 import { useSearchParams } from 'next/navigation'
 
-// Types for the new database structure
-interface DashboardData {
-  device: {
-    id: string
-    hash: string
-    model: string
-    status: string
-    created_at: string
-  }
-  subscription: {
-    id: string | null
-    status: string | null
-    plan_id: string | null
-    amount: number | null
-    billing_cycle: string | null
-    next_billing_date: string | null
-    cancelled_at: string | null
-    paypal_subscription_id: string | null
-  }
-  plan: {
-    id: string
-    name: string
-    price: number
-    features: string[]
-    max_automation_hours: number
-    priority_support: boolean
-  }
-  access: {
-    has_access: boolean
-    access_level: string
-    is_trial_active: boolean
-    trial_days_remaining: number
-    status_display: string
-  }
-  billing: {
-    next_billing_date: string | null
-    days_until_billing: number | null
-    current_amount: number
-  }
-  summary: {
-    user_id: string
-    active_subscription: boolean
-    can_upgrade: boolean
-    can_cancel: boolean
-  }
+// Dashboard sections
+type DashboardSection = 'overview' | 'device' | 'subscription' | 'usage' | 'settings' | 'help'
+
+interface SidebarItem {
+  id: DashboardSection
+  label: string
+  icon: string
+  description: string
 }
 
-interface Plan {
-  id: string
-  name: string
-  price_jpy: number
-  features: string[]
-  max_automation_hours: number
-  priority_support: boolean
-  annual_discount_rate: number | null
-}
+const sidebarItems: SidebarItem[] = [
+  {
+    id: 'overview',
+    label: 'ダッシュボード',
+    icon: '📊',
+    description: 'アカウント概要と現在の状況'
+  },
+  {
+    id: 'device',
+    label: 'デバイス管理',
+    icon: '📱',
+    description: 'デバイス情報と設定変更'
+  },
+  {
+    id: 'subscription',
+    label: 'プラン・契約',
+    icon: '💳',
+    description: 'サブスクリプションとお支払い'
+  },
+  {
+    id: 'usage',
+    label: '利用統計',
+    icon: '📈',
+    description: 'ツールの使用状況と実績'
+  },
+  {
+    id: 'settings',
+    label: '設定',
+    icon: '⚙️',
+    description: 'アカウント設定とセキュリティ'
+  },
+  {
+    id: 'help',
+    label: 'サポート',
+    icon: '❓',
+    description: 'ヘルプとお問い合わせ'
+  }
+]
 
-export default function DashboardContent() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
-  const [availablePlans, setAvailablePlans] = useState<Plan[]>([])
-  const [selectedSection, setSelectedSection] = useState('overview')
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+interface DashboardContentProps {}
+
+export default function DashboardContent({}: DashboardContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { userData, loading, error: dataError, refetch } = useUserData()
+  const [error, setError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
+  const MAX_RETRIES = 3
+  const [cancelling, setCancelling] = useState(false)
+  const [changingDevice, setChangingDevice] = useState(false)
+  const [newDeviceHash, setNewDeviceHash] = useState('')
+  const [showDeviceChangeForm, setShowDeviceChangeForm] = useState(false)
+  const [timeLeft, setTimeLeft] = useState<string>('')
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'error' | 'cancel' | null>(null)
+  const [activeSection, setActiveSection] = useState<DashboardSection>('overview')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Load user and dashboard data
-  const loadData = useCallback(async () => {
+  // Auto-collapse sidebar on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) { // lg breakpoint
+        setSidebarCollapsed(true)
+        setMobileMenuOpen(false)
+      } else {
+        setSidebarCollapsed(false)
+      }
+    }
+
+    handleResize() // Check on mount
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const checkAuth = useCallback(async () => {
     try {
-      setLoading(true)
-      setError('')
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      // Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) {
+      if (authError) {
+        console.error('Auth error:', authError)
+        if (authError.message !== 'Invalid JWT') {
+          setError(`認証エラー: ${authError.message}`)
+        }
         router.push('/login')
         return
       }
 
-      setUser(currentUser)
-
-      // Load dashboard data
-      const dashboardResponse = await fetch('/api/user/dashboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id })
-      })
-
-      console.log('Dashboard response status:', dashboardResponse.status)
-      console.log('Dashboard response headers:', Object.fromEntries(dashboardResponse.headers.entries()))
-
-      if (!dashboardResponse.ok) {
-        const errorText = await dashboardResponse.text()
-        console.error('Dashboard API error:', errorText)
-        throw new Error(`ダッシュボードデータの読み込みに失敗しました (${dashboardResponse.status})`)
+      if (!user) {
+        console.log('No user found, redirecting to login')
+        router.push('/login')
+        return
       }
-
-      const dashboardResult = await dashboardResponse.json()
-      if (!dashboardResult.success) {
-        throw new Error(dashboardResult.error || 'データの取得に失敗しました')
+    } catch (error: any) {
+      console.error('Auth check error:', error)
+      // Don't show auth errors to user unless critical
+      if (error?.status !== 406) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        setError(errorMessage)
       }
-
-      setDashboardData(dashboardResult.data)
-
-      // Load available plans
-      const plansResponse = await fetch('/api/dashboard/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-
-      if (plansResponse.ok) {
-        const plansResult = await plansResponse.json()
-        if (plansResult.success) {
-          setAvailablePlans(plansResult.data)
-        }
-      }
-
-    } catch (error) {
-      console.error('Data loading error:', error)
-      setError(error instanceof Error ? error.message : 'データの読み込み中にエラーが発生しました')
-    } finally {
-      setLoading(false)
+      router.push('/login')
     }
   }, [router])
 
-  // Initial load
+  const updateTimeLeft = useCallback(() => {
+    if (!userData?.device?.trial_ends_at || !userData.isTrialActive) {
+      setTimeLeft('')
+      return
+    }
+
+    const targetDate = new Date(userData.device.trial_ends_at)
+    const now = new Date()
+    const diff = targetDate.getTime() - now.getTime()
+
+    if (diff <= 0) {
+      setTimeLeft('体験期間: 期限切れ')
+      return
+    }
+
+    const totalSeconds = Math.floor(diff / 1000)
+    const days = Math.floor(totalSeconds / 86400)
+    const hours = Math.floor((totalSeconds % 86400) / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    setTimeLeft(`体験期間残り: ${days}日 ${hours}時間 ${minutes}分 ${seconds}秒`)
+  }, [userData?.device?.trial_ends_at, userData?.isTrialActive])
+
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    let mounted = true
 
-  // Handle plan change
-  const handlePlanChange = async (newPlanId: string) => {
-    if (!dashboardData) return
-
-    try {
-      setActionLoading(`plan-${newPlanId}`)
-      setError('')
-
-      const response = await fetch('/api/dashboard/plan-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          device_hash: dashboardData.device.hash,
-          new_plan_id: newPlanId
-        })
-      })
-
-      const result = await response.json()
-      if (!result.success) {
-        throw new Error(result.error || 'プラン変更に失敗しました')
+    const initAuth = async () => {
+      if (mounted) {
+        await checkAuth()
       }
-
-      setSuccess(result.message)
-      await loadData() // Reload data
-
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'プラン変更中にエラーが発生しました')
-    } finally {
-      setActionLoading(null)
     }
-  }
 
-  // Handle subscription cancellation
+    initAuth()
+
+    return () => {
+      mounted = false
+    }
+  }, [checkAuth])
+
+  // Check for payment result query parameters and localStorage
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const canceled = searchParams.get('canceled')
+    const error = searchParams.get('error')
+    const device_registered = searchParams.get('device_registered')
+
+    // Force refetch user data when device was just registered
+    if (device_registered === 'true') {
+      console.log('Device registration detected, forcing data refresh...')
+      setTimeout(() => {
+        refetch()
+      }, 500) // Wait 500ms to ensure API update is complete
+    }
+
+    if (success === 'true') {
+      setPaymentStatus('success')
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+      // Delay refetch to avoid immediate re-render
+      const timer = setTimeout(() => {
+        if (retryCount < MAX_RETRIES) {
+          refetch()
+          setRetryCount(prev => prev + 1)
+        }
+      }, 2000)
+      return () => clearTimeout(timer)
+    } else if (canceled === 'true') {
+      setPaymentStatus('cancel')
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+    } else if (error === 'true') {
+      setPaymentStatus('error')
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+    } else {
+      const checkoutStarted = localStorage.getItem('stripe_checkout_started')
+      const planId = localStorage.getItem('selected_plan_id')
+
+      if (checkoutStarted && planId && retryCount < MAX_RETRIES) {
+        const startTime = parseInt(checkoutStarted)
+        const now = Date.now()
+        const timeDiff = now - startTime
+
+        if (timeDiff < 30 * 60 * 1000) { // 30 minutes
+          console.log('User returned from potential Stripe checkout, checking subscription status...')
+
+          const timer = setTimeout(() => {
+            refetch()
+            setRetryCount(prev => prev + 1)
+            const checkTimer = setTimeout(() => {
+              if (userData?.isSubscriptionActive) {
+                setPaymentStatus('success')
+                localStorage.removeItem('stripe_checkout_started')
+                localStorage.removeItem('selected_plan_id')
+              }
+            }, 2000)
+            return () => clearTimeout(checkTimer)
+          }, 1000)
+          return () => clearTimeout(timer)
+        } else {
+          localStorage.removeItem('stripe_checkout_started')
+          localStorage.removeItem('selected_plan_id')
+        }
+      }
+    }
+
+    if (success || canceled || error || device_registered) {
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [searchParams, refetch, userData?.isSubscriptionActive, retryCount, MAX_RETRIES])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (userData?.device?.trial_ends_at) {
+        updateTimeLeft()
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [userData, updateTimeLeft])
+
   const handleCancelSubscription = async () => {
-    if (!dashboardData || !showCancelConfirm) return
+    if (!confirm('本当に解約しますか？解約すると即座にサービスが利用できなくなります。')) {
+      return
+    }
+
+    setCancelling(true)
+    setError('')
 
     try {
-      setActionLoading('cancel')
-      setError('')
+      const { data: { user } } = await supabase.auth.getUser()
 
-      const response = await fetch('/api/dashboard/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          device_hash: dashboardData.device.hash
-        })
-      })
-
-      const result = await response.json()
-      if (!result.success) {
-        throw new Error(result.error || '解約処理に失敗しました')
+      if (!user) {
+        throw new Error('ユーザー情報が取得できません')
       }
 
-      setSuccess('サブスクリプションを解約しました')
-      setShowCancelConfirm(false)
-      await loadData() // Reload data
+      const { data: result, error: cancelError } = await supabase.rpc('cancel_subscription', {
+        p_user_id: user.id
+      })
 
-    } catch (error) {
-      setError(error instanceof Error ? error.message : '解約処理中にエラーが発生しました')
+      if (cancelError) {
+        throw new Error(cancelError.message)
+      }
+
+      refetch()
+      alert('サブスクリプションを解約しました')
+
+    } catch (err: any) {
+      console.error('Cancel subscription error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`解約に失敗しました: ${errorMessage}`)
     } finally {
-      setActionLoading(null)
+      setCancelling(false)
     }
   }
 
-  // Handle logout
-  const handleLogout = async () => {
+  const handleDeviceChange = async () => {
+    if (!newDeviceHash.trim()) {
+      setError('デバイスハッシュを入力してください')
+      return
+    }
+
+    setChangingDevice(true)
+    setError('')
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('ユーザー情報が取得できません')
+      }
+
+      // Check if the new device hash already exists
+      const { data: existingDevice, error: checkError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('device_hash', newDeviceHash.trim())
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows found, which is what we want
+        throw new Error(`デバイスハッシュの確認エラー: ${checkError.message}`)
+      }
+
+      if (existingDevice) {
+        throw new Error('このデバイスハッシュは既に他のユーザーによって使用されています')
+      }
+
+      // Update the device hash directly
+      const { error: updateError } = await supabase
+        .from('devices')
+        .update({ device_hash: newDeviceHash.trim() })
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        throw new Error(updateError.message)
+      }
+
+      refetch()
+      setShowDeviceChangeForm(false)
+      setNewDeviceHash('')
+      alert('デバイスハッシュを更新しました')
+
+    } catch (err: any) {
+      console.error('Device change error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`デバイス変更に失敗しました: ${errorMessage}`)
+    } finally {
+      setChangingDevice(false)
+    }
+  }
+
+  const handleSignOut = async () => {
     try {
       await signOut()
       router.push('/')
-    } catch (error) {
-      console.error('Logout error:', error)
+    } catch (error: any) {
+      console.error('Sign out error:', error)
     }
   }
 
-  // Format date for display
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '未設定'
-    return new Date(dateString).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+  const handleSectionChange = (section: DashboardSection) => {
+    setActiveSection(section)
+    // Close mobile menu after selection
+    if (window.innerWidth < 1024) {
+      setMobileMenuOpen(false)
+    }
   }
 
-  // Get status badge variant for subscription status
-  const getStatusBadge = (status: string): 'default' | 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
-    switch (status) {
-      case 'アクティブ':
-        return 'success'
-      case 'トライアル中':
-      case 'トライアル期間':
-        return 'matrix'
-      case '解約済み':
-      case '期限切れ':
-        return 'error'
-      case '支払い遅延':
-        return 'warning'
+  // Render different sections based on activeSection
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case 'overview':
+        return renderOverviewSection()
+      case 'device':
+        return renderDeviceSection()
+      case 'subscription':
+        return renderSubscriptionSection()
+      case 'usage':
+        return renderUsageSection()
+      case 'settings':
+        return renderSettingsSection()
+      case 'help':
+        return renderHelpSection()
       default:
-        return 'default'
+        return renderOverviewSection()
     }
   }
 
-  // Get device status badge variant
-  const getDeviceStatusBadge = (status: string): 'default' | 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
-    switch (status) {
-      case 'active':
-        return 'success'
-      case 'trial':
-        return 'matrix'
-      case 'expired':
-      case 'suspended':
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
+  const renderOverviewSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      {/* User Status Card */}
+      <div className="bg-gradient-to-br from-blue-800/30 via-indigo-800/20 to-purple-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-blue-500/10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
+          <div>
+            <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
+            <p className="text-white/70 text-sm md:text-base">
+              {userData?.device ?
+                (userData.isSubscriptionActive && userData.isTrialActive ? '体験期間中（有料契約済み）' :
+                  userData.isSubscriptionActive ? '有料会員' :
+                  'デバイス登録済み - 契約待ち') :
+                'デバイス未登録'}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start md:items-end gap-2">
+            <Badge
+              variant={userData?.isSubscriptionActive ? 'success' : userData?.device ? 'warning' : 'error'}
+              className={`${userData?.isSubscriptionActive
+                ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border-green-400/30'
+                : userData?.device
+                  ? 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-300 border-yellow-400/30'
+                  : 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-300 border-red-400/30'
+                } backdrop-blur-sm text-xs md:text-sm px-3 py-1`}
+            >
+              {userData?.isSubscriptionActive ? '✅ アクティブ' :
+                userData?.device ? '⏳ 未契約' : '❌ 未登録'}
+            </Badge>
+            {userData?.isTrialActive && userData?.trialDaysRemaining !== null && (
+              <Badge className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border-purple-400/30 backdrop-blur-sm text-xs">
+                体験残り: {userData.trialDaysRemaining}日
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Trial Progress */}
+        {userData?.isTrialActive && userData?.trialDaysRemaining !== null && (
+          <div className="mb-4 md:mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-white/70">体験期間進捗</span>
+              <span className="text-xs text-white/50">{timeLeft}</span>
+            </div>
+            <div className="relative w-full bg-white/20 rounded-full h-2 overflow-hidden">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(0, Math.min(100, ((3 - userData.trialDaysRemaining) / 3) * 100))}%` }}
+              />
+            </div>
+            <div className="text-xs text-white/50 mt-1">
+              {Math.round(Math.max(0, Math.min(100, ((3 - userData.trialDaysRemaining) / 3) * 100)))}% 完了
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-green-800/30 via-emerald-800/20 to-teal-800/30 backdrop-blur-xl border border-green-400/30 rounded-2xl p-4 md:p-6 text-center shadow-lg shadow-green-500/10">
+          <div className="text-2xl md:text-3xl mb-2">📱</div>
+          <h3 className="font-medium text-white mb-1 text-sm md:text-base">デバイス</h3>
+          <p className="text-green-300 text-lg md:text-xl font-bold">
+            {userData?.device ? '1台' : '0台'}
+          </p>
+          <p className="text-white/60 text-xs">登録済み</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 text-center shadow-lg shadow-purple-500/10">
+          <div className="text-2xl md:text-3xl mb-2">🎯</div>
+          <h3 className="font-medium text-white mb-1 text-sm md:text-base">プラン</h3>
+          <p className="text-purple-300 text-lg md:text-xl font-bold">
+            {userData?.plan?.display_name || 'なし'}
+          </p>
+          <p className="text-white/60 text-xs">現在のプラン</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-orange-800/30 via-amber-800/20 to-yellow-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-4 md:p-6 text-center shadow-lg shadow-orange-500/10 sm:col-span-2 lg:col-span-1">
+          <div className="text-2xl md:text-3xl mb-2">⚡</div>
+          <h3 className="font-medium text-white mb-1 text-sm md:text-base">ステータス</h3>
+          <p className={`text-lg md:text-xl font-bold ${userData?.isSubscriptionActive ? 'text-green-400' : userData?.device ? 'text-yellow-400' : 'text-red-400'
+            }`}>
+            {userData?.isSubscriptionActive ? 'アクティブ' : userData?.device ? '準備中' : '未設定'}
+          </p>
+          <p className="text-white/60 text-xs">利用状況</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderDeviceSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      {userData?.device ? (
+        <div className="bg-gradient-to-br from-blue-800/30 via-indigo-800/20 to-purple-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-blue-500/10">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4">📱 デバイス情報</h2>
+          <div className="space-y-4">
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2">
+                  <span className="text-white/70 text-sm">デバイスハッシュ:</span>
+                  <code className="text-blue-300 text-xs md:text-sm font-mono bg-black/20 px-2 py-1 rounded break-all">
+                    {userData.device.device_hash}
+                  </code>
+                </div>
+                <div className="flex flex-col md:flex-row md:justify-between gap-2">
+                  <span className="text-white/70 text-sm">登録日:</span>
+                  <span className="text-white/80 text-sm">
+                    {new Date(userData.device.created_at).toLocaleDateString('ja-JP')}
+                  </span>
+                </div>
+                <div className="flex flex-col md:flex-row md:justify-between gap-2">
+                  <span className="text-white/70 text-sm">ステータス:</span>
+                  <span className={`text-sm ${userData.device.status === 'active' ? 'text-green-400' :
+                    userData.device.status === 'trial' ? 'text-yellow-400' :
+                      'text-red-400'
+                    }`}>
+                    {userData.device.status === 'active' ? 'アクティブ' :
+                      userData.device.status === 'trial' ? '体験中' :
+                        '期限切れ'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => setShowDeviceChangeForm(true)}
+                variant="outline"
+                size="sm"
+                className="flex-1 bg-white/10 border-white/30 text-white/80 hover:bg-white/20 hover:border-white/40"
+              >
+                デバイス変更
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-br from-blue-800/30 via-indigo-800/20 to-purple-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-blue-500/10">
+          <h3 className="text-lg md:text-xl font-semibold text-white mb-2">🎉 デバイス登録</h3>
+          <p className="text-white/70 mb-4 md:mb-6 text-sm md:text-base">
+            iPhone 7/8をお持ちの方は、デバイス登録を行ってSMARTGRAMをご利用ください。
+          </p>
+          <div className="text-center">
+            <Link href="/device-register">
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20 w-full sm:w-auto" size="lg">
+                📱 今すぐデバイスを登録する
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Device Change Form */}
+      {showDeviceChangeForm && (
+        <div className="bg-gradient-to-br from-yellow-800/30 via-amber-800/20 to-orange-800/30 backdrop-blur-xl border border-yellow-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-yellow-500/10">
+          <h3 className="text-lg md:text-xl font-semibold text-white mb-4">デバイス変更</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white/80 text-sm mb-2">新しいデバイスハッシュ</label>
+              <input
+                type="text"
+                value={newDeviceHash}
+                onChange={(e) => setNewDeviceHash(e.target.value)}
+                placeholder="新しいデバイスハッシュを入力"
+                className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={handleDeviceChange}
+                disabled={changingDevice}
+                className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600 shadow-xl"
+                size="sm"
+              >
+                {changingDevice ? '変更中...' : 'デバイス変更'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowDeviceChangeForm(false)
+                  setNewDeviceHash('')
+                }}
+                variant="outline"
+                size="sm"
+                className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20"
+              >
+                キャンセル
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  const renderSubscriptionSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      {userData?.isSubscriptionActive && userData?.subscription ? (
+        <div className="bg-gradient-to-br from-green-800/30 via-emerald-800/20 to-teal-800/30 backdrop-blur-xl border border-green-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-green-500/10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
+            <div>
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-2">✅ 現在のプラン</h3>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xl md:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+                  {userData.plan?.name === 'starter' ? '📱' :
+                   userData.plan?.name === 'pro' ? '🚀' :
+                   userData.plan?.name === 'max' ? '👑' : '🎯'} {userData.plan?.display_name || 'PRO'}
+                </span>
+                <Badge
+                  variant={userData.isSubscriptionActive ? "success" : "warning"}
+                  className={userData.isSubscriptionActive ?
+                    "bg-green-500/20 text-green-300 border-green-400/30" :
+                    "bg-yellow-500/20 text-yellow-300 border-yellow-400/30"
+                  }
+                >
+                  {userData.isSubscriptionActive ? 'アクティブ' : '体験中'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 md:mb-6">
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+              <div className="text-sm text-white/70 mb-1">契約日</div>
+              <div className="text-white font-medium">
+                {new Date(userData.subscription.created_at).toLocaleDateString('ja-JP')}
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+              <div className="text-sm text-white/70 mb-1">料金</div>
+              <div className="text-white font-medium">
+                {userData.plan?.price ? `¥${userData.plan.price.toLocaleString()}/月` : '月額制'}
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm md:col-span-2 lg:col-span-1">
+              <div className="text-sm text-white/70 mb-1">次回更新</div>
+              <div className="text-white font-medium">自動更新</div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={handleCancelSubscription}
+              disabled={cancelling}
+              variant="outline"
+              size="sm"
+              className="bg-red-500/20 border-red-400/30 text-red-300 hover:bg-red-500/30 hover:border-red-400/50 backdrop-blur-sm"
+            >
+              {cancelling ? '解約中...' : '🚫 解約する'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-blue-500/20 border-blue-400/30 text-blue-300 hover:bg-blue-500/30 hover:border-blue-400/50 backdrop-blur-sm"
+              onClick={() => window.open('https://billing.stripe.com', '_blank')}
+            >
+              💳 請求書を確認
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <SubscriptionPlansCard />
+      )}
+    </div>
+  )
+
+  const renderUsageSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-purple-500/10">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-4">📈 利用統計</h2>
+        {/* Plan Features Display */}
+        <PlanFeatures plan={userData?.plan || null} isActive={userData?.isSubscriptionActive} />
+
+        <div className="text-center py-8 mt-6">
+          <div className="text-4xl mb-4">📊</div>
+          <p className="text-white/70 text-sm md:text-base mb-4">
+            利用統計機能は現在開発中です
+          </p>
+          <p className="text-white/50 text-xs">
+            今後のアップデートで詳細な利用統計を確認できるようになります
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderSettingsSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      <div className="bg-gradient-to-br from-gray-800/30 via-slate-800/20 to-zinc-800/30 backdrop-blur-xl border border-gray-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-gray-500/10">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-4">⚙️ 設定</h2>
+
+        <div className="space-y-4">
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">アカウント情報</h3>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
+                <span className="text-white/70 text-sm">メールアドレス</span>
+                <span className="text-white/80 text-sm break-all">{userData?.email}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">セキュリティ</h3>
+            <div className="text-center py-4">
+              <div className="text-2xl mb-2">🔒</div>
+              <p className="text-white/70 text-sm">
+                セキュリティ設定は現在開発中です
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderHelpSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      <div className="bg-gradient-to-br from-blue-800/30 via-cyan-800/20 to-teal-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-blue-500/10">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-4">❓ サポート・ヘルプ</h2>
+
+        <div className="space-y-4">
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">📋 利用方法</h3>
+            <div className="space-y-3 text-sm text-white/80">
+              <div>
+                <strong>1️⃣ 初期設定:</strong>
+                <ul className="ml-4 mt-1 space-y-1">
+                  <li>• iPhone 7/8にJailbreak + AutoTouchをインストール</li>
+                  <li>• SMARTGRAMスクリプト（smartgram.ate）をダウンロード</li>
+                  <li>• デバイス登録を完了</li>
+                </ul>
+              </div>
+
+              <div>
+                <strong>2️⃣ 日常利用:</strong>
+                <ul className="ml-4 mt-1 space-y-1">
+                  <li>• smartgram.ateを実行してツール選択</li>
+                  <li>• 各種自動化ツールを実行</li>
+                  <li>• 結果をダッシュボードで確認</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">🆘 よくある質問</h3>
+            <div className="space-y-3 text-sm text-white/80">
+              <div>
+                <strong>Q: デバイスハッシュが取得できません</strong>
+                <p className="mt-1">A: AutoTouchが正しくインストールされているか確認してください。</p>
+              </div>
+
+              <div>
+                <strong>Q: ツールが動作しません</strong>
+                <p className="mt-1">A: Instagramアプリが最新版か、デバイスがサポート対象（iPhone 7/8）か確認してください。</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">📞 お問い合わせ</h3>
+            <p className="text-sm text-white/70 mb-3">
+              技術的な問題やご質問がございましたら、以下からお気軽にお問い合わせください。
+            </p>
+            <div className="text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-blue-500/20 border-blue-400/30 text-blue-300 hover:bg-blue-500/30 hover:border-blue-400/50 w-full sm:w-auto"
+                onClick={() => window.open('mailto:support@smartgram.jp', '_blank')}
+              >
+                📧 サポートに連絡
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   if (loading) {
     return <LoadingScreen />
   }
 
-  if (!dashboardData) {
+  if (dataError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-white/10 backdrop-blur-sm border-white/20">
-          <CardContent className="p-6 text-center">
-            <p className="text-white text-lg mb-4">データの読み込みに失敗しました</p>
-            {error && (
-              <p className="text-red-300 text-sm mb-4">{error}</p>
-            )}
-            <Button onClick={loadData} className="w-full">
-              再試行
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-gradient-to-br from-red-900/40 via-pink-900/30 to-red-900/40 backdrop-blur-xl border border-red-400/20 shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-white">エラー</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-white/80 mb-4">{dataError}</p>
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white"
+            >
+              再読み込み
             </Button>
           </CardContent>
         </Card>
@@ -288,435 +786,160 @@ export default function DashboardContent() {
     )
   }
 
-  const sidebarItems = [
-    { id: 'overview', label: 'ダッシュボード', icon: '📊' },
-    { id: 'plan', label: 'プラン・契約', icon: '💎' },
-    { id: 'device', label: 'デバイス', icon: '📱' },
-    { id: 'billing', label: '請求・支払い', icon: '💳' },
-    { id: 'support', label: 'サポート', icon: '💬' }
-  ]
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* Header */}
-      <div className="bg-black/20 backdrop-blur-sm border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-white">SMARTGRAM Dashboard</h1>
-              <Badge variant={getStatusBadge(dashboardData.access.status_display)}>
-                {dashboardData.access.status_display}
-              </Badge>
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
+      {/* Mobile Header with Menu Button */}
+      <div className="lg:hidden bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-red-900/40 backdrop-blur-xl border-b border-purple-400/20 p-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+            SMARTGRAM
+          </h1>
+          <Button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            variant="outline"
+            size="sm"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+          >
+            {mobileMenuOpen ? '×' : '☰'}
+          </Button>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="mt-4 space-y-1">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleSectionChange(item.id)}
+                className={`w-full text-left p-3 rounded-xl transition-all ${
+                  activeSection === item.id
+                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-400/50 text-white shadow-lg'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{item.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{item.label}</div>
+                    <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} min-h-screen transition-all duration-300 bg-gradient-to-b from-purple-900/40 via-pink-900/30 to-red-900/40 backdrop-blur-xl border-r border-purple-400/20 shadow-xl flex-col hidden lg:flex`}>
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-white/20">
+            <div className="flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <h1 className="text-lg font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                  SMARTGRAM
+                </h1>
+              )}
+              <Button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 p-2"
+              >
+                {sidebarCollapsed ? '→' : '←'}
+              </Button>
             </div>
-            <div className="flex items-center space-x-4">
-              {isAdminEmail(user?.email) && (
-                <Link href="/admin" className="text-blue-300 hover:text-blue-200">
-                  管理画面
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="flex-1 p-2">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleSectionChange(item.id)}
+                className={`w-full text-left p-3 rounded-xl mb-2 transition-all ${
+                  activeSection === item.id
+                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-400/50 text-white shadow-lg'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{item.icon}</span>
+                  {!sidebarCollapsed && (
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{item.label}</div>
+                      <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </nav>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-white/20">
+            <div className="flex flex-col gap-2">
+              {userData && isAdminEmail(userData.email) && (
+                <Link href="/admin" className="w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`${sidebarCollapsed ? 'px-2' : 'w-full'} bg-yellow-500/20 border-yellow-400/30 text-yellow-300 hover:bg-yellow-500/30 hover:border-yellow-400/50 backdrop-blur-sm`}
+                  >
+                    {sidebarCollapsed ? '👑' : '👑 管理者'}
+                  </Button>
                 </Link>
               )}
-              <Button variant="glass" onClick={handleLogout} className="text-white">
-                ログアウト
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                size="sm"
+                className={`${sidebarCollapsed ? 'px-2' : 'w-full'} bg-white/10 border-white/20 text-white hover:bg-white/20`}
+              >
+                {sidebarCollapsed ? '🚪' : 'ログアウト'}
               </Button>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Messages */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-100">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/30 rounded-lg text-green-100">
-            {success}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-              <CardHeader>
-                <CardTitle className="text-white text-lg">メニュー</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <nav className="space-y-1">
-                  {sidebarItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedSection(item.id)}
-                      className={`w-full px-4 py-3 text-left flex items-center space-x-3 transition-colors ${
-                        selectedSection === item.id
-                          ? 'bg-white/20 text-white border-r-2 border-blue-400'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-lg">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                </nav>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {selectedSection === 'overview' && (
-              <div className="space-y-6">
-                {/* Quick Status */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white/70 text-sm">アクセス状況</p>
-                          <p className="text-white text-xl font-semibold">
-                            {dashboardData.access.has_access ? '利用可能' : '利用不可'}
-                          </p>
-                        </div>
-                        <div className="text-3xl">
-                          {dashboardData.access.has_access ? '✅' : '❌'}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white/70 text-sm">現在のプラン</p>
-                          <p className="text-white text-xl font-semibold">
-                            {dashboardData.plan.name}
-                          </p>
-                        </div>
-                        <div className="text-3xl">💎</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white/70 text-sm">
-                            {dashboardData.access.is_trial_active ? 'トライアル残り' : '月額料金'}
-                          </p>
-                          <p className="text-white text-xl font-semibold">
-                            {dashboardData.access.is_trial_active
-                              ? `${dashboardData.access.trial_days_remaining}日`
-                              : `¥${dashboardData.plan.price.toLocaleString()}`
-                            }
-                          </p>
-                        </div>
-                        <div className="text-3xl">
-                          {dashboardData.access.is_trial_active ? '⏰' : '💰'}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Features */}
-                <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                  <CardHeader>
-                    <CardTitle className="text-white">利用可能機能</CardTitle>
-                    <CardDescription className="text-white/70">
-                      現在のプランで使用できる機能一覧
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {dashboardData.plan.features.map((feature) => (
-                        <div
-                          key={feature}
-                          className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg"
-                        >
-                          <span className="text-green-400">✓</span>
-                          <span className="text-white">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 p-4 bg-blue-500/20 rounded-lg">
-                      <div className="flex items-center justify-between text-white">
-                        <span>1日の自動化制限</span>
-                        <span className="font-semibold">
-                          {dashboardData.plan.max_automation_hours}時間
-                        </span>
-                      </div>
-                    </div>
-                    {dashboardData.plan.priority_support && (
-                      <div className="mt-2 p-4 bg-purple-500/20 rounded-lg">
-                        <div className="flex items-center space-x-2 text-white">
-                          <span>⭐</span>
-                          <span>優先サポート対象</span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {selectedSection === 'plan' && (
-              <div className="space-y-6">
-                {/* Current Plan */}
-                <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                  <CardHeader>
-                    <CardTitle className="text-white">現在のプラン</CardTitle>
-                    <CardDescription className="text-white/70">
-                      {dashboardData.plan.name} - ¥{dashboardData.plan.price.toLocaleString()}/月
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-white/70 text-sm">契約状況</p>
-                        <Badge variant={getStatusBadge(dashboardData.access.status_display)}>
-                          {dashboardData.access.status_display}
-                        </Badge>
-                      </div>
-                      {dashboardData.billing.next_billing_date && (
-                        <div>
-                          <p className="text-white/70 text-sm">次回請求日</p>
-                          <p className="text-white">
-                            {formatDate(dashboardData.billing.next_billing_date)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    {dashboardData.summary.can_cancel && (
-                      <div className="pt-4 border-t border-white/10">
-                        <Button
-                          onClick={() => setShowCancelConfirm(true)}
-                          variant="outline"
-                          disabled={actionLoading === 'cancel'}
-                          className="border-red-500 text-red-400 hover:bg-red-500/20"
-                        >
-                          {actionLoading === 'cancel' ? '解約処理中...' : 'サブスクリプション解約'}
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Available Plans */}
-                {dashboardData.summary.can_upgrade && (
-                  <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                    <CardHeader>
-                      <CardTitle className="text-white">プラン変更</CardTitle>
-                      <CardDescription className="text-white/70">
-                        より高機能なプランにアップグレードできます
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {availablePlans.map((plan) => (
-                          <div
-                            key={plan.id}
-                            className={`p-4 rounded-lg border ${
-                              plan.id === dashboardData.plan.id
-                                ? 'bg-blue-500/20 border-blue-400'
-                                : 'bg-white/5 border-white/20'
-                            }`}
-                          >
-                            <div className="text-center space-y-3">
-                              <h3 className="text-white font-semibold">{plan.name}</h3>
-                              <p className="text-2xl text-white font-bold">
-                                ¥{plan.price_jpy.toLocaleString()}
-                              </p>
-                              <p className="text-white/70 text-sm">
-                                {plan.max_automation_hours}時間/日
-                              </p>
-                              {plan.id !== dashboardData.plan.id && (
-                                <Button
-                                  onClick={() => handlePlanChange(plan.id)}
-                                  disabled={!!actionLoading}
-                                  className="w-full"
-                                  size="sm"
-                                >
-                                  {actionLoading === `plan-${plan.id}` ? '変更中...' : '変更'}
-                                </Button>
-                              )}
-                              {plan.id === dashboardData.plan.id && (
-                                <Badge variant="default" className="w-full py-1">
-                                  現在のプラン
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {selectedSection === 'device' && (
-              <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">デバイス情報</CardTitle>
-                  <CardDescription className="text-white/70">
-                    登録されているデバイスの詳細情報
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-white/70 text-sm mb-2">デバイスハッシュ</p>
-                      <p className="text-white font-mono bg-white/10 p-3 rounded text-sm break-all">
-                        {dashboardData.device.hash}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-white/70 text-sm mb-2">デバイスモデル</p>
-                      <p className="text-white">{dashboardData.device.model}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/70 text-sm mb-2">登録日</p>
-                      <p className="text-white">{formatDate(dashboardData.device.created_at)}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/70 text-sm mb-2">ステータス</p>
-                      <Badge variant={getDeviceStatusBadge(dashboardData.device.status)}>
-                        {dashboardData.device.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {selectedSection === 'billing' && (
-              <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">請求・支払い情報</CardTitle>
-                  <CardDescription className="text-white/70">
-                    サブスクリプションの請求状況
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-white/70 text-sm mb-2">現在の月額料金</p>
-                      <p className="text-white text-2xl font-bold">
-                        ¥{dashboardData.billing.current_amount.toLocaleString()}
-                      </p>
-                    </div>
-                    {dashboardData.billing.next_billing_date && (
-                      <div>
-                        <p className="text-white/70 text-sm mb-2">次回請求日</p>
-                        <p className="text-white text-lg">
-                          {formatDate(dashboardData.billing.next_billing_date)}
-                          {dashboardData.billing.days_until_billing !== null && (
-                            <span className="text-white/70 text-sm ml-2">
-                              ({dashboardData.billing.days_until_billing}日後)
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {dashboardData.subscription.paypal_subscription_id && (
-                    <div className="p-4 bg-white/5 rounded-lg">
-                      <p className="text-white/70 text-sm">支払い方法</p>
-                      <p className="text-white">PayPal</p>
-                      <p className="text-white/50 text-xs mt-1 font-mono">
-                        ID: {dashboardData.subscription.paypal_subscription_id}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {selectedSection === 'support' && (
-              <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">サポート情報</CardTitle>
-                  <CardDescription className="text-white/70">
-                    {dashboardData.plan.priority_support ? '優先サポート対象です' : '標準サポート'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-white/5 rounded-lg">
-                    <h3 className="text-white font-semibold mb-2">サポート内容</h3>
-                    <ul className="text-white/70 space-y-2">
-                      <li>• メールサポート（24時間以内の回答）</li>
-                      {dashboardData.plan.priority_support && (
-                        <>
-                          <li>• 優先対応（12時間以内の回答）</li>
-                          <li>• 専用サポートライン</li>
-                        </>
-                      )}
-                      <li>• FAQ・よくある質問集</li>
-                      <li>• 使用方法のガイド</li>
-                    </ul>
-                  </div>
-                  <div className="p-4 bg-blue-500/20 rounded-lg">
-                    <h3 className="text-white font-semibold mb-2">お問い合わせ</h3>
-                    <p className="text-white/70 mb-2">
-                      サポートが必要な場合は、以下の方法でお気軽にお問い合わせください。
-                    </p>
-                    <div className="space-y-2">
-                      <p className="text-white">📧 support@smartgram.jp</p>
-                      {dashboardData.plan.priority_support && (
-                        <p className="text-white">📞 優先サポート: 050-XXXX-XXXX</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Cancel Confirmation Modal */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md bg-white/10 backdrop-blur-sm border-white/20">
-            <CardHeader>
-              <CardTitle className="text-white">サブスクリプション解約</CardTitle>
-              <CardDescription className="text-white/70">
-                本当に解約しますか？解約すると即座に利用できなくなります。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-red-500/20 rounded-lg">
-                <p className="text-red-200 text-sm">
-                  • 解約後は即座にサービスが利用できなくなります<br/>
-                  • 既に支払い済みの料金は返金されません<br/>
-                  • 再度利用するには新規契約が必要です
+        {/* Main Content */}
+        <div className="flex-1 p-4 md:p-6 lg:p-8">
+          {/* Header */}
+          <div className="bg-gradient-to-br from-purple-900/40 via-pink-900/30 to-red-900/40 backdrop-blur-xl border border-purple-400/20 rounded-2xl p-4 md:p-6 shadow-xl shadow-purple-500/10 mb-4 md:mb-6 lg:mb-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">
+                  {sidebarItems.find(item => item.id === activeSection)?.label || 'ダッシュボード'}
+                </h2>
+                <p className="text-white/70 text-sm md:text-base">
+                  ようこそ、{userData?.email}さん
                 </p>
               </div>
-              <div className="flex space-x-3">
-                <Button
-                  onClick={() => setShowCancelConfirm(false)}
-                  variant="glass"
-                  className="flex-1 text-white"
-                  disabled={actionLoading === 'cancel'}
-                >
-                  キャンセル
-                </Button>
-                <Button
-                  onClick={handleCancelSubscription}
-                  variant="outline"
-                  className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
-                  disabled={actionLoading === 'cancel'}
-                >
-                  {actionLoading === 'cancel' ? '解約中...' : '解約する'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="bg-gradient-to-br from-red-900/40 via-pink-900/30 to-red-900/40 backdrop-blur-xl border border-red-400/30 rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-lg shadow-red-500/10">
+              <p className="text-red-300 text-sm md:text-base">{error}</p>
+            </div>
+          )}
+
+          {/* Section Content */}
+          <div>
+            {renderSectionContent()}
+          </div>
+
+          {/* Payment Status Modal */}
+          {paymentStatus && (
+            <PaymentStatusModal
+              status={paymentStatus}
+              onClose={() => setPaymentStatus(null)}
+            />
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
