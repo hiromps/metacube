@@ -5,15 +5,15 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 // Stripe価格ID設定
 const STRIPE_PRICE_IDS = {
-  'price_starter_monthly': 'price_1234567890_starter', // 実際のStripe価格IDに置き換え
-  'price_pro_monthly': 'price_1234567890_pro',         // 実際のStripe価格IDに置き換え
-  'price_max_monthly': 'price_1234567890_max'          // 実際のStripe価格IDに置き換え
+  'price_starter_monthly': 'price_1SB9w0DE82UMk94OidHeEg6K', // STARTER
+  'price_pro_monthly': 'price_1SBA6mDE82UMk94Ocy7DLtQ2',     // PRO月額
+  'price_max_monthly': 'price_1SBAB0DE82UMk94OMnNOgUFS'      // MAX
 };
 
 const PLAN_DETAILS = {
   'starter': { name: 'STARTER', price: 2980 },
-  'pro': { name: 'PRO', price: 8800 },
-  'max': { name: 'MAX', price: 15000 }
+  'pro': { name: 'PRO', price: 6980 },
+  'max': { name: 'MAX', price: 15800 }
 };
 
 export async function onRequestPOST(context: any) {

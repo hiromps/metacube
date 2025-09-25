@@ -79,6 +79,19 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
   const [selectedPlan, setSelectedPlan] = useState<string>('pro')
   const [loading, setLoading] = useState<string | null>(null)
 
+  // 新機能かどうかを判定する関数
+  const isNewFeature = (planId: string, feature: string): boolean => {
+    const starterFeatures = plans.find(p => p.id === 'starter')?.features || []
+    const proFeatures = plans.find(p => p.id === 'pro')?.features || []
+
+    if (planId === 'pro') {
+      return !starterFeatures.includes(feature)
+    } else if (planId === 'max') {
+      return !proFeatures.includes(feature)
+    }
+    return false
+  }
+
   const handleSelectPlan = async (planId: string, stripePriceId: string) => {
     if (loading) return
 
@@ -148,7 +161,8 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
       </CardHeader>
 
       <CardContent className="p-4 md:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div className="flex justify-center">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 max-w-7xl">
           {plans.map((plan) => (
             <div
               key={plan.id}
@@ -177,14 +191,30 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
               </div>
 
               <ul className="space-y-2 mb-4">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-center text-sm text-white/80">
-                    <span className="w-4 h-4 rounded-full bg-purple-500/30 flex items-center justify-center mr-2 flex-shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                    </span>
-                    {feature}
-                  </li>
-                ))}
+                {plan.features.map((feature, index) => {
+                  const isNew = isNewFeature(plan.id, feature)
+                  return (
+                    <li key={index} className={`flex items-center justify-center text-sm ${
+                      isNew
+                        ? 'text-yellow-300 font-semibold'
+                        : 'text-white/80'
+                    }`}>
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
+                        isNew
+                          ? 'bg-yellow-500/30 ring-2 ring-yellow-400/50'
+                          : 'bg-purple-500/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          isNew ? 'bg-yellow-400' : 'bg-purple-400'
+                        }`}></span>
+                      </span>
+                      {isNew && (
+                        <span className="text-yellow-400 text-xs mr-1 font-bold">NEW</span>
+                      )}
+                      {feature}
+                    </li>
+                  )
+                })}
               </ul>
 
               <div className="text-center">
@@ -200,6 +230,7 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         <div className="text-center">
