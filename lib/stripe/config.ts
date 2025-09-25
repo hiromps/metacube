@@ -1,28 +1,42 @@
-// Stripe Configuration for SMARTGRAM
-// Manages Stripe integration and subscription sync
+// SMARTGRAM Stripe Configuration
+// Clean, unified configuration for SMARTGRAM subscription plans
 
 export const STRIPE_CONFIG = {
-  // Product and Price IDs from Stripe Dashboard
-  PRODUCTS: {
-    STARTER: {
-      productId: 'prod_T7To7yeLR4Pe8w',
-      monthlyPriceId: 'price_1SBErJDE82UMk94OqPkVIJGc',
-      amount: 2980,
-      features: ['timeline.lua', 'hashtaglike.lua']
+  // SMARTGRAM Plan Configuration (matches database plans table)
+  PLANS: {
+    starter: {
+      id: 'starter',
+      name: 'SMARTGRAM STARTER',
+      productId: 'prod_smartgram_starter',
+      monthlyPriceId: 'price_smartgram_starter',
+      monthlyAmount: 2980,
+      features: ['timeline.lua', 'hashtaglike.lua'],
+      maxHours: 6,
+      support: false
     },
-    PRO: {
-      productId: 'prod_T7Toy4bxQ8WJwh',
-      monthlyPriceId: 'price_1SBEtHDE82UMk94Of4R27wlm',
-      yearlyPriceId: 'price_1SBEtKDE82UMk94OZYcILvtc',
+    pro: {
+      id: 'pro',
+      name: 'SMARTGRAM PRO',
+      productId: 'prod_smartgram_pro',
+      monthlyPriceId: 'price_smartgram_pro',
+      annualPriceId: 'price_smartgram_pro_annual',
       monthlyAmount: 6980,
-      yearlyAmount: 69800,
-      features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua']
+      annualAmount: 59332, // 15% discount
+      features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua'],
+      maxHours: 12,
+      support: true
     },
-    MAX: {
-      productId: 'prod_T7ToQoaY46ZKwc',
-      monthlyPriceId: 'price_1SBEtMDE82UMk94OTYoYrc9U',
-      amount: 15800,
-      features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua', 'activelike.lua']
+    max: {
+      id: 'max',
+      name: 'SMARTGRAM MAX',
+      productId: 'prod_smartgram_max',
+      monthlyPriceId: 'price_smartgram_max',
+      annualPriceId: 'price_smartgram_max_annual',
+      monthlyAmount: 15800,
+      annualAmount: 126400, // 20% discount
+      features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua', 'activelike.lua'],
+      maxHours: 24,
+      support: true
     }
   },
 
@@ -53,28 +67,28 @@ export const STRIPE_CONFIG = {
 
 // Plan ID to Stripe Price ID mapping
 export function getPriceIdForPlan(planId: string, billingCycle: 'monthly' | 'yearly' = 'monthly'): string | null {
-  switch (planId.toLowerCase()) {
-    case 'starter':
-      return STRIPE_CONFIG.PRODUCTS.STARTER.monthlyPriceId
-    case 'pro':
-      return billingCycle === 'yearly'
-        ? STRIPE_CONFIG.PRODUCTS.PRO.yearlyPriceId
-        : STRIPE_CONFIG.PRODUCTS.PRO.monthlyPriceId
-    case 'max':
-      return STRIPE_CONFIG.PRODUCTS.MAX.monthlyPriceId
-    default:
-      return null
+  const plan = STRIPE_CONFIG.PLANS[planId as keyof typeof STRIPE_CONFIG.PLANS]
+  if (!plan) return null
+
+  if (billingCycle === 'yearly' && plan.annualPriceId) {
+    return plan.annualPriceId
   }
+  return plan.monthlyPriceId
 }
 
 // Stripe Product ID to Plan ID mapping
 export function getPlanIdFromProductId(productId: string): string | null {
-  for (const [planName, config] of Object.entries(STRIPE_CONFIG.PRODUCTS)) {
+  for (const [planId, config] of Object.entries(STRIPE_CONFIG.PLANS)) {
     if (config.productId === productId) {
-      return planName.toLowerCase()
+      return planId
     }
   }
   return null
+}
+
+// Get plan configuration
+export function getPlanConfig(planId: string) {
+  return STRIPE_CONFIG.PLANS[planId as keyof typeof STRIPE_CONFIG.PLANS] || null
 }
 
 // Amount formatting for display
