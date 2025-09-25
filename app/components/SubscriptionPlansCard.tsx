@@ -114,6 +114,10 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
         console.log('未認証ユーザーですが、Payment Linkに進みます')
       }
 
+      // Stripe決済開始時刻を保存（タイムアウト処理のため）
+      localStorage.setItem('stripe_checkout_started', Date.now().toString())
+      localStorage.setItem('selected_plan_id', planId)
+
       // Payment Linkに直接リダイレクト
       window.location.href = plan.paymentLink
 

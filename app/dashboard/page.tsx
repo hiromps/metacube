@@ -14,10 +14,13 @@ import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { ProgressBar } from '@/app/components/ui/ProgressBar'
 import { isCurrentUserAdmin } from '@/lib/auth/admin'
 import SubscriptionPlansCard from '@/app/components/SubscriptionPlansCard'
+import PaymentStatusModal from '@/app/components/PaymentStatusModal'
+import { useSearchParams } from 'next/navigation'
 
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { userData, loading, error: dataError, refetch } = useUserData()
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
@@ -26,6 +29,7 @@ export default function DashboardPage() {
   const [showDeviceChangeForm, setShowDeviceChangeForm] = useState(false)
   const [timeLeft, setTimeLeft] = useState<string>('')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'error' | 'cancel' | null>(null)
 
   const checkAuth = useCallback(async () => {
     try {
@@ -71,6 +75,73 @@ export default function DashboardPage() {
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
+
+  // Check for payment result query parameters and localStorage
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const canceled = searchParams.get('canceled')
+    const error = searchParams.get('error')
+
+    // Check URL parameters first
+    if (success === 'true') {
+      setPaymentStatus('success')
+      // Clean up localStorage
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+      // Refresh user data to get updated subscription status
+      setTimeout(() => {
+        refetch()
+      }, 1000)
+    } else if (canceled === 'true') {
+      setPaymentStatus('cancel')
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+    } else if (error === 'true') {
+      setPaymentStatus('error')
+      localStorage.removeItem('stripe_checkout_started')
+      localStorage.removeItem('selected_plan_id')
+    } else {
+      // Check if user returned from Stripe Payment Link (no URL params)
+      const checkoutStarted = localStorage.getItem('stripe_checkout_started')
+      const planId = localStorage.getItem('selected_plan_id')
+
+      if (checkoutStarted && planId) {
+        const startTime = parseInt(checkoutStarted)
+        const now = Date.now()
+        const timeDiff = now - startTime
+
+        // If user returns within 30 minutes, assume they might have completed payment
+        // or cancelled - we need to check their subscription status
+        if (timeDiff < 30 * 60 * 1000) { // 30 minutes
+          console.log('User returned from potential Stripe checkout, checking subscription status...')
+
+          // Wait a bit for webhook processing, then check subscription
+          setTimeout(() => {
+            refetch()
+
+            // Check if subscription was activated
+            setTimeout(() => {
+              if (userData?.isSubscriptionActive) {
+                setPaymentStatus('success')
+                localStorage.removeItem('stripe_checkout_started')
+                localStorage.removeItem('selected_plan_id')
+              }
+            }, 2000)
+          }, 1000)
+        } else {
+          // Too much time passed, clean up
+          localStorage.removeItem('stripe_checkout_started')
+          localStorage.removeItem('selected_plan_id')
+        }
+      }
+    }
+
+    // Clean up URL parameters after showing modal
+    if (success || canceled || error) {
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [searchParams, refetch, userData?.isSubscriptionActive])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1530,6 +1601,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Payment Status Modal */}
+      <PaymentStatusModal
+        status={paymentStatus}
+        onClose={() => setPaymentStatus(null)}
+      />
     </div>
   )
 }
