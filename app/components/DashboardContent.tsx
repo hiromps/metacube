@@ -92,6 +92,11 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadNotes, setUploadNotes] = useState('')
 
+  // State for user selection functionality
+  const [showUserSelection, setShowUserSelection] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
   // Auto-collapse sidebar on mobile
   useEffect(() => {
     const handleResize = () => {
@@ -492,6 +497,52 @@ export default function DashboardContent({}: DashboardContentProps) {
     }
   }
 
+  // Load available users for admin selection
+  const loadAvailableUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      // Get user data from device_plan_view like in user-management page
+      const { data, error } = await supabase
+        .from('device_plan_view')
+        .select(`
+          device_id,
+          device_hash,
+          user_id,
+          plan_name,
+          plan_display_name,
+          subscription_status
+        `)
+        .order('device_id', { ascending: false })
+
+      if (error) throw error
+
+      // Get user email addresses
+      const usersWithEmail = await Promise.all(
+        (data || []).map(async (device) => {
+          const { data: userData } = await supabase.auth.admin.getUserById(device.user_id)
+          return {
+            ...device,
+            email: userData.user?.email || '不明',
+            created_at: userData.user?.created_at || new Date().toISOString()
+          }
+        })
+      )
+
+      setAvailableUsers(usersWithEmail)
+    } catch (err: any) {
+      setError(`ユーザー一覧の取得に失敗しました: ${err.message}`)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  // Select user from the list
+  const selectUser = (user: any) => {
+    setUploadTargetUser(user.user_id)
+    setUploadTargetDevice(user.device_hash)
+    setShowUserSelection(false)
+  }
+
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -721,15 +772,6 @@ export default function DashboardContent({}: DashboardContentProps) {
         </div>
       )}
 
-      {/* Debug Section for Admin Check */}
-      <div className="bg-red-900/20 border border-red-400/30 rounded-xl p-4 text-white text-sm">
-        <h4 className="font-bold mb-2">🔍 管理者権限デバッグ情報:</h4>
-        <p>ユーザーデータ: {userData ? '読み込み済み' : '未読み込み'}</p>
-        <p>メールアドレス: {userData?.email || 'なし'}</p>
-        <p>管理者判定: {userData ? (isAdminEmail(userData.email) ? '管理者' : '一般ユーザー') : 'ユーザー情報なし'}</p>
-        <p>管理者リスト: {['akihiro0324mnr@gmail.com'].join(', ')}</p>
-      </div>
-
       {/* Admin Upload Section - show only for admin users */}
       {userData && isAdminEmail(userData.email) && (
         <div className="bg-gradient-to-br from-amber-800/30 via-orange-800/20 to-yellow-800/30 backdrop-blur-xl border border-amber-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-amber-500/10">
@@ -752,26 +794,42 @@ export default function DashboardContent({}: DashboardContentProps) {
             <div className="space-y-4">
               <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">対象ユーザーID *</label>
-                      <input
-                        type="text"
-                        value={uploadTargetUser}
-                        onChange={(e) => setUploadTargetUser(e.target.value)}
-                        placeholder="ユーザーのUUIDを入力"
-                        className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
-                      />
+                  <div className="space-y-4">
+                    {/* User Selection Button */}
+                    <div className="text-center">
+                      <Button
+                        onClick={() => {
+                          setShowUserSelection(true)
+                          loadAvailableUsers()
+                        }}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-xl"
+                        size="sm"
+                      >
+                        👥 ユーザー一覧から選択
+                      </Button>
                     </div>
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">対象デバイスハッシュ *</label>
-                      <input
-                        type="text"
-                        value={uploadTargetDevice}
-                        onChange={(e) => setUploadTargetDevice(e.target.value)}
-                        placeholder="デバイスハッシュを入力"
-                        className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
-                      />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">対象ユーザーID *</label>
+                        <input
+                          type="text"
+                          value={uploadTargetUser}
+                          onChange={(e) => setUploadTargetUser(e.target.value)}
+                          placeholder="ユーザーのUUIDを入力"
+                          className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">対象デバイスハッシュ *</label>
+                        <input
+                          type="text"
+                          value={uploadTargetDevice}
+                          onChange={(e) => setUploadTargetDevice(e.target.value)}
+                          placeholder="デバイスハッシュを入力"
+                          className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1239,6 +1297,74 @@ export default function DashboardContent({}: DashboardContentProps) {
           <div>
             {renderSectionContent()}
           </div>
+
+          {/* User Selection Modal */}
+          {showUserSelection && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-gradient-to-br from-gray-900 via-blue-900/50 to-purple-900/50 backdrop-blur-xl border border-white/20 rounded-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-white/20">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-white">👥 ユーザー選択</h3>
+                    <Button
+                      onClick={() => setShowUserSelection(false)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                    >
+                      ✕ 閉じる
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[60vh]">
+                  {loadingUsers ? (
+                    <div className="text-center py-8">
+                      <div className="text-white/60">ユーザー一覧を読み込み中...</div>
+                    </div>
+                  ) : availableUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-white/60">登録ユーザーがいません</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {availableUsers.map((user) => (
+                        <div
+                          key={user.device_id}
+                          className="bg-white/10 border border-white/20 rounded-xl p-4 hover:bg-white/20 transition-all cursor-pointer"
+                          onClick={() => selectUser(user)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-white font-medium">{user.email}</p>
+                              <p className="text-white/60 text-sm">プラン: {user.plan_display_name}</p>
+                              <p className="text-white/60 text-xs font-mono">
+                                ユーザーID: {user.user_id}
+                              </p>
+                              <p className="text-white/60 text-xs font-mono">
+                                デバイス: {user.device_hash}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-sm px-2 py-1 rounded ${
+                                user.subscription_status === 'active' ? 'bg-green-500/20 text-green-300' :
+                                user.subscription_status === 'trial' ? 'bg-yellow-500/20 text-yellow-300' :
+                                'bg-red-500/20 text-red-300'
+                              }`}>
+                                {user.subscription_status === 'active' ? 'アクティブ' :
+                                 user.subscription_status === 'trial' ? '体験中' :
+                                 '期限切れ'}
+                              </div>
+                              <div className="text-white/40 text-xs mt-1">クリックで選択</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Payment Status Modal */}
           {paymentStatus && (
