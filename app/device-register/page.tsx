@@ -28,10 +28,9 @@ export default function DeviceRegisterPage() {
     checkAuth()
   }, [router])
 
-  const validateDeviceHash = (hash: string): boolean => {
-    // デバイスハッシュは通常32文字の英数字
-    const hashRegex = /^[A-Fa-f0-9]{32,40}$/
-    return hashRegex.test(hash)
+  const validateSerialNumber = (serial: string): boolean => {
+    // シリアル番号は任意の文字列（空でなければOK）
+    return serial.trim().length > 0
   }
 
   const handleDeviceRegister = async (e: React.FormEvent) => {
@@ -40,12 +39,12 @@ export default function DeviceRegisterPage() {
     setSuccess('')
 
     if (!deviceHash.trim()) {
-      setError('デバイスハッシュを入力してください')
+      setError('シリアル番号を入力してください')
       return
     }
 
-    if (!validateDeviceHash(deviceHash.trim())) {
-      setError('デバイスハッシュの形式が正しくありません（32-40文字の英数字）')
+    if (!validateSerialNumber(deviceHash.trim())) {
+      setError('シリアル番号を入力してください')
       return
     }
 
@@ -145,9 +144,9 @@ export default function DeviceRegisterPage() {
           {/* Device Registration Form */}
           <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20 mb-6">
             <CardHeader>
-              <CardTitle className="text-white text-xl">デバイスハッシュ登録</CardTitle>
+              <CardTitle className="text-white text-xl">シリアル番号登録</CardTitle>
               <CardDescription className="text-gray-300">
-                iPhone設定アプリから取得したデバイスハッシュを入力してください
+                iPhone設定アプリから取得したシリアル番号を入力してください
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -166,7 +165,7 @@ export default function DeviceRegisterPage() {
               <form onSubmit={handleDeviceRegister} className="space-y-4">
                 <div>
                   <label htmlFor="deviceHash" className="block text-sm font-medium text-white mb-2">
-                    デバイスハッシュ（32-40文字の英数字）
+                    シリアル番号
                   </label>
                   <input
                     type="text"
@@ -174,13 +173,12 @@ export default function DeviceRegisterPage() {
                     value={deviceHash}
                     onChange={(e) => setDeviceHash(e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition font-mono text-sm"
-                    placeholder="例: A1B2C3D4E5F6789012345678901234AB"
+                    placeholder="例: F2LQHXQ5HZGW"
                     required
                     disabled={loading}
-                    maxLength={40}
                   />
                   <div className="mt-1 text-xs text-gray-400">
-                    現在の文字数: {deviceHash.length}/40
+                    iPhone設定アプリの「情報」から取得したシリアル番号を入力してください
                   </div>
                 </div>
 
@@ -201,7 +199,7 @@ export default function DeviceRegisterPage() {
           <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20 mb-6">
             <CardHeader>
               <CardTitle className="text-white text-xl flex items-center">
-                📱 iPhone設定でのデバイスハッシュ確認方法
+                📱 iPhone設定でのシリアル番号確認方法
               </CardTitle>
               <CardDescription className="text-gray-300">
                 iPhone 7/8 専用手順（システム導入予定端末）
@@ -228,9 +226,8 @@ export default function DeviceRegisterPage() {
                 <div className="flex items-start space-x-3">
                   <span className="bg-blue-500/20 text-blue-400 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
                   <div>
-                    <p className="font-medium text-white mb-1">デバイス識別子を確認</p>
-                    <p>「シリアル番号」または「UDID」の値をコピーします<br />
-                    ※機種により表示項目が異なります</p>
+                    <p className="font-medium text-white mb-1">シリアル番号を確認</p>
+                    <p>「シリアル番号」の値をコピーします（例：F2LQHXQ5HZGW）</p>
                   </div>
                 </div>
 
@@ -238,7 +235,7 @@ export default function DeviceRegisterPage() {
                   <span className="bg-green-500/20 text-green-400 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">✓</span>
                   <div>
                     <p className="font-medium text-white mb-1">上記フォームに入力</p>
-                    <p>取得した識別子を上のフォームに貼り付けて登録してください</p>
+                    <p>取得したシリアル番号を上のフォームに貼り付けて登録してください</p>
                   </div>
                 </div>
               </div>
@@ -251,7 +248,7 @@ export default function DeviceRegisterPage() {
                     <ul className="list-disc list-inside space-y-1">
                       <li>本システムはiPhone 7/8専用です</li>
                       <li>AutoTouchアプリの事前インストールが必要です</li>
-                      <li>デバイスハッシュは1アカウントにつき1台まで</li>
+                      <li>シリアル番号は1アカウントにつき1台まで</li>
                       <li>登録後は3日間の無料体験が開始されます</li>
                     </ul>
                   </div>
@@ -268,13 +265,13 @@ export default function DeviceRegisterPage() {
             <CardContent>
               <div className="space-y-3 text-sm text-gray-300">
                 <div>
-                  <p className="font-medium text-white mb-1">Q. デバイスハッシュが見つからない</p>
-                  <p>A. 設定 → プライバシーとセキュリティ → 解析とクラッシュ から確認できる場合があります</p>
+                  <p className="font-medium text-white mb-1">Q. シリアル番号が見つからない</p>
+                  <p>A. 設定 → 一般 → 情報 の画面で「シリアル番号」項目を探してください</p>
                 </div>
 
                 <div>
                   <p className="font-medium text-white mb-1">Q. 登録エラーが発生する</p>
-                  <p>A. デバイスハッシュが32-40文字の英数字であることを確認してください</p>
+                  <p>A. シリアル番号が正しく入力されているか確認してください</p>
                 </div>
 
                 <div>

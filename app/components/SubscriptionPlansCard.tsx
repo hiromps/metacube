@@ -194,7 +194,7 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
                 {plan.features.map((feature, index) => {
                   const isNew = isNewFeature(plan.id, feature)
                   return (
-                    <li key={index} className={`flex items-center justify-center text-sm ${
+                    <li key={index} className={`flex items-center text-sm ${
                       isNew
                         ? 'text-yellow-300 font-semibold'
                         : 'text-white/80'
