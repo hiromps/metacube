@@ -10,8 +10,11 @@ interface UserPlanInfo {
 
 export async function handleDownloadPackage(request: Request, env?: any): Promise<Response> {
   try {
+    console.log('📦 handleDownloadPackage: Starting download request')
+
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
+      console.log('❌ handleDownloadPackage: Missing or invalid Authorization header')
       return new Response(JSON.stringify({ error: '認証が必要です' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
@@ -39,14 +42,18 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     })
 
     // Supabaseでユーザー認証
+    console.log('🔐 handleDownloadPackage: Authenticating user with token')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
+      console.log('❌ handleDownloadPackage: Authentication failed:', authError?.message)
       return new Response(JSON.stringify({ error: '認証に失敗しました' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       })
     }
+
+    console.log('✅ handleDownloadPackage: User authenticated:', user.email)
 
     // まず管理者がアップロードした専用パッケージがあるかチェック
     const { data: customPackage, error: packageError } = await supabase
@@ -78,10 +85,14 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
         .eq('user_id', user.id)
         .eq('is_active', true)
 
-      // Base64デコードしてファイル内容を返す
-      const fileContent = Buffer.from(customPackage.file_content, 'base64').toString('utf-8')
+      // Base64デコードしてファイル内容を返す（Cloudflare Workers互換）
+      const binaryString = atob(customPackage.file_content)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
 
-      return new Response(fileContent, {
+      return new Response(bytes, {
         status: 200,
         headers: {
           'Content-Type': 'application/octet-stream',
@@ -130,8 +141,13 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     })
 
   } catch (error: any) {
-    console.error('Download package error:', error)
-    return new Response(JSON.stringify({ error: 'ファイル生成に失敗しました' }), {
+    console.error('📦 handleDownloadPackage: Error occurred:', error)
+    console.error('📦 Error stack:', error.stack)
+
+    return new Response(JSON.stringify({
+      error: 'ファイル生成に失敗しました',
+      details: error instanceof Error ? error.message : String(error)
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     })
