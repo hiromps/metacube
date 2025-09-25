@@ -435,7 +435,8 @@ export default function DashboardContent({}: DashboardContentProps) {
         file_name: uploadFile.name,
         file_content: base64Content,
         file_size: uploadFile.size,
-        notes: uploadNotes.trim() || '管理者によりアップロード'
+        notes: uploadNotes.trim() || '管理者によりアップロード',
+        admin_key: 'smartgram-admin-2024'
       }
 
       const response = await fetch('/api/admin/upload-package', {
@@ -484,12 +485,7 @@ export default function DashboardContent({}: DashboardContentProps) {
         return
       }
 
-      // Validate file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024 // 10MB
-      if (file.size > maxSize) {
-        setError('ファイルサイズは10MB以下である必要があります')
-        return
-      }
+      // No file size limit for admin uploads
 
       setUploadFile(file)
       setError('')
@@ -970,7 +966,6 @@ export default function DashboardContent({}: DashboardContentProps) {
                 <p>• 対象ユーザーのUUIDとデバイスハッシュを正確に入力してください</p>
                 <p>• アップロードしたファイルは既存のファイルを上書きします</p>
                 <p>• ファイル形式は .ate または .lua のみサポートしています</p>
-                <p>• 最大ファイルサイズ: 10MB</p>
               </div>
             </div>
           )}

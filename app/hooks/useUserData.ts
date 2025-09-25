@@ -123,64 +123,76 @@ export function useUserData() {
         }
       }
 
-      // Get plan information from subscription with DB fallback
+      // Get plan information from subscription with DB query
       let plan = null;
       if (device && subscription) {
         try {
-          // Try to get plan from new plans table first
+          // Map old plan IDs to new plan IDs
+          const planIdMap: { [key: string]: string } = {
+            'smartgram_monthly_2980': 'starter',
+            'smartgram_monthly_8800': 'pro',
+            'smartgram_monthly_15000': 'max',
+            'starter': 'starter',
+            'pro': 'pro',
+            'max': 'max'
+          };
+
+          const mappedPlanId = planIdMap[subscription.plan_id] || 'starter';
+
+          // Query plans table using the correct ID column
           const { data: planData, error: planError } = await supabase
             .from('plans')
             .select('*')
-            .eq('name', subscription.plan_id)
+            .eq('id', mappedPlanId)
             .eq('is_active', true)
             .single();
 
           if (planData && !planError) {
-            // Use DB plan data
+            // Convert database plan to our interface format
             plan = {
               id: planData.id,
-              name: planData.name,
-              display_name: planData.display_name,
-              price: planData.price_jpy || planData.price,
-              billing_cycle: planData.billing_cycle,
-              features: planData.features || {},
-              limitations: planData.limitations || {}
+              name: planData.id,  // Use id as name for consistency
+              display_name: planData.name, // Database 'name' field is display name
+              price: planData.price_jpy,
+              billing_cycle: 'monthly',
+              features: planData.features ? planData.features.reduce((acc: Record<string, boolean>, feature: string) => {
+                acc[feature] = true;
+                return acc;
+              }, {}) : {},
+              limitations: {
+                support: planData.priority_support ? '24時間電話サポート' : 'LINEサポート30日間',
+                trial_days: 3,
+                max_automation_hours: planData.max_automation_hours
+              }
             };
           } else {
-            // Fallback to hardcoded plan mapping
-            const planMap = {
-              'starter': { name: 'starter', display_name: 'STARTER', price: 2980 },
-              'pro': { name: 'pro', display_name: 'PRO', price: 6980 },
-              'max': { name: 'max', display_name: 'MAX', price: 15800 },
-              'smartgram_monthly_2980': { name: 'starter', display_name: 'STARTER', price: 2980 },
-              'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 6980 },
-              'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15800 }
+            console.warn('プラン情報の取得に失敗:', planError);
+            // Fallback to basic plan structure
+            const fallbackPlans = {
+              'starter': { name: 'STARTER', price: 2980, features: ['timeline.lua', 'hashtaglike.lua'] },
+              'pro': { name: 'PRO', price: 6980, features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua'] },
+              'max': { name: 'MAX', price: 15800, features: ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua', 'activelike.lua'] }
             };
 
-            const fallbackPlan = planMap[subscription.plan_id as keyof typeof planMap] || planMap['starter'];
+            const fallbackPlan = fallbackPlans[mappedPlanId as keyof typeof fallbackPlans] || fallbackPlans['starter'];
             plan = {
-              id: subscription.plan_id,
-              name: fallbackPlan.name,
-              display_name: fallbackPlan.display_name,
+              id: mappedPlanId,
+              name: mappedPlanId,
+              display_name: fallbackPlan.name,
               price: fallbackPlan.price,
               billing_cycle: 'monthly',
-              features: {
-                'timeline.lua': true,  // タイムライン自動いいね
-                'hashtaglike.lua': true, // ハッシュタグいいね
-                'follow.lua': fallbackPlan.name !== 'starter', // 自動フォロー
-                'unfollow.lua': fallbackPlan.name !== 'starter', // 自動アンフォロー
-                'activelike.lua': fallbackPlan.name === 'max' // アクティブユーザーいいね
-              },
+              features: fallbackPlan.features.reduce((acc: Record<string, boolean>, feature: string) => {
+                acc[feature] = true;
+                return acc;
+              }, {}),
               limitations: {
-                support: fallbackPlan.name === 'starter' ? 'LINEサポート30日間' :
-                        fallbackPlan.name === 'pro' ? 'LINEサポート90日間' :
-                        '24時間電話サポート',
+                support: mappedPlanId === 'starter' ? 'LINEサポート30日間' : '24時間電話サポート',
                 trial_days: 3
               }
             };
           }
         } catch (error) {
-          console.warn('プラン情報の取得でエラー:', error);
+          console.error('プラン情報の取得でエラー:', error);
           // エラー時はデフォルトのスターター
           plan = {
             id: 'starter',
@@ -238,11 +250,8 @@ export function useUserData() {
 
     } catch (err) {
       console.error('ユーザーデータの取得エラー:', err);
-      // Don't set error for plan-related failures, use fallback instead
       const errorMessage = err instanceof Error ? err.message : 'データの取得に失敗しました';
-      if (!errorMessage.includes('プラン') && !errorMessage.includes('plans')) {
-        setError(errorMessage);
-      }
+      setError(errorMessage);
     } finally {
       fetchingRef.current = false;
       setLoading(false);
