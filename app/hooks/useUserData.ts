@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 export interface UserDevice {
@@ -40,18 +40,21 @@ export function useUserData() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
 
   const fetchUserData = useCallback(async (forceRefresh = false) => {
     try {
       console.log('🔄 fetchUserData: Starting data fetch, forceRefresh:', forceRefresh);
-      setLoading(true);
-      setError(null);
 
       // Prevent multiple simultaneous calls unless forcing refresh
-      if (loading && !forceRefresh) {
-        console.log('🔄 fetchUserData: Already loading, skipping...');
+      if (fetchingRef.current && !forceRefresh) {
+        console.log('🔄 fetchUserData: Already fetching, skipping...');
         return;
       }
+
+      fetchingRef.current = true;
+      setLoading(true);
+      setError(null);
 
       // Get current user
       console.log('🔄 fetchUserData: Getting current user from Supabase...');
@@ -241,6 +244,7 @@ export function useUserData() {
         setError(errorMessage);
       }
     } finally {
+      fetchingRef.current = false;
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
