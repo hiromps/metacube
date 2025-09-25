@@ -56,6 +56,7 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     console.log('✅ handleDownloadPackage: User authenticated:', user.email)
 
     // まず管理者がアップロードした専用パッケージがあるかチェック
+    console.log('🔍 Checking for custom packages for user:', user.id)
     const { data: customPackage, error: packageError } = await supabase
       .from('user_packages')
       .select('file_name, file_content, version, upload_date, notes')
@@ -63,7 +64,13 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
       .eq('is_active', true)
       .order('upload_date', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
+
+    console.log('📦 Custom package query result:', {
+      hasPackage: !!customPackage,
+      packageError: packageError,
+      packageName: customPackage?.file_name
+    })
 
     if (customPackage && !packageError) {
       // 管理者がアップロードした専用パッケージが存在する場合
