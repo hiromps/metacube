@@ -14,6 +14,12 @@ import {
   handleStripeSyncSubscription,
   handleStripeCustomerPortal
 } from './stripe-handlers'
+import {
+  handleUserDashboard,
+  handlePlansList,
+  handleSubscriptionCancel,
+  handlePlanUpdate
+} from './dashboard-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -80,6 +86,12 @@ export async function onRequest(context: any) {
     return handleUserStatus(request, env);
   } else if (path === 'user/dashboard') {
     return handleUserDashboard(request, env);
+  } else if (path === 'plans/list') {
+    return handlePlansList(request, env);
+  } else if (path === 'subscription/cancel') {
+    return handleSubscriptionCancel(request, env);
+  } else if (path === 'plan/update') {
+    return handlePlanUpdate(request, env);
   } else if (path === 'admin/update-device') {
     return handleAdminUpdateDevice(request, env);
   } else if (path === 'admin/create-test-data') {
