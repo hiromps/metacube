@@ -1043,7 +1043,8 @@ export default function DashboardContent({}: DashboardContentProps) {
                         className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20"
                       >
                       キャンセル
-                    </Button>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
