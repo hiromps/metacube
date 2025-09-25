@@ -1430,8 +1430,49 @@ export default function DashboardPage() {
           </>
         )}
 
+        {/* Device Not Registered */}
+        {!userData.device && (
+          <div className="bg-gradient-to-br from-blue-800/30 via-indigo-800/20 to-purple-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-blue-500/10 mb-6">
+            <h3 className="text-lg md:text-xl font-semibold text-white mb-2">📱 デバイス登録が必要です</h3>
+            <p className="text-white/70 mb-4 md:mb-6 text-sm md:text-base">
+              iPhone 7/8のデバイスハッシュを登録して3日間の無料体験を開始しましょう
+            </p>
+
+            <div className="bg-white/10 border border-white/20 p-4 rounded-xl mb-4 backdrop-blur-sm">
+              <h4 className="font-medium text-white mb-3 flex items-center">
+                📋 登録手順
+              </h4>
+              <ol className="space-y-2 text-sm text-white/80">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 font-medium">1.</span>
+                  <span>iPhone設定アプリ → 一般 → 情報</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 font-medium">2.</span>
+                  <span>シリアル番号またはUDIDをコピー</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 font-medium">3.</span>
+                  <span>デバイス登録ページで入力</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="text-center">
+              <Link href="/device-register">
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20 mb-3" size="lg">
+                  📱 デバイスを登録する
+                </Button>
+              </Link>
+              <p className="text-xs text-white/60">
+                iPhone 7/8専用 - 3日間無料体験付き
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Expired Status */}
-        {(!userData.device || (!userData.isTrialActive && !userData.isSubscriptionActive && userData.trialDaysRemaining !== null && userData.trialDaysRemaining <= 0)) && (
+        {(userData.device && !userData.isTrialActive && !userData.isSubscriptionActive && userData.trialDaysRemaining !== null && userData.trialDaysRemaining <= 0) && (
           <div className="bg-gradient-to-br from-orange-800/30 via-red-800/20 to-amber-800/30 backdrop-blur-xl border border-orange-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-orange-500/10">
             <h3 className="text-lg md:text-xl font-semibold text-white mb-2">契約が期限切れです</h3>
             <p className="text-white/60 mb-4 md:mb-6 text-sm md:text-base">サービスを継続するには再登録が必要です</p>
@@ -1452,13 +1493,21 @@ export default function DashboardPage() {
         {/* Quick Links */}
         <div className="mt-6 md:mt-8">
           <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4 text-center">クイックアクセス</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className={`grid ${!userData.device ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'} gap-3 md:gap-4`}>
             <Link href="/">
               <div className="bg-gradient-to-br from-slate-700/30 via-gray-700/20 to-zinc-700/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-gradient-to-br hover:from-blue-700/20 hover:via-slate-700/20 hover:to-gray-700/20 transition-all cursor-pointer shadow-lg shadow-slate-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">🏠</div>
                 <p className="text-white/80 font-medium text-sm md:text-base">ホーム</p>
               </div>
             </Link>
+            {!userData.device && (
+              <Link href="/device-register">
+                <div className="bg-gradient-to-br from-blue-700/30 via-indigo-700/20 to-purple-700/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-blue-400/50 hover:bg-gradient-to-br hover:from-blue-700/30 hover:via-indigo-700/30 hover:to-purple-700/30 transition-all cursor-pointer shadow-lg shadow-blue-500/10">
+                  <div className="text-xl md:text-2xl mb-1 md:mb-2">📱</div>
+                  <p className="text-white/80 font-medium text-sm md:text-base">デバイス登録</p>
+                </div>
+              </Link>
+            )}
             <Link href="/guides">
               <div className="bg-gradient-to-br from-green-700/30 via-emerald-700/20 to-teal-700/30 backdrop-blur-xl border border-green-400/30 rounded-2xl p-4 md:p-6 text-center hover:border-green-400/50 hover:bg-gradient-to-br hover:from-green-700/30 hover:via-emerald-700/30 hover:to-teal-700/30 transition-all cursor-pointer shadow-lg shadow-green-500/10">
                 <div className="text-xl md:text-2xl mb-1 md:mb-2">📚</div>

@@ -61,6 +61,8 @@ export async function onRequest(context: any) {
     return handleLicenseVerify(request, env);
   } else if (path === 'device/register') {
     return handleDeviceRegister(request, env);
+  } else if (path === 'device/register-hash') {
+    return handleDeviceRegisterHash(request, env);
   } else if (path === 'device/login') {
     return handleDeviceLogin(request, env);
   } else if (path === 'device/change') {
@@ -149,7 +151,7 @@ export async function onRequest(context: any) {
       method: request.method,
       url: request.url,
       available_routes: [
-        'license/verify', 'device/register', 'device/login',
+        'license/verify', 'device/register', 'device/register-hash', 'device/login',
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
         'plans/list', 'plans/upgrade', 'plans/downgrade',
         'usage/check', 'usage/increment', 'feature/check',
@@ -3445,5 +3447,270 @@ async function handleAdminGuidesDelete(request: Request, env: any, guideId: stri
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
+  }
+}
+
+// Device Hash Registration Handler (for authenticated users)
+async function handleDeviceRegisterHash(request: Request, env: any) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { device_hash, user_id } = body;
+
+    // Validate required fields
+    if (!device_hash || !user_id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'デバイスハッシュとユーザーIDが必要です'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Validate device hash format (32-40 characters, alphanumeric)
+    const hashRegex = /^[A-Fa-f0-9]{32,40}$/;
+    if (!hashRegex.test(device_hash)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'デバイスハッシュの形式が正しくありません（32-40文字の英数字）'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const supabase = getSupabaseClient(env);
+    const normalizedDeviceHash = device_hash.toUpperCase();
+
+    console.log('Device hash registration - User:', user_id, 'Hash:', normalizedDeviceHash);
+
+    // Check if device hash already exists
+    const { data: existingDevice, error: checkError } = await supabase
+      .from('devices')
+      .select('id, user_id, status')
+      .eq('device_hash', normalizedDeviceHash)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Device check error:', checkError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'デバイス確認中にエラーが発生しました'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (existingDevice) {
+      if (existingDevice.user_id === user_id) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'このデバイスは既にあなたのアカウントに登録されています'
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'このデバイスは他のアカウントで既に使用されています'
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      }
+    }
+
+    // Check if user already has a device registered
+    const { data: userDevices, error: userDevicesError } = await supabase
+      .from('devices')
+      .select('id, device_hash, status')
+      .eq('user_id', user_id);
+
+    if (userDevicesError) {
+      console.error('User devices check error:', userDevicesError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'ユーザーデバイス確認中にエラーが発生しました'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    if (userDevices && userDevices.length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: '1アカウントにつき1台のデバイスのみ登録可能です。既存のデバイスを削除してから再登録してください'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Generate device model based on hash (simplified detection)
+    const deviceModel = "iPhone 7/8"; // Fixed for this system
+
+    // Create new device with 3-day trial
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 3); // 3 days from now
+
+    const { data: newDevice, error: createError } = await supabase
+      .from('devices')
+      .insert({
+        user_id: user_id,
+        device_hash: normalizedDeviceHash,
+        device_model: deviceModel,
+        status: 'trial',
+        trial_ends_at: trialEndsAt.toISOString()
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Device creation error:', createError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'デバイス登録中にエラーが発生しました: ' + createError.message
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Create initial license entry
+    const expiresAt = Math.floor(trialEndsAt.getTime() / 1000); // Unix timestamp
+
+    const { error: licenseError } = await supabase
+      .from('licenses')
+      .insert({
+        device_id: newDevice.id,
+        is_valid: true,
+        expires_at: expiresAt,
+        last_verified_at: Math.floor(Date.now() / 1000),
+        verification_count: 0
+      });
+
+    if (licenseError) {
+      console.error('License creation error:', licenseError);
+      // Don't fail the registration for license creation error, just log it
+    }
+
+    console.log('Device hash registration successful:', {
+      device_id: newDevice.id,
+      user_id: user_id,
+      device_hash: normalizedDeviceHash,
+      trial_ends_at: trialEndsAt.toISOString()
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'デバイスが正常に登録されました',
+        device: {
+          id: newDevice.id,
+          device_hash: normalizedDeviceHash,
+          device_model: deviceModel,
+          status: 'trial',
+          trial_ends_at: trialEndsAt.toISOString()
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+
+  } catch (error: any) {
+    console.error('Device hash registration error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'デバイス登録中にエラーが発生しました: ' + (error.message || 'Unknown error')
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
   }
 }
