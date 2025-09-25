@@ -23,3 +23,8 @@ compatibility_flags = ["nodejs_compat"]
 # PAYPAL_WEBHOOK_ID
 # PAYPAL_WEBHOOK_SECRET
 # NEXT_PUBLIC_APP_URL
+
+# Stripe environment variables (add via Cloudflare Dashboard)
+# STRIPE_SECRET_KEY=sk_test_... (本番環境では sk_live_...)
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... (本番環境では pk_live_...)
+# STRIPE_WEBHOOK_SECRET=whsec_...
