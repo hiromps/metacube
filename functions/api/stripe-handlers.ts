@@ -83,8 +83,8 @@ export async function handleStripeCreateCheckoutSession(request: Request, env: a
         price: priceId,
         quantity: 1
       }],
-      success_url: `${env.NEXT_PUBLIC_SITE_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.NEXT_PUBLIC_SITE_URL}/plans`,
+      success_url: `${env.NEXT_PUBLIC_SITE_URL}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.NEXT_PUBLIC_SITE_URL}/dashboard?canceled=true`,
       client_reference_id: device.id,
       customer_email: user_email || undefined,
       metadata: {
@@ -246,10 +246,13 @@ async function handleCheckoutSessionCompleted(session: any, supabase: any) {
     return
   }
 
-  // デバイスステータスを更新
+  // デバイスステータスとプラン情報を更新
   await supabase
     .from('devices')
-    .update({ status: 'active' })
+    .update({
+      status: 'active',
+      plan_id: planId  // 現在のプランIDを保存
+    })
     .eq('id', deviceId)
 
   console.log('Checkout session completed for device:', deviceId)
@@ -262,6 +265,7 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
 
   if (!deviceId) return
 
+  // サブスクリプション情報を更新
   await supabase
     .from('subscriptions')
     .upsert({
@@ -276,18 +280,45 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
       onConflict: 'device_id'
     })
 
+  // デバイスのプラン情報も更新
+  await supabase
+    .from('devices')
+    .update({
+      status: 'active',
+      plan_id: planId || 'starter'
+    })
+    .eq('id', deviceId)
+
   console.log('Subscription created for device:', deviceId)
 }
 
 // サブスクリプション更新処理
 async function handleSubscriptionUpdated(subscription: any, supabase: any) {
-  await supabase
+  const planId = subscription.metadata?.plan_id
+
+  // サブスクリプション情報を更新
+  const { data: sub } = await supabase
     .from('subscriptions')
     .update({
       status: subscription.status,
-      next_billing_date: new Date(subscription.current_period_end * 1000).toISOString()
+      next_billing_date: new Date(subscription.current_period_end * 1000).toISOString(),
+      plan_id: planId || undefined
     })
     .eq('stripe_subscription_id', subscription.id)
+    .select('device_id')
+    .single()
+
+  // デバイスのステータスとプラン情報も更新
+  if (sub?.device_id) {
+    const deviceStatus = subscription.status === 'active' || subscription.status === 'trialing' ? 'active' : 'expired'
+    await supabase
+      .from('devices')
+      .update({
+        status: deviceStatus,
+        plan_id: planId || undefined
+      })
+      .eq('id', sub.device_id)
+  }
 
   console.log('Subscription updated:', subscription.id)
 }
@@ -303,10 +334,13 @@ async function handleSubscriptionDeleted(subscription: any, supabase: any) {
     .single()
 
   if (sub?.device_id) {
-    // デバイスステータスを期限切れに変更
+    // デバイスステータスを期限切れに変更し、プラン情報をクリア
     await supabase
       .from('devices')
-      .update({ status: 'expired' })
+      .update({
+        status: 'expired',
+        plan_id: null  // プラン情報をクリア
+      })
       .eq('id', sub.device_id)
   }
 
@@ -317,13 +351,24 @@ async function handleSubscriptionDeleted(subscription: any, supabase: any) {
 async function handleInvoicePaymentSucceeded(invoice: any, supabase: any) {
   if (!invoice.subscription) return
 
-  await supabase
+  // サブスクリプションをアクティブに更新
+  const { data: sub } = await supabase
     .from('subscriptions')
     .update({
       status: 'active',
       next_billing_date: new Date(invoice.period_end * 1000).toISOString()
     })
     .eq('stripe_subscription_id', invoice.subscription)
+    .select('device_id')
+    .single()
+
+  // デバイスステータスもアクティブに更新
+  if (sub?.device_id) {
+    await supabase
+      .from('devices')
+      .update({ status: 'active' })
+      .eq('id', sub.device_id)
+  }
 
   console.log('Invoice payment succeeded for subscription:', invoice.subscription)
 }
