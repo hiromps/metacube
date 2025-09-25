@@ -175,6 +175,15 @@ export default function DashboardContent({}: DashboardContentProps) {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
     const error = searchParams.get('error')
+    const device_registered = searchParams.get('device_registered')
+
+    // Force refetch user data when device was just registered
+    if (device_registered === 'true') {
+      console.log('Device registration detected, forcing data refresh...')
+      setTimeout(() => {
+        refetch()
+      }, 500) // Wait 500ms to ensure API update is complete
+    }
 
     if (success === 'true') {
       setPaymentStatus('success')
@@ -228,7 +237,7 @@ export default function DashboardContent({}: DashboardContentProps) {
       }
     }
 
-    if (success || canceled || error) {
+    if (success || canceled || error || device_registered) {
       const newUrl = window.location.pathname
       window.history.replaceState({}, '', newUrl)
     }

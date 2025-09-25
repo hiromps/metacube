@@ -41,13 +41,13 @@ export function useUserData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserData = useCallback(async () => {
+  const fetchUserData = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Prevent multiple simultaneous calls
-      if (loading) {
+      // Prevent multiple simultaneous calls unless forcing refresh
+      if (loading && !forceRefresh) {
         return;
       }
 
@@ -250,8 +250,8 @@ export function useUserData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent re-runs
 
-  const refetch = useCallback(() => {
-    fetchUserData();
+  const refetch = useCallback((forceRefresh = true) => {
+    fetchUserData(forceRefresh);
   }, [fetchUserData]);
 
   return {
