@@ -14,6 +14,7 @@ interface Plan {
   features: string[]
   popular?: boolean
   stripePriceId: string
+  paymentLink: string
 }
 
 const plans: Plan[] = [
@@ -31,7 +32,8 @@ const plans: Plan[] = [
       'いつでもアップグレード可能',
       'いつでもキャンセル可能'
     ],
-    stripePriceId: 'price_starter_monthly'
+    stripePriceId: 'price_starter_monthly',
+    paymentLink: 'https://buy.stripe.com/test_28E28rbP2eTE7a63IC33W01' // STARTERのPayment Link
   },
   {
     id: 'pro',
@@ -49,7 +51,8 @@ const plans: Plan[] = [
       'いつでもキャンセル可能'
     ],
     popular: true,
-    stripePriceId: 'price_pro_monthly'
+    stripePriceId: 'price_pro_monthly',
+    paymentLink: 'https://buy.stripe.com/test_aFa5kD06kaDo7a64MG33W02' // PRO月額のPayment Link
   },
   {
     id: 'max',
@@ -67,7 +70,8 @@ const plans: Plan[] = [
       '📞 24時間電話サポート',
       'いつでもキャンセル可能'
     ],
-    stripePriceId: 'price_max_monthly'
+    stripePriceId: 'price_max_monthly',
+    paymentLink: 'https://buy.stripe.com/test_6oU5kD5qEbHs51Ybb433W04' // MAXのPayment Link
   }
 ]
 
@@ -98,47 +102,28 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
     setLoading(planId)
 
     try {
-      // Supabaseから認証トークンを取得
+      // 選択されたプランを取得
+      const plan = plans.find(p => p.id === planId)
+      if (!plan) {
+        throw new Error('プランが見つかりません')
+      }
+
+      // 認証状態確認（オプション）
       const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('認証が必要です。再度ログインしてください。')
+      if (!session?.user) {
+        console.log('未認証ユーザーですが、Payment Linkに進みます')
       }
 
-      // Stripeチェックアウトセッション作成
-      const response = await fetch('/api/stripe/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          priceId: stripePriceId,
-          planId: planId
-        })
-      })
+      // Payment Linkに直接リダイレクト
+      window.location.href = plan.paymentLink
 
-      const { sessionId, error } = await response.json()
-
-      if (error) {
-        throw new Error(error)
-      }
-
-      // Stripeチェックアウトにリダイレクト
-      const stripe = (window as any).Stripe?.(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-      if (stripe) {
-        await stripe.redirectToCheckout({ sessionId })
-      } else {
-        // Stripe.jsが読み込まれていない場合、直接URLにリダイレクト
-        window.location.href = `https://checkout.stripe.com/pay/${sessionId}`
-      }
     } catch (error: any) {
       console.error('Subscription error:', error)
       alert(`エラーが発生しました: ${error.message}`)
-    } finally {
       setLoading(null)
     }
 
+    // onSelectPlan コールバック呼び出し（あれば）
     if (onSelectPlan) {
       onSelectPlan(planId, stripePriceId)
     }

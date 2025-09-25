@@ -3485,7 +3485,7 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'デバイスハッシュとユーザーIDが必要です'
+          error: 'シリアル番号とユーザーIDが必要です'
         }),
         {
           status: 400,
@@ -3497,13 +3497,12 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
       );
     }
 
-    // Validate device hash format (32-40 characters, alphanumeric)
-    const hashRegex = /^[A-Fa-f0-9]{32,40}$/;
-    if (!hashRegex.test(device_hash)) {
+    // Validate serial number (just check if it's not empty)
+    if (!device_hash.trim()) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'デバイスハッシュの形式が正しくありません（32-40文字の英数字）'
+          error: 'シリアル番号を入力してください'
         }),
         {
           status: 400,
@@ -3516,15 +3515,15 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
     }
 
     const supabase = getSupabaseClient(env);
-    const normalizedDeviceHash = device_hash.toUpperCase();
+    const normalizedSerialNumber = device_hash.trim().toUpperCase();
 
-    console.log('Device hash registration - User:', user_id, 'Hash:', normalizedDeviceHash);
+    console.log('Serial number registration - User:', user_id, 'Serial:', normalizedSerialNumber);
 
-    // Check if device hash already exists
+    // Check if serial number already exists
     const { data: existingDevice, error: checkError } = await supabase
       .from('devices')
       .select('id, user_id, status')
-      .eq('device_hash', normalizedDeviceHash)
+      .eq('device_hash', normalizedSerialNumber)
       .single();
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -3549,7 +3548,7 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'このデバイスは既にあなたのアカウントに登録されています'
+            error: 'このシリアル番号は既にあなたのアカウントに登録されています'
           }),
           {
             status: 400,
@@ -3563,7 +3562,7 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'このデバイスは他のアカウントで既に使用されています'
+            error: 'このシリアル番号は他のアカウントで既に使用されています'
           }),
           {
             status: 400,
@@ -3626,7 +3625,7 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
       .from('devices')
       .insert({
         user_id: user_id,
-        device_hash: normalizedDeviceHash,
+        device_hash: normalizedSerialNumber,
         device_model: deviceModel,
         status: 'trial',
         trial_ends_at: trialEndsAt.toISOString()
@@ -3639,7 +3638,7 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'デバイス登録中にエラーが発生しました: ' + createError.message
+          error: 'シリアル番号登録中にエラーが発生しました: ' + createError.message
         }),
         {
           status: 500,
