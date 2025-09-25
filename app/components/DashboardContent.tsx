@@ -1193,6 +1193,38 @@ export default function DashboardContent({}: DashboardContentProps) {
                 </div>
               </button>
             ))}
+
+            {/* Mobile Menu Admin Link */}
+            {userData && isAdminEmail(userData.email) && (
+              <Link href="/admin" className="block">
+                <button className="w-full text-left p-3 rounded-xl transition-all text-white/70 hover:bg-yellow-500/20 hover:text-yellow-300 border border-yellow-400/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">👑</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">管理者</div>
+                      <div className="text-xs text-white/50 mt-0.5">管理者メニュー</div>
+                    </div>
+                  </div>
+                </button>
+              </Link>
+            )}
+
+            {/* Mobile Menu Logout Button */}
+            <button
+              onClick={() => {
+                handleSignOut()
+                setMobileMenuOpen(false)
+              }}
+              className="w-full text-left p-3 rounded-xl transition-all text-white/70 hover:bg-red-500/20 hover:text-red-300 border border-red-400/20"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🚪</span>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">ログアウト</div>
+                  <div className="text-xs text-white/50 mt-0.5">アカウントからサインアウト</div>
+                </div>
+              </div>
+            </button>
           </div>
         )}
       </div>
