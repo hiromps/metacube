@@ -19,41 +19,53 @@ interface Plan {
 const plans: Plan[] = [
   {
     id: 'starter',
-    name: 'STARTER',
+    name: '⚡ STARTER',
     price: 2980,
     features: [
-      'タイムライン自動いいね',
-      'フォロー機能',
-      'ハッシュタグいいね',
-      '基本サポート'
+      '🔥 3日間フルアクセス体験',
+      '✅ タイムライン自動いいね',
+      '✅ ハッシュタグいいね',
+      '📱 基本版スクリプト',
+      '🎁 無料セットアップサポート',
+      '💬 LINEサポート30日間',
+      'いつでもアップグレード可能',
+      'いつでもキャンセル可能'
     ],
     stripePriceId: 'price_starter_monthly'
   },
   {
     id: 'pro',
-    name: 'PRO',
-    price: 8800,
-    originalPrice: 9800,
+    name: '🚀 PRO',
+    price: 6980,
+    originalPrice: 9980,
     features: [
-      'STARTER機能すべて',
-      'アクティブいいね',
-      'より高速な実行',
-      '優先サポート'
+      '🔥 3日間フルアクセス体験',
+      '✅ タイムライン自動いいね',
+      '✅ ハッシュタグいいね',
+      '✅ 自動フォロー',
+      '✅ 自動アンフォロー',
+      '🎁 無料セットアップサポート',
+      '💬 LINEサポート90日間',
+      'いつでもキャンセル可能'
     ],
     popular: true,
     stripePriceId: 'price_pro_monthly'
   },
   {
     id: 'max',
-    name: 'MAX',
-    price: 15000,
-    originalPrice: 18000,
+    name: '👑 MAX',
+    price: 15800,
+    originalPrice: 19800,
     features: [
-      'PRO機能すべて',
-      'DM送信機能',
-      '無制限実行',
-      'カスタム設定',
-      '24時間サポート'
+      '🔥 3日間フルアクセス体験',
+      '✅ タイムライン自動いいね',
+      '✅ ハッシュタグいいね',
+      '✅ 自動フォロー',
+      '✅ 自動アンフォロー',
+      '✅ アクティブユーザーいいね',
+      '🎁 無料セットアップサポート',
+      '📞 24時間電話サポート',
+      'いつでもキャンセル可能'
     ],
     stripePriceId: 'price_max_monthly'
   }
@@ -223,9 +235,9 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
         <div className="mt-6 p-4 bg-black/20 border border-white/10 rounded-xl backdrop-blur-sm">
           <h4 className="font-medium text-white mb-2 text-sm">💡 プラン選びのヒント</h4>
           <ul className="text-xs text-white/70 space-y-1">
-            <li>• 初心者の方はSTARTERプランがおすすめ</li>
-            <li>• より多くの機能が必要な場合はPROプランが人気</li>
-            <li>• 本格運用・法人利用にはMAXプランが最適</li>
+            <li>• 初心者の方は⚡STARTERプランがおすすめ（コンビニ弁当1回分で始められる）</li>
+            <li>• より多くの機能が必要な場合は🚀PROプランが人気（月40時間節約）</li>
+            <li>• 本格運用・法人利用には👑MAXプランが最適（月160時間節約）</li>
           </ul>
         </div>
       </CardContent>
