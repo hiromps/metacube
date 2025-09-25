@@ -136,8 +136,11 @@ UPDATE devices
 SET trial_ends_at = created_at + INTERVAL '3 days'
 WHERE trial_ends_at IS NULL OR trial_ends_at < created_at + INTERVAL '3 days';
 
--- Create or replace view for easy plan information access
-CREATE OR REPLACE VIEW device_plan_view AS
+-- Drop existing view if it exists to avoid column conflicts
+DROP VIEW IF EXISTS device_plan_view;
+
+-- Create view for easy plan information access
+CREATE VIEW device_plan_view AS
 SELECT
     d.id as device_id,
     d.user_id,
