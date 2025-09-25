@@ -98,7 +98,7 @@ const pricingPlans = [
     price: '¥15,800',
     originalPrice: '¥19,800',
     duration: '月額',
-    badge: '3日間無料体験',
+    badge: '企業・インフルエンサー向け',
     badgeColor: 'from-purple-500 to-indigo-500',
     features: [
       '🔥 3日間フルアクセス体験',
@@ -848,8 +848,61 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Features Section */}
+      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800 relative">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <svg className="absolute inset-0 w-full h-full">
+            <pattern id="featureGrid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+              <circle cx="25" cy="25" r="1" fill="#3b82f6" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#featureGrid)" />
+          </svg>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-12">
+            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30 mb-4" size="md">
+              🤖 主要機能
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              人間の動作を完全自動化
+            </h2>
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+              AIが学習した自然な動作パターンで、24時間365日働き続ける<br/>
+              <span className="text-sm text-gray-400">※iPhone 7/8 専用最適化済み</span>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, index) => (
+              <div
+                key={index}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20 hover:bg-white/20 hover:-translate-y-2 transition-all h-full group">
+                  <CardHeader>
+                    <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{feature.icon}</div>
+                    <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col">
+                    <p className="text-gray-300 min-h-[3rem] flex items-center">{feature.description}</p>
+                    <div className="mt-4 p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-400/30">
+                      <span className="text-sm bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent font-bold">
+                        🤖 AIがフォロワー/フォロー比率を分析して最適なアクション
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Revolutionary Value Proposition */}
-      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800">
+      <section className="py-20 bg-gradient-to-b from-gray-800 to-gray-900">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold" size="lg">
@@ -867,7 +920,7 @@ export default function Home() {
             {acronymMeanings.map((item, index) => (
               <div
                 key={index}
-                className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-xl p-6 text-center hover:scale-105 transition-transform cursor-pointer border border-gray-600 hover:border-blue-500"
+                className="bg-gradient-to-br from-gray-700 to-gray-600 rounded-xl p-6 text-center hover:scale-105 transition-transform cursor-pointer border border-gray-500 hover:border-blue-500"
               >
                 <div className="text-4xl mb-4">{item.icon}</div>
                 <div className="text-2xl font-bold text-white mb-2">{item.letter}</div>
@@ -905,59 +958,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800 relative">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <svg className="absolute inset-0 w-full h-full">
-            <pattern id="featureGrid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
-              <circle cx="25" cy="25" r="1" fill="#3b82f6" />
-            </pattern>
-            <rect width="100%" height="100%" fill="url(#featureGrid)" />
-          </svg>
-        </div>
-
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-12">
-            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-400/30 mb-4" size="md">
-              🤖 主要機能
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              人間の動作を完全自動化
-            </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              AIが学習した自然な動作パターンで、24時間365日働き続ける<br/>
-              <span className="text-sm text-gray-400">※iPhone 7/8 専用最適化済み</span>
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="animate-slide-up"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <Card className="bg-white/10 backdrop-blur-md shadow-xl border border-white/20 hover:bg-white/20 hover:-translate-y-2 transition-all h-full group">
-                  <CardHeader>
-                    <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{feature.icon}</div>
-                    <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col">
-                    <p className="text-gray-300 min-h-[3rem] flex items-center">{feature.description}</p>
-                    <div className="mt-4 p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-400/30">
-                      <span className="text-sm bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent font-bold">
-                        🤖 AIがフォロワー/フォロー比率を分析して最適なアクション
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Pricing Section */}
       <section id="pricing" className="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
         {/* Background Elements */}
@@ -989,9 +989,9 @@ export default function Home() {
             </div>
 
             <Badge className="bg-gradient-to-r from-green-500/20 to-blue-500/20 text-green-400 border-green-400/30 mb-4" size="md">
-              💎 創業記念特価プラン
+              🚀 SNS応援キャンペーン
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
               手動運用からの完全解放
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
