@@ -87,7 +87,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="SMARTGRAM" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <script src="https://js.stripe.com/v3/"></script>
+        <script src="https://js.stripe.com/v3/" async></script>
       </head>
       <body className={inter.className}>{children}</body>
     </html>
