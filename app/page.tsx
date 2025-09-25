@@ -75,8 +75,8 @@ const pricingPlans = [
     originalPrice: '¥9,980',
     duration: '月額',
     subPrice: '¥69,800',
-    subDuration: '年額',
-    discount: '30%お得',
+    subDuration: '年額（月換算 ¥5,817）',
+    discount: '2ヶ月分お得',
     badge: '3日間無料体験',
     badgeColor: 'from-yellow-500 to-orange-500',
     features: [
