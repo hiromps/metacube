@@ -93,10 +93,50 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [uploadTargetDevice, setUploadTargetDevice] = useState('')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadNotes, setUploadNotes] = useState('')
+  const [hasPackage, setHasPackage] = useState(false)
+  const [packageInfo, setPackageInfo] = useState<any>(null)
+  const [checkingPackage, setCheckingPackage] = useState(false)
 
   // State for user selection functionality
   const [availableUsers, setAvailableUsers] = useState<any[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
+
+  // Check if user has uploaded package
+  const checkUserPackage = useCallback(async () => {
+    if (!userData?.device) return
+
+    setCheckingPackage(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+
+      const response = await fetch('/api/check/package', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setHasPackage(data.hasPackage)
+        setPackageInfo(data.package)
+        console.log('📦 Package check:', data)
+      }
+    } catch (error) {
+      console.error('Package check error:', error)
+    } finally {
+      setCheckingPackage(false)
+    }
+  }, [userData?.device])
+
+  // Check for package when user data loads
+  useEffect(() => {
+    if (userData?.device) {
+      checkUserPackage()
+    }
+  }, [userData?.device, checkUserPackage])
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {
@@ -515,6 +555,8 @@ export default function DashboardContent({}: DashboardContentProps) {
       // 少し遅延してアラート表示
       setTimeout(() => {
         alert(`✅ アップロード完了！\n\nユーザー: ${result.user_email}\nバージョン: ${result.version}`)
+        // 自分のパッケージ状態を再チェック
+        checkUserPackage()
       }, 500)
 
     } catch (err: any) {
@@ -844,8 +886,8 @@ export default function DashboardContent({}: DashboardContentProps) {
         </div>
       )}
 
-      {/* ATE File Download Section - show for registered devices */}
-      {userData?.device && (
+      {/* ATE File Download Section - show for registered devices with uploaded packages */}
+      {userData?.device && hasPackage ? (
         <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-purple-500/10">
           <h3 className="text-lg md:text-xl font-semibold text-white mb-4">📦 ツールファイルダウンロード</h3>
           <div className="space-y-4">
@@ -859,9 +901,9 @@ export default function DashboardContent({}: DashboardContentProps) {
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                   <div>
-                    <p className="text-white text-sm font-medium">SMARTGRAM.ate</p>
+                    <p className="text-white text-sm font-medium">{packageInfo?.fileName || 'SMARTGRAM.ate'}</p>
                     <p className="text-white/60 text-xs">
-                      プラン: {userData.plan?.display_name || 'なし'} • デバイス: {userData.device.device_hash.substring(0, 8)}...
+                      プラン: {userData.plan?.display_name || 'なし'} • {packageInfo?.version ? `v${packageInfo.version} • ` : ''}デバイス: {userData.device.device_hash.substring(0, 8)}...
                     </p>
                   </div>
                   <div className="relative">
@@ -1057,7 +1099,23 @@ export default function DashboardContent({}: DashboardContentProps) {
             </div>
           )}
         </div>
-      )}
+      ) : userData?.device && !checkingPackage ? (
+        // Show message when device registered but no package uploaded
+        <div className="bg-gradient-to-br from-yellow-800/30 via-amber-800/20 to-orange-800/30 backdrop-blur-xl border border-yellow-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-yellow-500/10">
+          <h3 className="text-lg md:text-xl font-semibold text-white mb-4">📦 ツールファイル未アップロード</h3>
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <div className="text-center py-4">
+              <div className="text-3xl mb-3">⌛</div>
+              <p className="text-white/80 text-sm mb-2">
+                まだSMARTGRAM.ateファイルがアップロードされていません。
+              </p>
+              <p className="text-white/60 text-xs">
+                管理者があなた専用のファイルをアップロードするまでお待ちください。
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Device Change Form */}
       {showDeviceChangeForm && (

@@ -7,6 +7,7 @@ import {
   handleFeatureCheck
 } from './multiplan-handlers'
 import { handleDownloadPackage } from './download-package'
+import { handleCheckPackage } from './check-package'
 import { debugDevices } from './debug-devices'
 import {
   handleStripeCreateCheckoutSession,
@@ -118,6 +119,8 @@ export async function onRequest(context: any) {
     return handleFeatureCheck(request, env);
   } else if (path === 'download/package') {
     return handleDownloadPackage(request, env);
+  } else if (path === 'check/package') {
+    return handleCheckPackage(request, env);
   } else if (path === 'admin/upload-package' || path === 'admin/upload-package/') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
@@ -177,7 +180,7 @@ export async function onRequest(context: any) {
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
         'plans/list', 'plans/upgrade', 'plans/downgrade',
         'usage/check', 'usage/increment', 'feature/check',
-        'download/package', 'debug/devices', 'health',
+        'download/package', 'check/package', 'debug/devices', 'health',
         'admin/upload-package', 'admin/users-list', 'user-packages/status', 'user-packages/download/{id}'
       ],
       debug_info: {
