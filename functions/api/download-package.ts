@@ -1,170 +1,115 @@
-// 管理者アップロード専用ファイルダウンロードAPI
+// user_packagesテーブルからファイルをダウンロード
 import { createClient } from '@supabase/supabase-js'
 
 export async function handleDownloadPackage(request: Request, env?: any): Promise<Response> {
   try {
-    console.log('📦 handleDownloadPackage: Starting download request')
+    console.log('📦 Starting download request')
 
+    // 認証ヘッダーチェック
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      console.log('❌ handleDownloadPackage: Missing or invalid Authorization header')
       return new Response(JSON.stringify({ error: '認証が必要です' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    const token = authHeader.split(' ')[1]
+    const token = authHeader.replace('Bearer ', '')
 
-    // Supabaseクライアントを作成
-    const supabaseUrl = env?.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = env?.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    // Supabase初期化
+    const supabaseUrl = env?.SUPABASE_URL || 'https://bsujceqmhvpltedjkvum.supabase.co'
+    const supabaseServiceKey = env?.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzdWpjZXFtaHZwbHRlZGprdnVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDcyNzUzOSwiZXhwIjoyMDUwMzAzNTM5fQ.bRjRIgfgNSC6fLfMGnEYNpON1rF_ygf2aHhx8r8fL90'
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'サービス設定エラー' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-
-    // Supabaseでユーザー認証
-    console.log('🔐 handleDownloadPackage: Authenticating user with token')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      console.log('❌ handleDownloadPackage: Authentication failed:', authError?.message)
-      return new Response(JSON.stringify({ error: '認証に失敗しました' }), {
+    // ユーザー認証
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'ユーザー認証に失敗しました' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    console.log('✅ handleDownloadPackage: User authenticated:', user.email)
+    console.log('✅ User authenticated:', user.email)
 
-    // まず管理者がアップロードした専用パッケージがあるかチェック
-    console.log('🔍 Checking for custom packages for user:', user.id)
-    const { data: customPackage, error: packageError } = await supabase
+    // user_packagesテーブルからアクティブなパッケージを取得
+    const { data: packageData, error: packageError } = await supabase
       .from('user_packages')
-      .select('file_name, file_content, version, upload_date, notes')
+      .select('*')
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .order('upload_date', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    console.log('📦 Custom package query result:', {
-      hasPackage: !!customPackage,
-      packageError: packageError,
-      packageName: customPackage?.file_name,
-      userId: user.id,
-      userEmail: user.email
+    console.log('📦 Package query result:', {
+      found: !!packageData,
+      error: packageError,
+      fileName: packageData?.file_name,
+      userId: user.id
     })
 
-    // デバッグ用：すべてのuser_packagesデータを確認
-    const { data: allPackages, error: allPackagesError } = await supabase
-      .from('user_packages')
-      .select('id, user_id, device_hash, file_name, is_active, created_at')
-      .limit(10)
-
-    console.log('🔍 All user_packages (first 10):', {
-      allPackages,
-      allPackagesError,
-      count: allPackages?.length || 0
-    })
-
-    // ユーザー固有のpackagesをすべて確認
-    const { data: userPackages, error: userPackagesError } = await supabase
-      .from('user_packages')
-      .select('id, user_id, device_hash, file_name, is_active, created_at')
-      .eq('user_id', user.id)
-
-    console.log('👤 User specific packages:', {
-      userPackages,
-      userPackagesError,
-      count: userPackages?.length || 0
-    })
-
-    if (customPackage && !packageError) {
-      // 管理者がアップロードした専用パッケージが存在する場合
-
-      // ダウンロード回数を更新
-      const { data: currentPackage } = await supabase
+    // パッケージが見つからない場合
+    if (!packageData || packageError) {
+      // デバッグ用：全パッケージ確認
+      const { data: allPackages } = await supabase
         .from('user_packages')
-        .select('download_count')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
+        .select('id, user_id, file_name, is_active, created_at')
+        .limit(5)
 
-      await supabase
-        .from('user_packages')
-        .update({
-          download_count: (currentPackage?.download_count || 0) + 1,
-          last_downloaded: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-
-      // Base64デコードしてファイル内容を返す（Cloudflare Workers互換）
-      const binaryString = atob(customPackage.file_content)
-      const bytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
-      }
-
-      return new Response(bytes, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${customPackage.file_name}"`,
-          'X-Package-Type': 'custom',
-          'X-Package-Version': customPackage.version,
-          'X-Upload-Date': customPackage.upload_date
+      return new Response(JSON.stringify({
+        error: 'アップロードされたファイルが見つかりません',
+        debug: {
+          userId: user.id,
+          userEmail: user.email,
+          packageError: packageError?.message,
+          allPackagesCount: allPackages?.length || 0,
+          allPackages: allPackages?.map(p => ({
+            id: p.id,
+            user_id: p.user_id,
+            file_name: p.file_name,
+            is_active: p.is_active,
+            created_at: p.created_at
+          })) || []
         }
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    // 管理者パッケージがない場合はエラーを返す（デバッグ情報付き）
-    return new Response(JSON.stringify({
-      error: '管理者がアップロードしたファイルが見つかりません。管理者にお問い合わせください。',
-      debug: {
-        userId: user.id,
-        userEmail: user.email,
-        packageError: packageError?.message || packageError,
-        hasCustomPackage: !!customPackage,
-        allPackagesCount: allPackages?.length || 0,
-        userPackagesCount: userPackages?.length || 0,
-        allPackagesPreview: allPackages?.map(p => ({
-          id: p.id,
-          user_id: p.user_id,
-          file_name: p.file_name,
-          is_active: p.is_active
-        })) || [],
-        userPackagesPreview: userPackages?.map(p => ({
-          id: p.id,
-          user_id: p.user_id,
-          file_name: p.file_name,
-          is_active: p.is_active
-        })) || []
+    // ダウンロード回数を更新
+    await supabase
+      .from('user_packages')
+      .update({
+        download_count: (packageData.download_count || 0) + 1,
+        last_downloaded: new Date().toISOString()
+      })
+      .eq('id', packageData.id)
+
+    // Base64ファイル内容をデコード
+    const binaryString = atob(packageData.file_content)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+
+    // ファイルダウンロードレスポンス
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${packageData.file_name}"`,
+        'X-Package-Version': packageData.version || 'unknown',
+        'X-Upload-Date': packageData.created_at
       }
-    }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' }
     })
 
   } catch (error: any) {
-    console.error('📦 handleDownloadPackage: Error occurred:', error)
-    console.error('📦 Error stack:', error.stack)
-
+    console.error('📦 Download error:', error)
     return new Response(JSON.stringify({
-      error: 'ファイル生成に失敗しました',
-      details: error instanceof Error ? error.message : String(error)
+      error: 'ダウンロード処理でエラーが発生しました',
+      details: error.message
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
