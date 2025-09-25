@@ -16,7 +16,7 @@ import {
 } from './stripe-handlers'
 import {
   handleUserDashboard,
-  handlePlansList,
+  handleDashboardPlansList,
   handleSubscriptionCancel,
   handlePlanUpdate
 } from './dashboard-handlers'
@@ -86,12 +86,14 @@ export async function onRequest(context: any) {
     return handleUserStatus(request, env);
   } else if (path === 'user/dashboard') {
     return handleUserDashboard(request, env);
+  } else if (path === 'dashboard/plans') {
+    return handleDashboardPlansList(request, env);
+  } else if (path === 'dashboard/cancel') {
+    return handleSubscriptionCancel(request, env);
+  } else if (path === 'dashboard/plan-update') {
+    return handlePlanUpdate(request, env);
   } else if (path === 'plans/list') {
     return handlePlansList(request, env);
-  } else if (path === 'subscription/cancel') {
-    return handleSubscriptionCancel(request, env);
-  } else if (path === 'plan/update') {
-    return handlePlanUpdate(request, env);
   } else if (path === 'admin/update-device') {
     return handleAdminUpdateDevice(request, env);
   } else if (path === 'admin/create-test-data') {

@@ -104,8 +104,13 @@ export default function DashboardContent() {
         body: JSON.stringify({ user_id: currentUser.id })
       })
 
+      console.log('Dashboard response status:', dashboardResponse.status)
+      console.log('Dashboard response headers:', Object.fromEntries(dashboardResponse.headers.entries()))
+
       if (!dashboardResponse.ok) {
-        throw new Error('ダッシュボードデータの読み込みに失敗しました')
+        const errorText = await dashboardResponse.text()
+        console.error('Dashboard API error:', errorText)
+        throw new Error(`ダッシュボードデータの読み込みに失敗しました (${dashboardResponse.status})`)
       }
 
       const dashboardResult = await dashboardResponse.json()
@@ -116,7 +121,7 @@ export default function DashboardContent() {
       setDashboardData(dashboardResult.data)
 
       // Load available plans
-      const plansResponse = await fetch('/api/plans/list', {
+      const plansResponse = await fetch('/api/dashboard/plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -150,7 +155,7 @@ export default function DashboardContent() {
       setActionLoading(`plan-${newPlanId}`)
       setError('')
 
-      const response = await fetch('/api/plan/update', {
+      const response = await fetch('/api/dashboard/plan-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +188,7 @@ export default function DashboardContent() {
       setActionLoading('cancel')
       setError('')
 
-      const response = await fetch('/api/subscription/cancel', {
+      const response = await fetch('/api/dashboard/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

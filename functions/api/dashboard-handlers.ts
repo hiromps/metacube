@@ -23,7 +23,13 @@ function getSupabaseClient(env: any) {
 // Get comprehensive user dashboard data
 export async function handleUserDashboard(request: Request, env: any) {
   try {
-    const { device_hash, user_id } = await request.json()
+    console.log('Dashboard handler called with method:', request.method)
+    console.log('Dashboard request headers:', Object.fromEntries(request.headers.entries()))
+
+    const requestText = await request.text()
+    console.log('Dashboard request body:', requestText)
+
+    const { device_hash, user_id } = requestText ? JSON.parse(requestText) : {}
     const supabase = getSupabaseClient(env)
 
     console.log('Dashboard data request:', { device_hash, user_id })
@@ -143,7 +149,7 @@ export async function handleUserDashboard(request: Request, env: any) {
 }
 
 // Get available plans for upgrade/downgrade
-export async function handlePlansList(request: Request, env: any) {
+export async function handleDashboardPlansList(request: Request, env: any) {
   try {
     const supabase = getSupabaseClient(env)
 
