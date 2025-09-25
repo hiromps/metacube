@@ -43,15 +43,18 @@ export function useUserData() {
 
   const fetchUserData = useCallback(async (forceRefresh = false) => {
     try {
+      console.log('🔄 fetchUserData: Starting data fetch, forceRefresh:', forceRefresh);
       setLoading(true);
       setError(null);
 
       // Prevent multiple simultaneous calls unless forcing refresh
       if (loading && !forceRefresh) {
+        console.log('🔄 fetchUserData: Already loading, skipping...');
         return;
       }
 
       // Get current user
+      console.log('🔄 fetchUserData: Getting current user from Supabase...');
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError) {
@@ -60,11 +63,11 @@ export function useUserData() {
       }
 
       if (!user) {
-        console.error('No user found in session');
+        console.error('🚫 fetchUserData: No user found in session');
         throw new Error('ユーザーが見つかりません');
       }
 
-      console.log('User found:', user.email);
+      console.log('✅ fetchUserData: User found:', user.email, 'ID:', user.id);
 
       // Get user's device
       console.log('Fetching device for user:', user.id);
@@ -209,7 +212,7 @@ export function useUserData() {
         };
       }
 
-      setUserData({
+      const finalUserData = {
         email: user.email || '',
         device,
         subscription,
@@ -217,7 +220,18 @@ export function useUserData() {
         trialDaysRemaining,
         isTrialActive,
         isSubscriptionActive
+      };
+
+      console.log('✅ fetchUserData: Setting user data:', {
+        email: finalUserData.email,
+        hasDevice: !!finalUserData.device,
+        hasSubscription: !!finalUserData.subscription,
+        hasPlan: !!finalUserData.plan,
+        isTrialActive: finalUserData.isTrialActive,
+        isSubscriptionActive: finalUserData.isSubscriptionActive
       });
+
+      setUserData(finalUserData);
 
     } catch (err) {
       console.error('ユーザーデータの取得エラー:', err);
@@ -233,19 +247,35 @@ export function useUserData() {
   }, []); // Empty dependencies to prevent infinite re-renders
 
   useEffect(() => {
-    // Only call once on mount
     let mounted = true;
 
     const loadData = async () => {
       if (mounted) {
+        console.log('🔄 useUserData: Loading user data...');
         await fetchUserData();
       }
     };
 
     loadData();
 
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state changed:', event, session ? 'Session exists' : 'No session');
+      if (mounted) {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log('🔄 User signed in or token refreshed, reloading data...');
+          setTimeout(() => fetchUserData(true), 100); // Small delay to ensure session is set
+        } else if (event === 'SIGNED_OUT') {
+          console.log('🔄 User signed out, clearing data...');
+          setUserData(null);
+          setError(null);
+        }
+      }
+    });
+
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent re-runs
