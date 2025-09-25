@@ -230,39 +230,58 @@ export default function DashboardContent({}: DashboardContentProps) {
     const error = searchParams.get('error')
     const device_registered = searchParams.get('device_registered')
 
-    // Force refetch user data when device was just registered
-    if (device_registered === 'true') {
+    // Force refetch user data when device was just registered (only once)
+    if (device_registered === 'true' && retryCount === 0) {
       console.log('Device registration detected, forcing data refresh...')
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         refetch()
+        setRetryCount(1)
       }, 500) // Wait 500ms to ensure API update is complete
+
+      // Clean up URL immediately
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      return () => clearTimeout(timer)
     }
 
-    if (success === 'true') {
+    if (success === 'true' && paymentStatus !== 'success') {
       setPaymentStatus('success')
       localStorage.removeItem('stripe_checkout_started')
       localStorage.removeItem('selected_plan_id')
-      // Delay refetch to avoid immediate re-render
-      const timer = setTimeout(() => {
-        if (retryCount < MAX_RETRIES) {
+      // Single refetch after successful payment
+      if (retryCount === 0) {
+        const timer = setTimeout(() => {
           refetch()
-          setRetryCount(prev => prev + 1)
-        }
-      }, 2000)
-      return () => clearTimeout(timer)
-    } else if (canceled === 'true') {
+          setRetryCount(1)
+        }, 2000)
+
+        // Clean up URL
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+        return () => clearTimeout(timer)
+      }
+    } else if (canceled === 'true' && paymentStatus !== 'cancel') {
       setPaymentStatus('cancel')
       localStorage.removeItem('stripe_checkout_started')
       localStorage.removeItem('selected_plan_id')
-    } else if (error === 'true') {
+
+      // Clean up URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    } else if (error === 'true' && paymentStatus !== 'error') {
       setPaymentStatus('error')
       localStorage.removeItem('stripe_checkout_started')
       localStorage.removeItem('selected_plan_id')
-    } else {
+
+      // Clean up URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    } else if (!success && !canceled && !error && !device_registered) {
+      // Only check for pending checkout if no other parameters are present
       const checkoutStarted = localStorage.getItem('stripe_checkout_started')
       const planId = localStorage.getItem('selected_plan_id')
 
-      if (checkoutStarted && planId && retryCount < MAX_RETRIES) {
+      if (checkoutStarted && planId && retryCount === 0) {
         const startTime = parseInt(checkoutStarted)
         const now = Date.now()
         const timeDiff = now - startTime
@@ -272,29 +291,27 @@ export default function DashboardContent({}: DashboardContentProps) {
 
           const timer = setTimeout(() => {
             refetch()
-            setRetryCount(prev => prev + 1)
+            setRetryCount(1)
+
+            // Check result after refetch
             const checkTimer = setTimeout(() => {
               if (userData?.isSubscriptionActive) {
                 setPaymentStatus('success')
                 localStorage.removeItem('stripe_checkout_started')
                 localStorage.removeItem('selected_plan_id')
               }
-            }, 2000)
+            }, 3000)
             return () => clearTimeout(checkTimer)
           }, 1000)
           return () => clearTimeout(timer)
         } else {
+          // Cleanup expired checkout data
           localStorage.removeItem('stripe_checkout_started')
           localStorage.removeItem('selected_plan_id')
         }
       }
     }
-
-    if (success || canceled || error || device_registered) {
-      const newUrl = window.location.pathname
-      window.history.replaceState({}, '', newUrl)
-    }
-  }, [searchParams, refetch, userData?.isSubscriptionActive, retryCount, MAX_RETRIES])
+  }, [searchParams, paymentStatus, retryCount]) // Removed refetch and userData dependencies to prevent loops
 
   useEffect(() => {
     const interval = setInterval(() => {

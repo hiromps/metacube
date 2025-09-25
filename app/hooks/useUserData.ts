@@ -261,11 +261,13 @@ export function useUserData() {
 
   useEffect(() => {
     let mounted = true;
+    let hasLoadedInitialData = false;
 
     const loadData = async () => {
-      if (mounted) {
-        console.log('🔄 useUserData: Loading user data...');
+      if (mounted && !hasLoadedInitialData) {
+        console.log('🔄 useUserData: Loading initial user data...');
         await fetchUserData();
+        hasLoadedInitialData = true;
       }
     };
 
@@ -275,13 +277,18 @@ export function useUserData() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔄 Auth state changed:', event, session ? 'Session exists' : 'No session');
       if (mounted) {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          console.log('🔄 User signed in or token refreshed, reloading data...');
-          setTimeout(() => fetchUserData(true), 100); // Small delay to ensure session is set
+        // Only reload on meaningful auth changes, not on initial load
+        if (event === 'SIGNED_IN' && hasLoadedInitialData) {
+          console.log('🔄 User signed in, reloading data...');
+          setTimeout(() => fetchUserData(true), 500); // Delay to ensure session is set
+        } else if (event === 'TOKEN_REFRESHED' && hasLoadedInitialData) {
+          // Don't reload on token refresh as data shouldn't change
+          console.log('🔄 Token refreshed, skipping data reload');
         } else if (event === 'SIGNED_OUT') {
           console.log('🔄 User signed out, clearing data...');
           setUserData(null);
           setError(null);
+          hasLoadedInitialData = false;
         }
       }
     });
@@ -294,8 +301,9 @@ export function useUserData() {
   }, []); // Empty dependency array to prevent re-runs
 
   const refetch = useCallback((forceRefresh = true) => {
-    fetchUserData(forceRefresh);
-  }, [fetchUserData]);
+    return fetchUserData(forceRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Keep refetch stable to prevent effect re-runs
 
   return {
     userData,
