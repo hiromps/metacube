@@ -151,7 +151,7 @@ export function useUserData() {
               'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15800 }
             };
 
-            const fallbackPlan = planMap[subscription.plan_id] || planMap['starter'];
+            const fallbackPlan = planMap[subscription.plan_id as keyof typeof planMap] || planMap['starter'];
             plan = {
               id: subscription.plan_id,
               name: fallbackPlan.name,

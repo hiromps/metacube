@@ -642,7 +642,7 @@ export default function DashboardContent({}: DashboardContentProps) {
       <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-purple-500/10">
         <h2 className="text-lg md:text-xl font-semibold text-white mb-4">📈 利用統計</h2>
         {/* Plan Features Display */}
-        <PlanFeatures plan={userData?.plan} isActive={userData?.isSubscriptionActive} />
+        <PlanFeatures plan={userData?.plan || null} isActive={userData?.isSubscriptionActive} />
 
         <div className="text-center py-8 mt-6">
           <div className="text-4xl mb-4">📊</div>

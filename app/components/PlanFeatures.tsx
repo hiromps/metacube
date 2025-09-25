@@ -146,7 +146,7 @@ export default function PlanFeatures({ plan, isActive = true }: PlanFeaturesProp
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
               <div className="text-sm text-white/70 mb-1">料金</div>
               <div className="text-white font-bold text-lg">
-                {limitations.original_price && (
+                {('original_price' in limitations) && limitations.original_price && (
                   <span className="text-sm text-gray-400 line-through mr-2">{limitations.original_price}</span>
                 )}
                 {limitations.price}
@@ -165,7 +165,7 @@ export default function PlanFeatures({ plan, isActive = true }: PlanFeaturesProp
             </div>
           </div>
 
-          {limitations.time_savings && (
+          {('time_savings' in limitations) && limitations.time_savings && (
             <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 rounded-xl p-4 mb-6">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">⏱️</span>
