@@ -130,9 +130,29 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
       })
     }
 
-    // 管理者パッケージがない場合はエラーを返す
+    // 管理者パッケージがない場合はエラーを返す（デバッグ情報付き）
     return new Response(JSON.stringify({
-      error: '管理者がアップロードしたファイルが見つかりません。管理者にお問い合わせください。'
+      error: '管理者がアップロードしたファイルが見つかりません。管理者にお問い合わせください。',
+      debug: {
+        userId: user.id,
+        userEmail: user.email,
+        packageError: packageError?.message || packageError,
+        hasCustomPackage: !!customPackage,
+        allPackagesCount: allPackages?.length || 0,
+        userPackagesCount: userPackages?.length || 0,
+        allPackagesPreview: allPackages?.map(p => ({
+          id: p.id,
+          user_id: p.user_id,
+          file_name: p.file_name,
+          is_active: p.is_active
+        })) || [],
+        userPackagesPreview: userPackages?.map(p => ({
+          id: p.id,
+          user_id: p.user_id,
+          file_name: p.file_name,
+          is_active: p.is_active
+        })) || []
+      }
     }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' }
