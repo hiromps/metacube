@@ -55,18 +55,31 @@ function RegisterForm() {
     setLoading(true)
 
     try {
-      // Authenticate with existing Supabase user
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      // Create new Supabase user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       })
 
       if (authError) {
-        throw new Error('ログインに失敗しました。メールアドレスとパスワードを確認してください。')
+        // Check if user already exists
+        if (authError.message.includes('already registered')) {
+          throw new Error('このメールアドレスは既に登録されています。ログインページからログインしてください。')
+        }
+        throw new Error(`登録に失敗しました: ${authError.message}`)
       }
 
       if (!authData.user) {
         throw new Error('認証に失敗しました。')
+      }
+
+      // Check if email confirmation is required
+      if (authData.user && !authData.session) {
+        // Email confirmation is required
+        setError('')
+        alert('登録確認メールを送信しました。メールを確認して登録を完了してください。')
+        router.push('/login?registered=true')
+        return
       }
 
       // Registration successful - no device registration needed at this point
