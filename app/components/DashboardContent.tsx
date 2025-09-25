@@ -533,31 +533,72 @@ export default function DashboardContent({}: DashboardContentProps) {
           </div>
         )}
 
-        {/* Subscription Management - Active subscription controls */}
+        {/* Current Subscription Plan - Enhanced Display */}
         {userData?.isSubscriptionActive && userData?.subscription && (
           <div className="bg-gradient-to-br from-green-800/30 via-emerald-800/20 to-teal-800/30 backdrop-blur-xl border border-green-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-green-500/10 mb-6">
-            <h3 className="text-lg md:text-xl font-semibold text-white mb-4">サブスクリプション管理</h3>
-
-            <div className="bg-white/10 border border-white/20 p-4 rounded-xl mb-4 backdrop-blur-sm">
-              <div className="space-y-2">
-                <div className="flex flex-col md:flex-row md:justify-between gap-2">
-                  <span className="text-white/70 text-sm">プラン:</span>
-                  <span className="text-green-300 font-medium text-sm">{userData.plan?.display_name || 'SMARTGRAM'}</span>
-                </div>
-                <div className="flex flex-col md:flex-row md:justify-between gap-2">
-                  <span className="text-white/70 text-sm">契約日:</span>
-                  <span className="text-white/80 text-sm">
-                    {new Date(userData.subscription.created_at).toLocaleDateString('ja-JP')}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-2">✅ 現在のプラン</h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+                    🚀 {userData.plan?.display_name || 'PRO'}
                   </span>
+                  <Badge variant="success" className="bg-green-500/20 text-green-300 border-green-400/30">
+                    アクティブ
+                  </Badge>
                 </div>
-                <div className="flex flex-col md:flex-row md:justify-between gap-2">
-                  <span className="text-white/70 text-sm">ステータス:</span>
-                  <span className="text-green-400 text-sm">アクティブ</span>
+              </div>
+
+              {userData.isTrialActive && userData.trialDaysRemaining !== null && (
+                <div className="bg-purple-500/20 border border-purple-400/30 rounded-xl p-4 text-center">
+                  <div className="text-lg font-bold text-purple-300">体験期間中</div>
+                  <div className="text-sm text-purple-200">残り {userData.trialDaysRemaining} 日</div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <div className="text-sm text-white/70 mb-1">契約日</div>
+                <div className="text-white font-medium">
+                  {new Date(userData.subscription.created_at).toLocaleDateString('ja-JP')}
+                </div>
+              </div>
+
+              <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <div className="text-sm text-white/70 mb-1">料金プラン</div>
+                <div className="text-white font-medium">月額制</div>
+              </div>
+
+              <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <div className="text-sm text-white/70 mb-1">次回更新</div>
+                <div className="text-white font-medium">自動更新</div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+              <h4 className="text-white font-medium mb-3 text-sm">✨ 利用可能な機能</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+                <div className="flex items-center gap-2 text-green-300">
+                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                  タイムライン自動いいね
+                </div>
+                <div className="flex items-center gap-2 text-green-300">
+                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                  ハッシュタグいいね
+                </div>
+                <div className="flex items-center gap-2 text-green-300">
+                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                  自動フォロー
+                </div>
+                <div className="flex items-center gap-2 text-green-300">
+                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                  自動アンフォロー
                 </div>
               </div>
             </div>
 
-            <div className="text-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 onClick={handleCancelSubscription}
                 disabled={cancelling}
@@ -565,12 +606,21 @@ export default function DashboardContent({}: DashboardContentProps) {
                 size="sm"
                 className="bg-red-500/20 border-red-400/30 text-red-300 hover:bg-red-500/30 hover:border-red-400/50 backdrop-blur-sm"
               >
-                {cancelling ? '解約中...' : '🚫 サブスクリプション解約'}
+                {cancelling ? '解約中...' : '🚫 解約する'}
               </Button>
-              <p className="text-xs text-white/60 mt-2">
-                解約すると即座にサービスが利用できなくなります
-              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-blue-500/20 border-blue-400/30 text-blue-300 hover:bg-blue-500/30 hover:border-blue-400/50 backdrop-blur-sm"
+                onClick={() => window.open('https://billing.stripe.com', '_blank')}
+              >
+                💳 請求書を確認
+              </Button>
             </div>
+
+            <p className="text-xs text-white/50 text-center mt-4">
+              💡 プラン変更やキャンセルはいつでも可能です
+            </p>
           </div>
         )}
 

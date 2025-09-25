@@ -11,10 +11,14 @@ interface Plan {
   name: string
   price: number
   originalPrice?: number
+  yearlyPrice?: number
+  yearlyOriginalPrice?: number
   features: string[]
   popular?: boolean
   stripePriceId: string
+  yearlyStripePriceId?: string
   paymentLink: string
+  yearlyPaymentLink?: string
 }
 
 const plans: Plan[] = [
@@ -40,6 +44,8 @@ const plans: Plan[] = [
     name: '🚀 PRO',
     price: 6980,
     originalPrice: 9980,
+    yearlyPrice: 69800, // 月額 x 10 (2ヶ月分お得)
+    yearlyOriginalPrice: 83760, // 月額 x 12
     features: [
       '🔥 3日間フルアクセス体験',
       '✅ タイムライン自動いいね',
@@ -52,7 +58,9 @@ const plans: Plan[] = [
     ],
     popular: true,
     stripePriceId: 'price_pro_monthly',
-    paymentLink: 'https://buy.stripe.com/test_aFa5kD06kaDo7a64MG33W02' // PRO月額のPayment Link
+    yearlyStripePriceId: 'price_pro_yearly',
+    paymentLink: 'https://buy.stripe.com/test_aFa5kD06kaDo7a64MG33W02', // PRO月額のPayment Link
+    yearlyPaymentLink: 'https://buy.stripe.com/test_pro_yearly_placeholder' // PRO年額のPayment Link (仮)
   },
   {
     id: 'max',
@@ -82,6 +90,7 @@ interface SubscriptionPlansCardProps {
 export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlansCardProps) {
   const [selectedPlan, setSelectedPlan] = useState<string>('pro')
   const [loading, setLoading] = useState<string | null>(null)
+  const [isYearly, setIsYearly] = useState<boolean>(false)
 
   // 新機能かどうかを判定する関数
   const isNewFeature = (planId: string, feature: string): boolean => {
@@ -118,8 +127,9 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
       localStorage.setItem('stripe_checkout_started', Date.now().toString())
       localStorage.setItem('selected_plan_id', planId)
 
-      // Payment Linkに直接リダイレクト
-      window.location.href = plan.paymentLink
+      // Payment Linkに直接リダイレクト（年額・月額対応）
+      const paymentUrl = isYearly && plan.yearlyPaymentLink ? plan.yearlyPaymentLink : plan.paymentLink
+      window.location.href = paymentUrl
 
     } catch (error: any) {
       console.error('Subscription error:', error)
@@ -150,6 +160,35 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
       </CardHeader>
 
       <CardContent className="p-4 md:p-6">
+        {/* Billing Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-full p-1 flex items-center">
+            <button
+              onClick={() => setIsYearly(false)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                !isYearly
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              月額
+            </button>
+            <button
+              onClick={() => setIsYearly(true)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                isYearly
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              年額
+              <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full">
+                2ヶ月分お得
+              </span>
+            </button>
+          </div>
+        </div>
+
         <div className="flex justify-center">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 max-w-7xl">
           {plans.map((plan) => (
@@ -171,12 +210,23 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
               <div className="text-center mb-4">
                 <h3 className="font-bold text-white text-lg mb-1">{plan.name}</h3>
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl font-bold text-white">¥{plan.price.toLocaleString()}</span>
-                  {plan.originalPrice && (
-                    <span className="text-sm text-white/50 line-through">¥{plan.originalPrice.toLocaleString()}</span>
+                  <span className="text-2xl font-bold text-white">
+                    ¥{(isYearly && plan.yearlyPrice ? plan.yearlyPrice : plan.price).toLocaleString()}
+                  </span>
+                  {((isYearly && plan.yearlyOriginalPrice) || (!isYearly && plan.originalPrice)) && (
+                    <span className="text-sm text-white/50 line-through">
+                      ¥{(isYearly && plan.yearlyOriginalPrice ? plan.yearlyOriginalPrice : plan.originalPrice!).toLocaleString()}
+                    </span>
                   )}
                 </div>
-                <p className="text-xs text-white/60">/ 月</p>
+                <p className="text-xs text-white/60">
+                  {isYearly ? '/ 年' : '/ 月'}
+                  {isYearly && plan.yearlyPrice && (
+                    <span className="block text-yellow-300 mt-1">
+                      月額換算 ¥{Math.round(plan.yearlyPrice / 12).toLocaleString()}
+                    </span>
+                  )}
+                </p>
               </div>
 
               <ul className="space-y-2 mb-4">
