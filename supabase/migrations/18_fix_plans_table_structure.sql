@@ -1,7 +1,18 @@
--- Update plan pricing and structure to match latest plans/page.tsx
--- Correct pricing: STARTER ¥2,980, PRO ¥6,980, MAX ¥15,800
+-- Fix plans table structure and populate with correct data
+-- This migration handles the case where plans table may exist without description column
 
--- Create plans table if it doesn't exist for proper plan management
+-- First, ensure the plans table has the correct structure
+ALTER TABLE IF EXISTS plans
+ADD COLUMN IF NOT EXISTS description TEXT,
+ADD COLUMN IF NOT EXISTS original_price INTEGER,
+ADD COLUMN IF NOT EXISTS billing_cycle TEXT DEFAULT 'monthly',
+ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS limitations JSONB DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Create plans table if it doesn't exist
 CREATE TABLE IF NOT EXISTS plans (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
@@ -18,8 +29,8 @@ CREATE TABLE IF NOT EXISTS plans (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Insert correct plan data based on plans/page.tsx
-INSERT INTO plans (name, display_name, price, original_price, features, limitations, sort_order)
+-- Insert or update plan data with correct pricing from plans/page.tsx
+INSERT INTO plans (name, display_name, price, original_price, features, limitations, sort_order, is_active)
 VALUES
     (
         'starter',
@@ -38,7 +49,8 @@ VALUES
             "trial_days": 3,
             "time_savings": "月10時間節約"
         }',
-        1
+        1,
+        true
     ),
     (
         'pro',
@@ -58,7 +70,8 @@ VALUES
             "time_savings": "月40時間節約",
             "cost_savings": "手動運用費¥20,000/月が不要"
         }',
-        2
+        2,
+        true
     ),
     (
         'max',
@@ -78,7 +91,8 @@ VALUES
             "time_savings": "月160時間節約",
             "cost_savings": "手動運用費¥80,000/月が不要"
         }',
-        3
+        3,
+        true
     )
 ON CONFLICT (name) DO UPDATE SET
     display_name = EXCLUDED.display_name,
@@ -86,6 +100,8 @@ ON CONFLICT (name) DO UPDATE SET
     original_price = EXCLUDED.original_price,
     features = EXCLUDED.features,
     limitations = EXCLUDED.limitations,
+    sort_order = EXCLUDED.sort_order,
+    is_active = EXCLUDED.is_active,
     updated_at = NOW();
 
 -- Update existing subscriptions to use correct plan IDs and pricing
@@ -116,7 +132,7 @@ UPDATE devices
 SET trial_ends_at = created_at + INTERVAL '3 days'
 WHERE trial_ends_at IS NULL OR trial_ends_at < created_at + INTERVAL '3 days';
 
--- Create view for easy plan information access
+-- Create or replace view for easy plan information access
 CREATE OR REPLACE VIEW device_plan_view AS
 SELECT
     d.id as device_id,
@@ -144,25 +160,46 @@ FROM devices d
 LEFT JOIN subscriptions s ON d.id = s.device_id
 LEFT JOIN plans p ON s.plan_id = p.name;
 
--- Add RLS policies for plans table
-ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+-- Enable RLS if not already enabled
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        WHERE c.relname = 'plans' AND n.nspname = 'public' AND c.relrowsecurity = true
+    ) THEN
+        ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+    END IF;
+END $$;
 
-CREATE POLICY "Plans are viewable by everyone" ON plans
-    FOR SELECT USING (true);
+-- Create policies if they don't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'plans' AND policyname = 'Plans are viewable by everyone') THEN
+        CREATE POLICY "Plans are viewable by everyone" ON plans FOR SELECT USING (true);
+    END IF;
 
-CREATE POLICY "Plans are manageable by authenticated users" ON plans
-    FOR ALL USING (auth.role() = 'authenticated');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'plans' AND policyname = 'Plans are manageable by authenticated users') THEN
+        CREATE POLICY "Plans are manageable by authenticated users" ON plans FOR ALL USING (auth.role() = 'authenticated');
+    END IF;
+END $$;
 
--- Add updated_at trigger for plans table
-CREATE TRIGGER update_plans_updated_at
-    BEFORE UPDATE ON plans
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+-- Create updated_at trigger if update_updated_at_column function exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
+        DROP TRIGGER IF EXISTS update_plans_updated_at ON plans;
+        CREATE TRIGGER update_plans_updated_at
+            BEFORE UPDATE ON plans
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Grant necessary permissions
 GRANT SELECT ON plans TO anon, authenticated;
 GRANT SELECT ON device_plan_view TO anon, authenticated;
 
--- Add comment for future reference
+-- Add comments for documentation
 COMMENT ON TABLE plans IS 'Master plan configuration table with pricing and features matching plans/page.tsx';
 COMMENT ON VIEW device_plan_view IS 'Combined view of device, subscription, and plan information for easy access';
