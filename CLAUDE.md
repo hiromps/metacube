@@ -262,12 +262,16 @@ const getFeatureDisplayName = (feature: string): string => {
   return featureMap[feature] || feature;
 };
 
-// Backend access control
+// Backend access control - Updated to match plans/page.tsx
 const isPlanFeatureAvailable = (planName: string, feature: string): boolean => {
   const planFeatures = {
-    'STARTER': ['timeline.lua', 'follow.lua', 'hashtaglike.lua'], // Updated to include hashtag
-    'PRO': ['timeline.lua', 'follow.lua', 'hashtaglike.lua', 'activelike.lua'],
-    'MAX': ['timeline.lua', 'follow.lua', 'hashtaglike.lua', 'activelike.lua', 'dm.lua']
+    'starter': ['timeline.lua', 'hashtaglike.lua'],
+    'pro': ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua'],
+    'max': ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua', 'activelike.lua'],
+    // Legacy support
+    'STARTER': ['timeline.lua', 'hashtaglike.lua'],
+    'PRO': ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua'],
+    'MAX': ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua', 'activelike.lua']
   };
   return planFeatures[planName]?.includes(feature) || false;
 };

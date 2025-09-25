@@ -79,12 +79,14 @@ export interface Database {
           display_name: string
           description: string | null
           price: number
+          original_price: number | null
           billing_cycle: string
           features: Record<string, boolean>
           limitations: Record<string, any>
           is_active: boolean
           sort_order: number
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -92,12 +94,14 @@ export interface Database {
           display_name: string
           description?: string | null
           price: number
+          original_price?: number | null
           billing_cycle?: string
           features?: Record<string, boolean>
           limitations?: Record<string, any>
           is_active?: boolean
           sort_order?: number
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -105,12 +109,14 @@ export interface Database {
           display_name?: string
           description?: string | null
           price?: number
+          original_price?: number | null
           billing_cycle?: string
           features?: Record<string, boolean>
           limitations?: Record<string, any>
           is_active?: boolean
           sort_order?: number
           created_at?: string
+          updated_at?: string
         }
       }
     }

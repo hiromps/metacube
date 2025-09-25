@@ -117,37 +117,75 @@ export function useUserData() {
         }
       }
 
-      // Get plan information from subscription (use fallback approach to avoid DB errors)
+      // Get plan information from subscription with DB fallback
       let plan = null;
       if (device && subscription) {
-        // Use fallback plan mapping since plans table might not exist
-        const planMap = {
-          'starter': { name: 'starter', display_name: 'STARTER', price: 2980 },
-          'pro': { name: 'pro', display_name: 'PRO', price: 6980 },
-          'max': { name: 'max', display_name: 'MAX', price: 15800 },
-          'smartgram_monthly_2980': { name: 'starter', display_name: 'STARTER', price: 2980 },
-          'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 6980 },
-          'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15800 }
-        };
+        try {
+          // Try to get plan from new plans table first
+          const { data: planData, error: planError } = await supabase
+            .from('plans')
+            .select('*')
+            .eq('name', subscription.plan_id)
+            .eq('is_active', true)
+            .single();
 
-        const fallbackPlan = planMap[subscription.plan_id] || planMap['starter'];
-        plan = {
-          id: subscription.plan_id,
-          name: fallbackPlan.name,
-          display_name: fallbackPlan.display_name,
-          price: fallbackPlan.price,
-          billing_cycle: 'monthly',
-          features: {
-            'timeline.lua': true,  // タイムライン自動いいね
-            'hashtaglike.lua': true, // ハッシュタグいいね
-            'follow.lua': fallbackPlan.name !== 'starter', // 自動フォロー
-            'unfollow.lua': fallbackPlan.name !== 'starter', // 自動アンフォロー
-            'activelike.lua': fallbackPlan.name === 'max' // アクティブユーザーいいね
-          },
-          limitations: {
-            // 回数制限なし
+          if (planData && !planError) {
+            // Use DB plan data
+            plan = {
+              id: planData.id,
+              name: planData.name,
+              display_name: planData.display_name,
+              price: planData.price,
+              billing_cycle: planData.billing_cycle,
+              features: planData.features || {},
+              limitations: planData.limitations || {}
+            };
+          } else {
+            // Fallback to hardcoded plan mapping
+            const planMap = {
+              'starter': { name: 'starter', display_name: 'STARTER', price: 2980 },
+              'pro': { name: 'pro', display_name: 'PRO', price: 6980 },
+              'max': { name: 'max', display_name: 'MAX', price: 15800 },
+              'smartgram_monthly_2980': { name: 'starter', display_name: 'STARTER', price: 2980 },
+              'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 6980 },
+              'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15800 }
+            };
+
+            const fallbackPlan = planMap[subscription.plan_id] || planMap['starter'];
+            plan = {
+              id: subscription.plan_id,
+              name: fallbackPlan.name,
+              display_name: fallbackPlan.display_name,
+              price: fallbackPlan.price,
+              billing_cycle: 'monthly',
+              features: {
+                'timeline.lua': true,  // タイムライン自動いいね
+                'hashtaglike.lua': true, // ハッシュタグいいね
+                'follow.lua': fallbackPlan.name !== 'starter', // 自動フォロー
+                'unfollow.lua': fallbackPlan.name !== 'starter', // 自動アンフォロー
+                'activelike.lua': fallbackPlan.name === 'max' // アクティブユーザーいいね
+              },
+              limitations: {
+                support: fallbackPlan.name === 'starter' ? 'LINEサポート30日間' :
+                        fallbackPlan.name === 'pro' ? 'LINEサポート90日間' :
+                        '24時間電話サポート',
+                trial_days: 3
+              }
+            };
           }
-        };
+        } catch (error) {
+          console.warn('プラン情報の取得でエラー:', error);
+          // エラー時はデフォルトのスターター
+          plan = {
+            id: 'starter',
+            name: 'starter',
+            display_name: 'STARTER',
+            price: 2980,
+            billing_cycle: 'monthly',
+            features: { 'timeline.lua': true, 'hashtaglike.lua': true },
+            limitations: { support: 'LINEサポート30日間', trial_days: 3 }
+          };
+        }
 
         console.log('Plan information loaded:', plan);
       } else if (device && !subscription) {
