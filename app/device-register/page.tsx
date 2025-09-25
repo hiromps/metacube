@@ -68,7 +68,12 @@ export default function DeviceRegisterPage() {
         throw new Error(data.error || 'デバイス登録に失敗しました')
       }
 
-      setSuccess('デバイスが正常に登録されました！3日間の無料体験が開始されました。')
+      // Handle different success scenarios
+      if (data.message && data.message.includes('更新')) {
+        setSuccess('デバイスのシリアル番号が正常に更新されました！')
+      } else {
+        setSuccess('デバイスが正常に登録されました！3日間の無料体験が開始されました。')
+      }
       setDeviceHash('')
 
       // 3秒後にダッシュボードにリダイレクト
@@ -277,6 +282,11 @@ export default function DeviceRegisterPage() {
                 <div>
                   <p className="font-medium text-white mb-1">Q. 既に登録済みと表示される</p>
                   <p>A. 同じデバイスが他のアカウントで登録済みの可能性があります</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-white mb-1">Q. シリアル番号を変更したい</p>
+                  <p>A. 新しいシリアル番号を入力すると、既存のデバイス情報が自動的に更新されます</p>
                 </div>
               </div>
             </CardContent>

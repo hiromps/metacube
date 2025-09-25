@@ -10,6 +10,10 @@ npm run dev          # Start development server at localhost:3000
 npm run build        # Build for production (static export)
 npm run lint         # Run ESLint
 
+# Database
+npx supabase db push # Push migrations to Supabase (may require manual SQL execution)
+npx supabase db pull # Pull remote schema changes
+
 # Deployment
 git push origin main # Auto-deploys to Cloudflare Pages
 ```
@@ -37,6 +41,10 @@ This project uses a **hybrid architecture** specifically designed for Cloudflare
      - `/api/license/verify` - License validation for AutoTouch scripts
      - `/api/device/register` - Device registration with trial period
      - `/api/paypal/success|cancel|webhook` - PayPal subscription callbacks
+     - `/api/stripe/create-checkout-session` - Stripe subscription checkout
+     - `/api/stripe/webhook` - Stripe webhook processing
+     - `/api/stripe/sync-subscription` - Manual subscription sync
+     - `/api/stripe/customer-portal` - Stripe customer management portal
 
 3. **Critical Configuration Files**:
    - `wrangler.toml`: Sets `pages_build_output_dir = "out"` (NOT `.next`)
@@ -88,10 +96,11 @@ fetch('/api/license/verify', {
   - Authentication via `@supabase/supabase-js`
   - Custom session management for remember me functionality
 
-- **PayPal Integration**:
-  - Monthly subscription: ¥2,980
-  - 14-day free trial (simplified from device registration)
-  - Webhook handlers in Cloudflare Functions
+- **Dual Payment System**:
+  - **PayPal Integration**: Monthly subscriptions with webhook handlers
+  - **Stripe Integration**: Full subscription management with MCP integration
+  - Plans: STARTER (¥2,980), PRO (¥6,980), MAX (¥15,800)
+  - 3-day free trial period for all plans
 
 ### UI/UX Design System
 
@@ -100,10 +109,48 @@ fetch('/api/license/verify', {
 - **Mobile Mockup**: CSS-based iPhone 8 with realistic Instagram interface
 - **Animations**: Auto-like, scroll, and user interaction demonstrations
 - **Components**: Custom UI components in `app/components/ui/`
+  - Badge variants: `'default' | 'success' | 'warning' | 'error' | 'matrix' | 'glass'`
+
+### Stripe-Supabase Integration Architecture
+
+**Dual Payment Provider System**: PayPal + Stripe with unified Supabase management
+
+#### **Database Schema Integration**
+- `plans` table with Stripe product/price IDs: `stripe_product_id`, `stripe_price_id_monthly`, `stripe_price_id_yearly`
+- `subscriptions` table with dual provider support: `provider` ('paypal'|'stripe'), `stripe_subscription_id`, `stripe_customer_id`
+- `stripe_webhook_events` table for event processing and idempotency
+- `device_plan_view` unified view combining device, subscription, and plan data
+
+#### **Stripe Configuration Management**
+- `lib/stripe/config.ts`: Centralized Stripe product/price configuration
+- `lib/stripe/test-utils.ts`: Integration testing utilities
+- Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+
+#### **API Architecture**
+```typescript
+// functions/api/stripe-handlers.ts - Main integration logic
+handleStripeCreateCheckoutSession() // Create subscription checkout
+handleStripeWebhook()              // Process webhook events
+handleStripeSyncSubscription()     // Manual data synchronization
+handleStripeCustomerPortal()       // Customer management portal
+
+// Webhook event processing
+checkout.session.completed -> create/update subscription in Supabase
+customer.subscription.* -> sync subscription status
+invoice.payment_* -> update billing status
+```
+
+#### **Integration Flow**
+```
+User Checkout → Stripe Session → Webhook → Supabase Sync → License Activation
+               ↓
+          Real-time status updates in dashboard
+```
 
 ### Testing APIs
 
-Use the built-in test page: https://smartgram.jp/api-test.html
+- **General API Testing**: https://smartgram.jp/api-test.html
+- **Stripe Integration Testing**: `/admin/stripe-test` - Comprehensive Stripe-Supabase integration test suite
 
 ## Deployment Process
 
@@ -131,6 +178,12 @@ Use the built-in test page: https://smartgram.jp/api-test.html
 - Remove any Next.js API routes (`app/api/` should not exist)
 - Ensure no `export const dynamic = "force-dynamic"` in pages
 - Check file sizes don't exceed 25MB limit
+
+### Migration conflicts with Supabase
+- Use `npx supabase db push --dry-run` to preview changes
+- For migration conflicts, create safe migrations with `IF NOT EXISTS` checks
+- Use Supabase SQL Editor for direct execution when CLI fails
+- Migration repair: `npx supabase migration repair --status applied [number]`
 
 ## Cloudflare Workers Compatibility Guide
 
@@ -311,7 +364,25 @@ try {
   URL.revokeObjectURL(url);
 } catch (error) {
   console.error('Download error:', error);
-  setError(`ダウンロードエラー: ${error.message}`);
+  setError(`ダウンロードエラー: ${error instanceof Error ? error.message : String(error)}`);
+}
+```
+
+#### TypeScript Error Handling Pattern
+**Problem**: `error.message` causes TypeScript errors with `unknown` type
+**Solution**: Use safe type checking
+
+```typescript
+// ❌ TypeScript error with unknown type
+catch (error) {
+  return { error: error.message };
+}
+
+// ✅ Safe error handling
+catch (error) {
+  return {
+    error: error instanceof Error ? error.message : String(error)
+  };
 }
 ```
 

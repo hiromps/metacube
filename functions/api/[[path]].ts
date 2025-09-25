@@ -3613,13 +3613,51 @@ async function handleDeviceRegisterHash(request: Request, env: any) {
     }
 
     if (userDevices && userDevices.length > 0) {
+      // User already has a device - update the existing device with new serial number
+      const existingDevice = userDevices[0];
+      console.log('Updating existing device:', existingDevice.id, 'with new serial:', normalizedSerialNumber);
+
+      const { data: updatedDevice, error: updateError } = await supabase
+        .from('devices')
+        .update({
+          device_hash: normalizedSerialNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingDevice.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Device update error:', updateError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'デバイス情報の更新に失敗しました'
+          }),
+          {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
+      }
+
+      console.log('Device updated successfully:', updatedDevice);
+
       return new Response(
         JSON.stringify({
-          success: false,
-          error: '1アカウントにつき1台のデバイスのみ登録可能です。既存のデバイスを削除してから再登録してください'
+          success: true,
+          message: 'デバイスのシリアル番号が更新されました',
+          device: {
+            id: updatedDevice.id,
+            device_hash: updatedDevice.device_hash,
+            status: updatedDevice.status
+          }
         }),
         {
-          status: 400,
+          status: 200,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
