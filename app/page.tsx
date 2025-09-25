@@ -1011,7 +1011,7 @@ export default function Home() {
                 >
                   {/* Badge - 希少性と権威性 */}
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className={`bg-gradient-to-r ${plan.badgeColor} text-white border-white/30 shadow-lg`} size="md">
+                    <Badge className={`bg-gradient-to-r ${plan.badgeColor} text-white border-white/30 shadow-lg whitespace-nowrap`} size="md">
                       {plan.popular ? '🚀 人気No.1' : plan.badge}
                     </Badge>
                   </div>
