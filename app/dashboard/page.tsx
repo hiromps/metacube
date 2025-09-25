@@ -789,26 +789,21 @@ export default function DashboardPage() {
         )}
 
         {/* Subscription Plans Card for Non-Subscribed Users */}
-        {userData.device && !userData.isSubscriptionActive && !userData.isTrialActive && (
+        {userData.device && !userData.isSubscriptionActive && (
           <div className="mb-6 md:mb-8">
-            <SubscriptionPlansCard />
-          </div>
-        )}
-
-        {/* Expired Trial Users - Show Subscription Plans */}
-        {userData.device && !userData.isSubscriptionActive && userData.device.trial_ends_at &&
-         new Date(userData.device.trial_ends_at) < new Date() && (
-          <div className="mb-6 md:mb-8">
-            <div className="bg-gradient-to-br from-red-900/40 via-pink-900/30 to-orange-900/40 backdrop-blur-xl border border-red-400/20 rounded-2xl p-4 md:p-6 mb-4 shadow-xl shadow-red-500/10">
-              <div className="text-center mb-4">
-                <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
-                  ⏰ 体験期間が終了しました
-                </h3>
-                <p className="text-white/70 text-sm md:text-base">
-                  引き続きSMARTGRAMをご利用いただくには、有料プランへのご契約が必要です
-                </p>
+            {/* Show expired message if trial has ended */}
+            {userData.device.trial_ends_at && new Date(userData.device.trial_ends_at) < new Date() && (
+              <div className="bg-gradient-to-br from-red-900/40 via-pink-900/30 to-orange-900/40 backdrop-blur-xl border border-red-400/20 rounded-2xl p-4 md:p-6 mb-4 shadow-xl shadow-red-500/10">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
+                    ⏰ 体験期間が終了しました
+                  </h3>
+                  <p className="text-white/70 text-sm md:text-base">
+                    引き続きSMARTGRAMをご利用いただくには、有料プランへのご契約が必要です
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
             <SubscriptionPlansCard />
           </div>
         )}
