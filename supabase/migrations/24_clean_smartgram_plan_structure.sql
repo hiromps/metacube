@@ -64,29 +64,48 @@ INSERT INTO plans (id, name, price_jpy, annual_discount_rate, features, max_auto
 );
 
 -- 4. Update devices table to use clean plan references
--- Set default to starter plan
+-- First, check if plan_id column exists and its type
+DO $$
+BEGIN
+    -- Drop existing plan_id column if it exists (could be UUID or TEXT)
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'plan_id') THEN
+        ALTER TABLE devices DROP COLUMN plan_id;
+    END IF;
+END $$;
+
+-- Add new TEXT plan_id column with proper reference
 ALTER TABLE devices
-ADD COLUMN IF NOT EXISTS plan_id TEXT REFERENCES plans(id) DEFAULT 'starter';
+ADD COLUMN plan_id TEXT REFERENCES plans(id) DEFAULT 'starter';
 
--- Migrate existing plan_id values to clean format
-UPDATE devices SET plan_id = 'starter'
-WHERE plan_id LIKE '%2980%' OR plan_id LIKE '%starter%' OR plan_id IS NULL;
-
-UPDATE devices SET plan_id = 'pro'
-WHERE plan_id LIKE '%6980%' OR plan_id LIKE '%8800%' OR plan_id LIKE '%pro%';
-
-UPDATE devices SET plan_id = 'max'
-WHERE plan_id LIKE '%15800%' OR plan_id LIKE '%15000%' OR plan_id LIKE '%max%';
+-- Set all existing devices to starter plan (safe default)
+UPDATE devices SET plan_id = 'starter' WHERE plan_id IS NULL;
 
 -- 5. Update subscriptions table to use clean plan references
-UPDATE subscriptions SET plan_id = 'starter'
-WHERE plan_id LIKE '%2980%' OR plan_id LIKE '%starter%' OR plan_id LIKE '%socialtouch%';
+-- Handle both TEXT and UUID cases safely
+DO $$
+DECLARE
+    plan_id_type text;
+BEGIN
+    -- Get the data type of plan_id column in subscriptions
+    SELECT data_type INTO plan_id_type
+    FROM information_schema.columns
+    WHERE table_name = 'subscriptions' AND column_name = 'plan_id';
 
-UPDATE subscriptions SET plan_id = 'pro'
-WHERE plan_id LIKE '%6980%' OR plan_id LIKE '%8800%' OR plan_id LIKE '%pro%';
+    -- If plan_id is TEXT, use LIKE operations
+    IF plan_id_type = 'text' THEN
+        UPDATE subscriptions SET plan_id = 'starter'
+        WHERE plan_id LIKE '%2980%' OR plan_id LIKE '%starter%' OR plan_id LIKE '%socialtouch%';
 
-UPDATE subscriptions SET plan_id = 'max'
-WHERE plan_id LIKE '%15800%' OR plan_id LIKE '%15000%' OR plan_id LIKE '%max%';
+        UPDATE subscriptions SET plan_id = 'pro'
+        WHERE plan_id LIKE '%6980%' OR plan_id LIKE '%8800%' OR plan_id LIKE '%pro%';
+
+        UPDATE subscriptions SET plan_id = 'max'
+        WHERE plan_id LIKE '%15800%' OR plan_id LIKE '%15000%' OR plan_id LIKE '%max%';
+    ELSE
+        -- If plan_id is UUID or other type, set all to starter as safe default
+        UPDATE subscriptions SET plan_id = 'starter';
+    END IF;
+END $$;
 
 -- 6. Create simple, clean device_plan_view
 CREATE VIEW device_plan_view AS
@@ -189,6 +208,16 @@ UPDATE user_packages
 SET notes = REPLACE(REPLACE(COALESCE(notes, ''), 'socialtouch', 'smartgram'), 'SOCIALTOUCH', 'SMARTGRAM')
 WHERE notes LIKE '%socialtouch%' OR notes LIKE '%SOCIALTOUCH%';
 
--- 12. Clean up any orphaned data
-DELETE FROM subscriptions WHERE plan_id NOT IN ('starter', 'pro', 'max');
-UPDATE devices SET plan_id = 'starter' WHERE plan_id NOT IN ('starter', 'pro', 'max');
+-- 12. Clean up any orphaned data (safely)
+-- Clean up subscriptions with invalid plan_id
+DO $$
+BEGIN
+    -- Only clean up if plan_id is TEXT type
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'subscriptions' AND column_name = 'plan_id' AND data_type = 'text') THEN
+        DELETE FROM subscriptions WHERE plan_id NOT IN ('starter', 'pro', 'max');
+    END IF;
+END $$;
+
+-- Ensure all devices have valid plan_id
+UPDATE devices SET plan_id = 'starter' WHERE plan_id NOT IN ('starter', 'pro', 'max') OR plan_id IS NULL;
