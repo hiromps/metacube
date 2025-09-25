@@ -70,7 +70,7 @@ export function getPriceIdForPlan(planId: string, billingCycle: 'monthly' | 'yea
   const plan = STRIPE_CONFIG.PLANS[planId as keyof typeof STRIPE_CONFIG.PLANS]
   if (!plan) return null
 
-  if (billingCycle === 'yearly' && plan.annualPriceId) {
+  if (billingCycle === 'yearly' && 'annualPriceId' in plan && plan.annualPriceId) {
     return plan.annualPriceId
   }
   return plan.monthlyPriceId

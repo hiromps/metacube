@@ -15,7 +15,7 @@ import {
   handleStripeCustomerPortal
 } from './stripe-handlers'
 import {
-  handleUserDashboard,
+  handleDashboardData,
   handleDashboardPlansList,
   handleSubscriptionCancel,
   handlePlanUpdate
@@ -85,7 +85,7 @@ export async function onRequest(context: any) {
     console.log('Routing to handleUserStatus');
     return handleUserStatus(request, env);
   } else if (path === 'user/dashboard') {
-    return handleUserDashboard(request, env);
+    return handleDashboardData(request, env);
   } else if (path === 'dashboard/plans') {
     return handleDashboardPlansList(request, env);
   } else if (path === 'dashboard/cancel') {

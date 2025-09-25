@@ -21,7 +21,7 @@ function getSupabaseClient(env: any) {
 }
 
 // Get comprehensive user dashboard data
-export async function handleUserDashboard(request: Request, env: any) {
+export async function handleDashboardData(request: Request, env: any) {
   try {
     console.log('Dashboard handler called with method:', request.method)
     console.log('Dashboard request headers:', Object.fromEntries(request.headers.entries()))

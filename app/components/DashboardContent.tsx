@@ -233,21 +233,36 @@ export default function DashboardContent() {
     })
   }
 
-  // Get status badge variant
-  const getStatusBadge = (status: string) => {
+  // Get status badge variant for subscription status
+  const getStatusBadge = (status: string): 'default' | 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
     switch (status) {
       case 'アクティブ':
-        return 'default'
+        return 'success'
       case 'トライアル中':
       case 'トライアル期間':
-        return 'secondary'
+        return 'matrix'
       case '解約済み':
       case '期限切れ':
-        return 'destructive'
+        return 'error'
       case '支払い遅延':
         return 'warning'
       default:
-        return 'secondary'
+        return 'default'
+    }
+  }
+
+  // Get device status badge variant
+  const getDeviceStatusBadge = (status: string): 'default' | 'success' | 'warning' | 'error' | 'matrix' | 'glass' => {
+    switch (status) {
+      case 'active':
+        return 'success'
+      case 'trial':
+        return 'matrix'
+      case 'expired':
+      case 'suspended':
+        return 'error'
+      default:
+        return 'default'
     }
   }
 
@@ -299,7 +314,7 @@ export default function DashboardContent() {
                   管理画面
                 </Link>
               )}
-              <Button variant="ghost" onClick={handleLogout} className="text-white">
+              <Button variant="glass" onClick={handleLogout} className="text-white">
                 ログアウト
               </Button>
             </div>
@@ -478,8 +493,9 @@ export default function DashboardContent() {
                       <div className="pt-4 border-t border-white/10">
                         <Button
                           onClick={() => setShowCancelConfirm(true)}
-                          variant="destructive"
+                          variant="outline"
                           disabled={actionLoading === 'cancel'}
+                          className="border-red-500 text-red-400 hover:bg-red-500/20"
                         >
                           {actionLoading === 'cancel' ? '解約処理中...' : 'サブスクリプション解約'}
                         </Button>
@@ -567,7 +583,7 @@ export default function DashboardContent() {
                     </div>
                     <div>
                       <p className="text-white/70 text-sm mb-2">ステータス</p>
-                      <Badge variant={getStatusBadge(dashboardData.device.status)}>
+                      <Badge variant={getDeviceStatusBadge(dashboardData.device.status)}>
                         {dashboardData.device.status}
                       </Badge>
                     </div>
@@ -682,7 +698,7 @@ export default function DashboardContent() {
               <div className="flex space-x-3">
                 <Button
                   onClick={() => setShowCancelConfirm(false)}
-                  variant="ghost"
+                  variant="glass"
                   className="flex-1 text-white"
                   disabled={actionLoading === 'cancel'}
                 >
@@ -690,8 +706,8 @@ export default function DashboardContent() {
                 </Button>
                 <Button
                   onClick={handleCancelSubscription}
-                  variant="destructive"
-                  className="flex-1"
+                  variant="outline"
+                  className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
                   disabled={actionLoading === 'cancel'}
                 >
                   {actionLoading === 'cancel' ? '解約中...' : '解約する'}
