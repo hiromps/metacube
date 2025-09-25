@@ -62,7 +62,33 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     console.log('📦 Custom package query result:', {
       hasPackage: !!customPackage,
       packageError: packageError,
-      packageName: customPackage?.file_name
+      packageName: customPackage?.file_name,
+      userId: user.id,
+      userEmail: user.email
+    })
+
+    // デバッグ用：すべてのuser_packagesデータを確認
+    const { data: allPackages, error: allPackagesError } = await supabase
+      .from('user_packages')
+      .select('id, user_id, device_hash, file_name, is_active, created_at')
+      .limit(10)
+
+    console.log('🔍 All user_packages (first 10):', {
+      allPackages,
+      allPackagesError,
+      count: allPackages?.length || 0
+    })
+
+    // ユーザー固有のpackagesをすべて確認
+    const { data: userPackages, error: userPackagesError } = await supabase
+      .from('user_packages')
+      .select('id, user_id, device_hash, file_name, is_active, created_at')
+      .eq('user_id', user.id)
+
+    console.log('👤 User specific packages:', {
+      userPackages,
+      userPackagesError,
+      count: userPackages?.length || 0
     })
 
     if (customPackage && !packageError) {
