@@ -90,7 +90,7 @@ function RegisterForm() {
 
   const handleFreeRegistration = () => {
     console.log('Free registration completed')
-    router.push('/dashboard?success=true&trial=true')
+    router.push('/dashboard?success=true&registered=true')
   }
 
   const handleGoogleLogin = async () => {

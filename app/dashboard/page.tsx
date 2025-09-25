@@ -718,9 +718,9 @@ export default function DashboardPage() {
               <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-white mb-1">アカウントステータス</h2>
               <p className="text-white/70 text-sm md:text-base">
                 {userData.device ?
-                  (userData.isTrialActive ? '体験期間中' :
+                  (userData.isSubscriptionActive && userData.isTrialActive ? '体験期間中（有料契約済み）' :
                    userData.isSubscriptionActive ? '有料会員' :
-                   '登録済み - 体験期間未開始') :
+                   'デバイス登録済み - 契約待ち') :
                   'デバイス未登録'}
               </p>
             </div>
@@ -1428,9 +1428,10 @@ export default function DashboardPage() {
         {/* Device Not Registered */}
         {!userData.device && (
           <div className="bg-gradient-to-br from-blue-800/30 via-indigo-800/20 to-purple-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-blue-500/10 mb-6">
-            <h3 className="text-lg md:text-xl font-semibold text-white mb-2">📱 デバイス登録が必要です</h3>
+            <h3 className="text-lg md:text-xl font-semibold text-white mb-2">🎉 アカウント作成完了！</h3>
             <p className="text-white/70 mb-4 md:mb-6 text-sm md:text-base">
-              iPhone 7/8のデバイスハッシュを登録して3日間の無料体験を開始しましょう
+              iPhone 7/8をお持ちの方は、デバイス登録を行ってSMARTGRAMをご利用ください。<br />
+              デバイスをお持ちでない方は、後日ご準備いただいてからご利用いただけます。
             </p>
 
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl mb-4 backdrop-blur-sm">
@@ -1453,15 +1454,20 @@ export default function DashboardPage() {
               </ol>
             </div>
 
-            <div className="text-center">
+            <div className="text-center space-y-3">
               <Link href="/device-register">
-                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20 mb-3" size="lg">
-                  📱 デバイスを登録する
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-xl border border-white/20" size="lg">
+                  📱 今すぐデバイスを登録する
                 </Button>
               </Link>
-              <p className="text-xs text-white/60">
-                iPhone 7/8専用 - 3日間無料体験付き
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-white/60">
+                  iPhone 7/8をお持ちの方向け
+                </p>
+                <p className="text-xs text-blue-400">
+                  💡 デバイスをお持ちでない方は、ご購入後いつでも登録可能です
+                </p>
+              </div>
             </div>
           </div>
         )}

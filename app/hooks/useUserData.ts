@@ -95,10 +95,13 @@ export function useUserData() {
           }
         }
 
-        // Calculate trial days remaining
+        // Calculate trial days remaining - only if user has an active subscription
         let trialDaysRemaining = null;
         let isTrialActive = false;
-        if (device && device.trial_ends_at) {
+        const isSubscriptionActive = subscription?.status === 'active';
+
+        // 体験期間は有料契約が開始されたときのみ計算される
+        if (subscription && subscription.status === 'active' && device && device.trial_ends_at) {
           const trialEndDate = new Date(device.trial_ends_at);
           const now = new Date();
           const diffTime = trialEndDate.getTime() - now.getTime();
@@ -109,8 +112,6 @@ export function useUserData() {
             isTrialActive = true;
           }
         }
-
-        const isSubscriptionActive = subscription?.status === 'active';
 
         // Get plan information if device exists
         let plan = null;
