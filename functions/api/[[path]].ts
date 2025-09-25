@@ -8,6 +8,12 @@ import {
 } from './multiplan-handlers'
 import { handleDownloadPackage } from './download-package'
 import { debugDevices } from './debug-devices'
+import {
+  handleStripeCreateCheckoutSession,
+  handleStripeWebhook,
+  handleStripeSyncSubscription,
+  handleStripeCustomerPortal
+} from './stripe-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -129,6 +135,14 @@ export async function onRequest(context: any) {
   } else if (path.startsWith('admin/guides/delete/')) {
     const guideId = path.split('/')[3];
     return handleAdminGuidesDelete(request, env, guideId);
+  } else if (path === 'stripe/create-checkout-session') {
+    return handleStripeCreateCheckoutSession(request, env);
+  } else if (path === 'stripe/webhook') {
+    return handleStripeWebhook(request, env);
+  } else if (path === 'stripe/sync-subscription') {
+    return handleStripeSyncSubscription(request, env);
+  } else if (path === 'stripe/customer-portal') {
+    return handleStripeCustomerPortal(request, env);
   } else if (path === 'debug/devices') {
     // Debug endpoint to check device data in database
     const result = await debugDevices(env);
