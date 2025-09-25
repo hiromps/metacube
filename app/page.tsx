@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/Card';
+import { getCurrentUser } from '@/lib/auth/client';
 
 const acronymMeanings = [
   { letter: 'S', word: 'Social', icon: '🌐', description: 'ソーシャルネットワーク解析AI' },
@@ -134,6 +135,24 @@ export default function Home() {
   const [isLiked, setIsLiked] = useState<number[]>([]);
   const [currentPost, setCurrentPost] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Auth check error:', error);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -301,16 +320,28 @@ export default function Home() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex space-x-4">
-              <Link href="/login">
-                <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm md:text-base px-3 md:px-4" size="md">
-                  ログイン
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm md:text-base px-3 md:px-4" size="md">
-                  無料で始める
-                </Button>
-              </Link>
+              {!authLoading && (
+                user ? (
+                  <Link href="/dashboard">
+                    <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm md:text-base px-3 md:px-4" size="md">
+                      ダッシュボード
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login">
+                      <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm md:text-base px-3 md:px-4" size="md">
+                        ログイン
+                      </Button>
+                    </Link>
+                    <Link href="/register">
+                      <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm md:text-base px-3 md:px-4" size="md">
+                        無料で始める
+                      </Button>
+                    </Link>
+                  </>
+                )
+              )}
             </div>
 
             {/* Mobile Hamburger Menu */}
@@ -357,16 +388,28 @@ export default function Home() {
                 >
                   デモを見る
                 </button>
-                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm w-full" size="md">
-                    ログイン
-                  </Button>
-                </Link>
-                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm w-full" size="md">
-                    無料で始める
-                  </Button>
-                </Link>
+                {!authLoading && (
+                  user ? (
+                    <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                      <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm w-full" size="md">
+                        ダッシュボード
+                      </Button>
+                    </Link>
+                  ) : (
+                    <>
+                      <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                        <Button className="bg-transparent border-2 border-white/30 text-white hover:bg-white/10 text-sm w-full" size="md">
+                          ログイン
+                        </Button>
+                      </Link>
+                      <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                        <Button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 text-sm w-full" size="md">
+                          無料で始める
+                        </Button>
+                      </Link>
+                    </>
+                  )
+                )}
               </div>
             </div>
           )}
