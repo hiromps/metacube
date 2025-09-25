@@ -354,7 +354,7 @@ export default function DashboardContent({}: DashboardContentProps) {
         throw new Error('認証が必要です')
       }
 
-      const response = await fetch('/api/download-package', {
+      const response = await fetch('/api/download/package', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
