@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signIn, signInWithGoogle } from '@/lib/auth/client'
+import { signIn, signInWithGoogle, signInWithGitHub } from '@/lib/auth/client'
 import { Button } from '@/app/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/Card'
 import { Badge } from '@/app/components/ui/Badge'
@@ -112,6 +112,19 @@ function LoginForm() {
     } catch (error: any) {
       console.error('❌ Googleログインエラー:', error)
       setError(error.message || 'Googleログインに失敗しました')
+      setLoading(false)
+    }
+  }
+
+  const handleGitHubLogin = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      console.log('🔑 GitHubログイン開始')
+      await signInWithGitHub()
+    } catch (error: any) {
+      console.error('❌ GitHubログインエラー:', error)
+      setError(error.message || 'GitHubログインに失敗しました')
       setLoading(false)
     }
   }
@@ -267,8 +280,9 @@ function LoginForm() {
                     Google
                   </Button>
                   <Button
-                    disabled={true}
-                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium opacity-50 cursor-not-allowed"
+                    onClick={handleGitHubLogin}
+                    disabled={loading}
+                    className="bg-gradient-to-br from-gray-700/80 to-gray-600/80 border border-gray-500/50 text-white hover:from-gray-600/80 hover:to-gray-500/80 shadow-lg hover:shadow-xl transition-all backdrop-blur-sm text-xs md:text-sm font-medium disabled:opacity-50"
                     size="md"
                     fullWidth
                   >

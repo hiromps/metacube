@@ -181,6 +181,31 @@ export async function signInWithGoogle() {
   return data
 }
 
+export async function signInWithGitHub() {
+  console.log('🔑 GitHubログイン開始')
+  console.log('🔗 リダイレクト先:', `${window.location.origin}/dashboard`)
+  console.log('🌐 現在のURL:', window.location.href)
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`
+    }
+  })
+
+  if (error) {
+    console.error('❌ GitHubログインエラー:', error)
+    console.error('❌ エラー詳細:', {
+      message: error.message,
+      status: error.status
+    })
+    throw error
+  }
+
+  console.log('✅ GitHubログイン開始成功:', data)
+  return data
+}
+
 export async function signOut() {
   // セッション情報をクリア
   if (typeof window !== 'undefined') {
