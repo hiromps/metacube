@@ -69,7 +69,7 @@ export async function onRequestPOST(context: any) {
 
   } catch (error: any) {
     console.error('Webhook processing error:', error);
-    return new Response(`Webhook error: ${error.message}`, { status: 500 });
+    return new Response(`Webhook error: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
   }
 }
 

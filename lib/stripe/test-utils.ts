@@ -29,7 +29,7 @@ export async function testSubscriptionSync(deviceHash: string) {
     }
   } catch (error) {
     console.error('❌ Sync test error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -61,7 +61,7 @@ export async function testCheckoutSessionCreation(planId: string, deviceHash: st
     }
   } catch (error) {
     console.error('❌ Checkout session test error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -89,7 +89,7 @@ export async function testCustomerPortal(deviceHash: string) {
     }
   } catch (error) {
     console.error('❌ Customer portal test error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -179,7 +179,7 @@ export async function testDataConsistency(deviceHash: string) {
 
   } catch (error) {
     console.error('❌ Data consistency test error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 

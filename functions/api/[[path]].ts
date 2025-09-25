@@ -2754,7 +2754,7 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
     console.error('Upload package error:', error)
     return new Response(JSON.stringify({
       error: 'アップロードに失敗しました',
-      details: error.message
+      details: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: {
@@ -3013,7 +3013,7 @@ async function handleAdminUsersList(request: Request, env: any): Promise<Respons
     console.error('Admin users list error:', error);
     return new Response(JSON.stringify({
       error: 'Failed to fetch users list',
-      details: error.message
+      details: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: {
@@ -3210,7 +3210,7 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
     console.error('User package download error:', error);
     return new Response(JSON.stringify({
       error: 'Failed to download package',
-      details: error.message || 'Unknown error',
+      details: error instanceof Error ? error.message : String(error) || 'Unknown error',
       stack: error.stack
     }), {
       status: 500,
@@ -3364,7 +3364,7 @@ async function handleAdminGuidesCreate(request: Request, env: any): Promise<Resp
 
     if (error) {
       console.error('Failed to create guide:', error);
-      return new Response(JSON.stringify({ error: 'Failed to create guide', details: error.message }), {
+      return new Response(JSON.stringify({ error: 'Failed to create guide', details: error instanceof Error ? error.message : String(error) }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -3406,7 +3406,7 @@ async function handleAdminGuidesUpdate(request: Request, env: any, guideId: stri
 
     if (error) {
       console.error('Failed to update guide:', error);
-      return new Response(JSON.stringify({ error: 'Failed to update guide', details: error.message }), {
+      return new Response(JSON.stringify({ error: 'Failed to update guide', details: error instanceof Error ? error.message : String(error) }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -3445,7 +3445,7 @@ async function handleAdminGuidesDelete(request: Request, env: any, guideId: stri
 
     if (error) {
       console.error('Failed to delete guide:', error);
-      return new Response(JSON.stringify({ error: 'Failed to delete guide', details: error.message }), {
+      return new Response(JSON.stringify({ error: 'Failed to delete guide', details: error instanceof Error ? error.message : String(error) }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
