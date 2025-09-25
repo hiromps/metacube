@@ -112,11 +112,18 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     }
 
     // 管理者パッケージがない場合は、従来の自動生成パッケージを提供
+    console.log('🔍 Checking device_plan_view for user:', user.id)
     const { data: deviceData, error: deviceError } = await supabase
       .from('device_plan_view')
-      .select('device_hash, plan_name, plan_display_name, plan_expires_at, subscription_status')
+      .select('device_hash, plan_name, subscription_status, trial_ends_at, device_status')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
+
+    console.log('📱 Device view query result:', {
+      hasDevice: !!deviceData,
+      deviceError: deviceError,
+      deviceHash: deviceData?.device_hash
+    })
 
     if (deviceError || !deviceData) {
       return new Response(JSON.stringify({ error: 'デバイス情報が見つかりません' }), {
@@ -128,9 +135,9 @@ export async function handleDownloadPackage(request: Request, env?: any): Promis
     // ユーザー専用main.luaを生成
     const customMainLua = generateCustomMainLua({
       device_hash: deviceData.device_hash,
-      plan: deviceData.plan_name,
-      expires_at: deviceData.plan_expires_at || '2025-12-31 23:59:59',
-      subscription_status: deviceData.subscription_status
+      plan: deviceData.plan_name || 'starter',
+      expires_at: deviceData.trial_ends_at || '2025-12-31 23:59:59',
+      subscription_status: deviceData.subscription_status || deviceData.device_status
     })
 
     // .ateファイル形式でレスポンス（実際にはZIPファイルとして配布）
