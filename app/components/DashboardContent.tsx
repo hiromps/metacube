@@ -85,7 +85,9 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [uploadTargetUser, setUploadTargetUser] = useState('')
   const [uploadTargetDevice, setUploadTargetDevice] = useState('')
@@ -355,14 +357,21 @@ export default function DashboardContent({}: DashboardContentProps) {
 
   const handleDownloadATE = async () => {
     setDownloading(true)
+    setDownloadProgress(0)
     setError('')
 
     try {
+      // プログレスバー: 認証開始
+      setDownloadProgress(10)
+
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session?.access_token) {
         throw new Error('認証が必要です')
       }
+
+      // プログレスバー: ダウンロード要求送信
+      setDownloadProgress(30)
 
       const response = await fetch('/api/download/package', {
         method: 'GET',
@@ -372,10 +381,16 @@ export default function DashboardContent({}: DashboardContentProps) {
         }
       })
 
+      // プログレスバー: レスポンス受信
+      setDownloadProgress(60)
+
       if (!response.ok) {
         const errorData = await response.text()
         throw new Error(`ダウンロードに失敗しました (${response.status}): ${errorData}`)
       }
+
+      // プログレスバー: ファイル名取得
+      setDownloadProgress(70)
 
       // Get filename from response headers or use default
       const contentDisposition = response.headers.get('content-disposition')
@@ -386,6 +401,9 @@ export default function DashboardContent({}: DashboardContentProps) {
           filename = filenameMatch[1]
         }
       }
+
+      // プログレスバー: ファイル生成中
+      setDownloadProgress(85)
 
       // Create blob and download
       const blob = await response.blob()
@@ -398,15 +416,24 @@ export default function DashboardContent({}: DashboardContentProps) {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
+      // プログレスバー: 完了
+      setDownloadProgress(100)
+
       // Show success message
-      alert('✅ ファイルのダウンロードが完了しました！\n\nAutoTouchアプリで開いてご利用ください。')
+      setTimeout(() => {
+        alert('✅ ファイルのダウンロードが完了しました！\n\nAutoTouchアプリで開いてご利用ください。')
+      }, 500)
 
     } catch (err: any) {
       console.error('ATE download error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(`ダウンロードに失敗しました: ${errorMessage}`)
     } finally {
-      setDownloading(false)
+      // プログレスバーをリセット
+      setTimeout(() => {
+        setDownloadProgress(0)
+        setDownloading(false)
+      }, 1000)
     }
   }
 
@@ -417,17 +444,28 @@ export default function DashboardContent({}: DashboardContentProps) {
     }
 
     setUploading(true)
+    setUploadProgress(0)
     setError('')
 
     try {
+      // プログレスバー: ファイル読み込み開始
+      setUploadProgress(10)
+
       // Convert file to base64
       const fileBuffer = await uploadFile.arrayBuffer()
       const uint8Array = new Uint8Array(fileBuffer)
+
+      // プログレスバー: ファイル変換中
+      setUploadProgress(30)
+
       let binaryString = ''
       for (let i = 0; i < uint8Array.length; i++) {
         binaryString += String.fromCharCode(uint8Array[i])
       }
       const base64Content = btoa(binaryString)
+
+      // プログレスバー: データ準備完了
+      setUploadProgress(50)
 
       const uploadData = {
         user_id: uploadTargetUser,
@@ -439,6 +477,9 @@ export default function DashboardContent({}: DashboardContentProps) {
         admin_key: 'smartgram-admin-2024'
       }
 
+      // プログレスバー: アップロード開始
+      setUploadProgress(70)
+
       const response = await fetch('/api/admin/upload-package', {
         method: 'POST',
         headers: {
@@ -446,6 +487,9 @@ export default function DashboardContent({}: DashboardContentProps) {
         },
         body: JSON.stringify(uploadData)
       })
+
+      // プログレスバー: レスポンス処理中
+      setUploadProgress(90)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -458,6 +502,9 @@ export default function DashboardContent({}: DashboardContentProps) {
         throw new Error(result.error || 'アップロードに失敗しました')
       }
 
+      // プログレスバー: 完了
+      setUploadProgress(100)
+
       // Reset form
       setShowUploadForm(false)
       setUploadTargetUser('')
@@ -465,14 +512,21 @@ export default function DashboardContent({}: DashboardContentProps) {
       setUploadFile(null)
       setUploadNotes('')
 
-      alert(`✅ アップロード完了！\n\nユーザー: ${result.user_email}\nバージョン: ${result.version}`)
+      // 少し遅延してアラート表示
+      setTimeout(() => {
+        alert(`✅ アップロード完了！\n\nユーザー: ${result.user_email}\nバージョン: ${result.version}`)
+      }, 500)
 
     } catch (err: any) {
       console.error('Admin upload error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(`アップロードに失敗しました: ${errorMessage}`)
     } finally {
-      setUploading(false)
+      // プログレスバーをリセット
+      setTimeout(() => {
+        setUploadProgress(0)
+        setUploading(false)
+      }, 1000)
     }
   }
 
@@ -810,14 +864,30 @@ export default function DashboardContent({}: DashboardContentProps) {
                       プラン: {userData.plan?.display_name || 'なし'} • デバイス: {userData.device.device_hash.substring(0, 8)}...
                     </p>
                   </div>
-                  <Button
-                    onClick={handleDownloadATE}
-                    disabled={downloading}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-xl"
-                    size="sm"
-                  >
-                    {downloading ? '📥 ダウンロード中...' : '📥 ダウンロード'}
-                  </Button>
+                  <div className="relative">
+                    <Button
+                      onClick={handleDownloadATE}
+                      disabled={downloading}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-xl"
+                      size="sm"
+                    >
+                      {downloading ? '📥 ダウンロード中...' : '📥 ダウンロード'}
+                    </Button>
+                    {downloading && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-white/70 mb-1">
+                          <span>ダウンロード進行中</span>
+                          <span>{downloadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-purple-400 to-pink-400 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${downloadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-white/50 space-y-1">
                   <p>• ファイルはあなたのデバイス専用にカスタマイズされています</p>
@@ -934,28 +1004,44 @@ export default function DashboardContent({}: DashboardContentProps) {
                     />
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                    <Button
-                      onClick={handleAdminUpload}
-                      disabled={uploading || !uploadFile || !uploadTargetUser || !uploadTargetDevice}
-                      className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
-                      size="sm"
-                    >
-                      {uploading ? '📤 アップロード中...' : '📤 アップロード実行'}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowUploadForm(false)
-                        setUploadTargetUser('')
-                        setUploadTargetDevice('')
-                        setUploadFile(null)
-                        setUploadNotes('')
-                        setError('')
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20"
-                    >
+                  <div className="space-y-3 pt-4">
+                    {uploading && (
+                      <div>
+                        <div className="flex justify-between text-xs text-white/70 mb-1">
+                          <span>アップロード進行中</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-amber-400 to-orange-400 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={handleAdminUpload}
+                        disabled={uploading || !uploadFile || !uploadTargetUser || !uploadTargetDevice}
+                        className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
+                        size="sm"
+                      >
+                        {uploading ? '📤 アップロード中...' : '📤 アップロード実行'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowUploadForm(false)
+                          setUploadTargetUser('')
+                          setUploadTargetDevice('')
+                          setUploadFile(null)
+                          setUploadNotes('')
+                          setError('')
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20"
+                      >
                       キャンセル
                     </Button>
                   </div>
