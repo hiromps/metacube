@@ -499,36 +499,90 @@ export default function DashboardContent({}: DashboardContentProps) {
   // Load available users for admin selection
   const loadAvailableUsers = async () => {
     try {
+      console.log('👥 loadAvailableUsers: Starting to load users...')
       setLoadingUsers(true)
-      // Get user data from device_plan_view like in user-management page
-      const { data, error } = await supabase
-        .from('device_plan_view')
-        .select(`
-          device_id,
-          device_hash,
-          user_id,
-          plan_name,
-          plan_display_name,
-          subscription_status
-        `)
-        .order('device_id', { ascending: false })
 
-      if (error) throw error
+      // First try to get all users from devices table directly
+      console.log('👥 loadAvailableUsers: Querying devices table...')
+      const { data: devicesData, error: devicesError } = await supabase
+        .from('devices')
+        .select('id, user_id, device_hash, plan_id, status, created_at')
+        .order('created_at', { ascending: false })
 
-      // Get user email addresses
+      if (devicesError) {
+        console.error('❌ loadAvailableUsers: Devices query error:', devicesError)
+        throw devicesError
+      }
+
+      console.log('✅ loadAvailableUsers: Found devices:', devicesData?.length || 0)
+
+      if (!devicesData || devicesData.length === 0) {
+        console.log('⚠️ loadAvailableUsers: No devices found in database')
+        setAvailableUsers([])
+        return
+      }
+
+      // Get user email addresses and plan information
+      console.log('👥 loadAvailableUsers: Getting user emails and plan info...')
       const usersWithEmail = await Promise.all(
-        (data || []).map(async (device) => {
-          const { data: userData } = await supabase.auth.admin.getUserById(device.user_id)
-          return {
-            ...device,
-            email: userData.user?.email || '不明',
-            created_at: userData.user?.created_at || new Date().toISOString()
+        devicesData.map(async (device) => {
+          try {
+            console.log('👤 loadAvailableUsers: Processing user:', device.user_id)
+
+            // Get user email from auth
+            const { data: userData, error: userError } = await supabase.auth.admin.getUserById(device.user_id)
+
+            if (userError) {
+              console.warn('⚠️ loadAvailableUsers: Failed to get user email for:', device.user_id, userError)
+            }
+
+            // Get plan information
+            let planInfo = { name: 'unknown', display_name: 'Unknown Plan' }
+            if (device.plan_id) {
+              const { data: plan } = await supabase
+                .from('plans')
+                .select('name, display_name')
+                .eq('id', device.plan_id)
+                .single()
+
+              if (plan) {
+                planInfo = plan
+              }
+            }
+
+            const userResult = {
+              device_id: device.id,
+              device_hash: device.device_hash,
+              user_id: device.user_id,
+              plan_name: planInfo.name,
+              plan_display_name: planInfo.display_name,
+              subscription_status: device.status,
+              email: userData.user?.email || `ユーザー${device.user_id.substring(0, 8)}`,
+              created_at: device.created_at
+            }
+
+            console.log('✅ loadAvailableUsers: Processed user:', userResult.email)
+            return userResult
+          } catch (err) {
+            console.error('❌ loadAvailableUsers: Error processing user:', device.user_id, err)
+            return {
+              device_id: device.id,
+              device_hash: device.device_hash,
+              user_id: device.user_id,
+              plan_name: 'unknown',
+              plan_display_name: 'Unknown Plan',
+              subscription_status: device.status,
+              email: `ユーザー${device.user_id.substring(0, 8)}`,
+              created_at: device.created_at
+            }
           }
         })
       )
 
+      console.log('✅ loadAvailableUsers: Final user list:', usersWithEmail.length, 'users')
       setAvailableUsers(usersWithEmail)
     } catch (err: any) {
+      console.error('❌ loadAvailableUsers: Error:', err)
       setError(`ユーザー一覧の取得に失敗しました: ${err.message}`)
     } finally {
       setLoadingUsers(false)
@@ -776,7 +830,13 @@ export default function DashboardContent({}: DashboardContentProps) {
                 特定のユーザー・デバイスに対してカスタム.ateファイルをアップロードできます
               </p>
               <Button
-                onClick={() => setShowUploadForm(true)}
+                onClick={() => {
+                  setShowUploadForm(true)
+                  // Load users when opening upload form
+                  if (availableUsers.length === 0) {
+                    loadAvailableUsers()
+                  }
+                }}
                 className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
                 size="sm"
               >
