@@ -83,8 +83,8 @@ export async function handleStripeCreateCheckoutSession(request: Request, env: a
         price: priceId,
         quantity: 1
       }],
-      success_url: `${env.NEXT_PUBLIC_SITE_URL}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.NEXT_PUBLIC_SITE_URL}/dashboard?canceled=true`,
+      success_url: `${env.NEXT_PUBLIC_SITE_URL || 'https://smartgram.jp'}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.NEXT_PUBLIC_SITE_URL || 'https://smartgram.jp'}/dashboard?canceled=true`,
       client_reference_id: device.id,
       customer_email: user_email || undefined,
       metadata: {

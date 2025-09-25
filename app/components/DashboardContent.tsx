@@ -940,7 +940,7 @@ export default function DashboardContent({}: DashboardContentProps) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Admin Upload Section - show only for admin users */}
       {userData && isAdminEmail(userData.email) && (
@@ -1099,23 +1099,7 @@ export default function DashboardContent({}: DashboardContentProps) {
             </div>
           )}
         </div>
-      ) : userData?.device && !checkingPackage ? (
-        // Show message when device registered but no package uploaded
-        <div className="bg-gradient-to-br from-yellow-800/30 via-amber-800/20 to-orange-800/30 backdrop-blur-xl border border-yellow-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-yellow-500/10">
-          <h3 className="text-lg md:text-xl font-semibold text-white mb-4">📦 ツールファイル未アップロード</h3>
-          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
-            <div className="text-center py-4">
-              <div className="text-3xl mb-3">⌛</div>
-              <p className="text-white/80 text-sm mb-2">
-                まだSMARTGRAM.ateファイルがアップロードされていません。
-              </p>
-              <p className="text-white/60 text-xs">
-                管理者があなた専用のファイルをアップロードするまでお待ちください。
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      )}
 
       {/* Device Change Form */}
       {showDeviceChangeForm && (
