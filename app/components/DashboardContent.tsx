@@ -85,6 +85,12 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [showUploadForm, setShowUploadForm] = useState(false)
+  const [uploadTargetUser, setUploadTargetUser] = useState('')
+  const [uploadTargetDevice, setUploadTargetDevice] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadNotes, setUploadNotes] = useState('')
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {
@@ -400,6 +406,92 @@ export default function DashboardContent({}: DashboardContentProps) {
     }
   }
 
+  const handleAdminUpload = async () => {
+    if (!uploadFile || !uploadTargetUser.trim() || !uploadTargetDevice.trim()) {
+      setError('すべての必須フィールドを入力してください')
+      return
+    }
+
+    setUploading(true)
+    setError('')
+
+    try {
+      // Convert file to base64
+      const fileBuffer = await uploadFile.arrayBuffer()
+      const uint8Array = new Uint8Array(fileBuffer)
+      let binaryString = ''
+      for (let i = 0; i < uint8Array.length; i++) {
+        binaryString += String.fromCharCode(uint8Array[i])
+      }
+      const base64Content = btoa(binaryString)
+
+      const uploadData = {
+        user_id: uploadTargetUser.trim(),
+        device_hash: uploadTargetDevice.trim(),
+        file_name: uploadFile.name,
+        file_content: base64Content,
+        file_size: uploadFile.size,
+        notes: uploadNotes.trim() || '管理者によりアップロード'
+      }
+
+      const response = await fetch('/api/admin/upload-package', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(uploadData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'アップロードに失敗しました')
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'アップロードに失敗しました')
+      }
+
+      // Reset form
+      setShowUploadForm(false)
+      setUploadTargetUser('')
+      setUploadTargetDevice('')
+      setUploadFile(null)
+      setUploadNotes('')
+
+      alert(`✅ アップロード完了！\n\nユーザー: ${result.user_email}\nバージョン: ${result.version}`)
+
+    } catch (err: any) {
+      console.error('Admin upload error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`アップロードに失敗しました: ${errorMessage}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type (.ate files)
+      if (!file.name.toLowerCase().endsWith('.ate') && !file.name.toLowerCase().endsWith('.lua')) {
+        setError('ファイル形式は .ate または .lua である必要があります')
+        return
+      }
+
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024 // 10MB
+      if (file.size > maxSize) {
+        setError('ファイルサイズは10MB以下である必要があります')
+        return
+      }
+
+      setUploadFile(file)
+      setError('')
+    }
+  }
+
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -626,6 +718,125 @@ export default function DashboardContent({}: DashboardContentProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Debug Section for Admin Check */}
+      <div className="bg-red-900/20 border border-red-400/30 rounded-xl p-4 text-white text-sm">
+        <h4 className="font-bold mb-2">🔍 管理者権限デバッグ情報:</h4>
+        <p>ユーザーデータ: {userData ? '読み込み済み' : '未読み込み'}</p>
+        <p>メールアドレス: {userData?.email || 'なし'}</p>
+        <p>管理者判定: {userData ? (isAdminEmail(userData.email) ? '管理者' : '一般ユーザー') : 'ユーザー情報なし'}</p>
+        <p>管理者リスト: {['akihiro0324mnr@gmail.com'].join(', ')}</p>
+      </div>
+
+      {/* Admin Upload Section - show only for admin users */}
+      {userData && isAdminEmail(userData.email) && (
+        <div className="bg-gradient-to-br from-amber-800/30 via-orange-800/20 to-yellow-800/30 backdrop-blur-xl border border-amber-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-amber-500/10">
+          <h3 className="text-lg md:text-xl font-semibold text-white mb-4">👑 管理者専用: ユーザーファイルアップロード</h3>
+
+          {!showUploadForm ? (
+            <div className="text-center">
+              <p className="text-white/70 text-sm mb-4">
+                特定のユーザー・デバイスに対してカスタム.ateファイルをアップロードできます
+              </p>
+              <Button
+                onClick={() => setShowUploadForm(true)}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
+                size="sm"
+              >
+                📤 ファイルアップロード
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-white/80 text-sm mb-2">対象ユーザーID *</label>
+                      <input
+                        type="text"
+                        value={uploadTargetUser}
+                        onChange={(e) => setUploadTargetUser(e.target.value)}
+                        placeholder="ユーザーのUUIDを入力"
+                        className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/80 text-sm mb-2">対象デバイスハッシュ *</label>
+                      <input
+                        type="text"
+                        value={uploadTargetDevice}
+                        onChange={(e) => setUploadTargetDevice(e.target.value)}
+                        placeholder="デバイスハッシュを入力"
+                        className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/80 text-sm mb-2">アップロードファイル (.ate または .lua) *</label>
+                    <input
+                      type="file"
+                      accept=".ate,.lua"
+                      onChange={handleFileChange}
+                      className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-white/20 file:text-white hover:file:bg-white/30 backdrop-blur-sm text-sm"
+                    />
+                    {uploadFile && (
+                      <p className="text-green-300 text-xs mt-2">
+                        選択済み: {uploadFile.name} ({Math.round(uploadFile.size / 1024)}KB)
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-white/80 text-sm mb-2">メモ (任意)</label>
+                    <textarea
+                      value={uploadNotes}
+                      onChange={(e) => setUploadNotes(e.target.value)}
+                      placeholder="アップロードに関するメモを入力"
+                      rows={3}
+                      className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button
+                      onClick={handleAdminUpload}
+                      disabled={uploading || !uploadFile || !uploadTargetUser.trim() || !uploadTargetDevice.trim()}
+                      className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-xl"
+                      size="sm"
+                    >
+                      {uploading ? '📤 アップロード中...' : '📤 アップロード実行'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowUploadForm(false)
+                        setUploadTargetUser('')
+                        setUploadTargetDevice('')
+                        setUploadFile(null)
+                        setUploadNotes('')
+                        setError('')
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20"
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-white/50 space-y-1 bg-white/5 p-3 rounded-lg">
+                <p>• 対象ユーザーのUUIDとデバイスハッシュを正確に入力してください</p>
+                <p>• アップロードしたファイルは既存のファイルを上書きします</p>
+                <p>• ファイル形式は .ate または .lua のみサポートしています</p>
+                <p>• 最大ファイルサイズ: 10MB</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
