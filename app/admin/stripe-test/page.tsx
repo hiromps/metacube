@@ -182,7 +182,7 @@ export default function StripeTestPage() {
             <CardTitle className="text-sm">{title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge variant="outline">未実行</Badge>
+            <Badge variant="default">未実行</Badge>
           </CardContent>
         </Card>
       )
@@ -193,7 +193,7 @@ export default function StripeTestPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">{title}</CardTitle>
-            <Badge variant={result.success ? 'success' : 'destructive'}>
+            <Badge variant={result.success ? 'success' : 'error'}>
               {result.success ? '成功' : '失敗'}
             </Badge>
           </div>
