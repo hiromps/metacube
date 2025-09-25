@@ -14,6 +14,7 @@ import { useUserData, UserData } from '@/app/hooks/useUserData'
 import { isAdminEmail } from '@/lib/auth/admin'
 import SubscriptionPlansCard from '@/app/components/SubscriptionPlansCard'
 import PaymentStatusModal from '@/app/components/PaymentStatusModal'
+import PlanFeatures from '@/app/components/PlanFeatures'
 import { useSearchParams } from 'next/navigation'
 
 // Dashboard sections
@@ -72,6 +73,8 @@ export default function DashboardContent({}: DashboardContentProps) {
   const searchParams = useSearchParams()
   const { userData, loading, error: dataError, refetch } = useUserData()
   const [error, setError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
+  const MAX_RETRIES = 3
   const [cancelling, setCancelling] = useState(false)
   const [changingDevice, setChangingDevice] = useState(false)
   const [newDeviceHash, setNewDeviceHash] = useState('')
@@ -102,14 +105,27 @@ export default function DashboardContent({}: DashboardContentProps) {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      if (authError || !user) {
+      if (authError) {
+        console.error('Auth error:', authError)
+        if (authError.message !== 'Invalid JWT') {
+          setError(`認証エラー: ${authError.message}`)
+        }
+        router.push('/login')
+        return
+      }
+
+      if (!user) {
+        console.log('No user found, redirecting to login')
         router.push('/login')
         return
       }
     } catch (error: any) {
       console.error('Auth check error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setError(errorMessage)
+      // Don't show auth errors to user unless critical
+      if (error?.status !== 406) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        setError(errorMessage)
+      }
       router.push('/login')
     }
   }, [router])
@@ -139,7 +155,19 @@ export default function DashboardContent({}: DashboardContentProps) {
   }, [userData?.device?.trial_ends_at, userData?.isTrialActive])
 
   useEffect(() => {
-    checkAuth()
+    let mounted = true
+
+    const initAuth = async () => {
+      if (mounted) {
+        await checkAuth()
+      }
+    }
+
+    initAuth()
+
+    return () => {
+      mounted = false
+    }
   }, [checkAuth])
 
   // Check for payment result query parameters and localStorage
@@ -152,9 +180,14 @@ export default function DashboardContent({}: DashboardContentProps) {
       setPaymentStatus('success')
       localStorage.removeItem('stripe_checkout_started')
       localStorage.removeItem('selected_plan_id')
-      setTimeout(() => {
-        refetch()
-      }, 1000)
+      // Delay refetch to avoid immediate re-render
+      const timer = setTimeout(() => {
+        if (retryCount < MAX_RETRIES) {
+          refetch()
+          setRetryCount(prev => prev + 1)
+        }
+      }, 2000)
+      return () => clearTimeout(timer)
     } else if (canceled === 'true') {
       setPaymentStatus('cancel')
       localStorage.removeItem('stripe_checkout_started')
@@ -167,7 +200,7 @@ export default function DashboardContent({}: DashboardContentProps) {
       const checkoutStarted = localStorage.getItem('stripe_checkout_started')
       const planId = localStorage.getItem('selected_plan_id')
 
-      if (checkoutStarted && planId) {
+      if (checkoutStarted && planId && retryCount < MAX_RETRIES) {
         const startTime = parseInt(checkoutStarted)
         const now = Date.now()
         const timeDiff = now - startTime
@@ -175,16 +208,19 @@ export default function DashboardContent({}: DashboardContentProps) {
         if (timeDiff < 30 * 60 * 1000) { // 30 minutes
           console.log('User returned from potential Stripe checkout, checking subscription status...')
 
-          setTimeout(() => {
+          const timer = setTimeout(() => {
             refetch()
-            setTimeout(() => {
+            setRetryCount(prev => prev + 1)
+            const checkTimer = setTimeout(() => {
               if (userData?.isSubscriptionActive) {
                 setPaymentStatus('success')
                 localStorage.removeItem('stripe_checkout_started')
                 localStorage.removeItem('selected_plan_id')
               }
             }, 2000)
+            return () => clearTimeout(checkTimer)
           }, 1000)
+          return () => clearTimeout(timer)
         } else {
           localStorage.removeItem('stripe_checkout_started')
           localStorage.removeItem('selected_plan_id')
@@ -196,7 +232,7 @@ export default function DashboardContent({}: DashboardContentProps) {
       const newUrl = window.location.pathname
       window.history.replaceState({}, '', newUrl)
     }
-  }, [searchParams, refetch, userData?.isSubscriptionActive])
+  }, [searchParams, refetch, userData?.isSubscriptionActive, retryCount, MAX_RETRIES])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -258,10 +294,26 @@ export default function DashboardContent({}: DashboardContentProps) {
         throw new Error('ユーザー情報が取得できません')
       }
 
-      const { data: result, error: updateError } = await supabase.rpc('update_device_hash', {
-        p_user_id: user.id,
-        p_new_device_hash: newDeviceHash.trim()
-      })
+      // Check if the new device hash already exists
+      const { data: existingDevice, error: checkError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('device_hash', newDeviceHash.trim())
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows found, which is what we want
+        throw new Error(`デバイスハッシュの確認エラー: ${checkError.message}`)
+      }
+
+      if (existingDevice) {
+        throw new Error('このデバイスハッシュは既に他のユーザーによって使用されています')
+      }
+
+      // Update the device hash directly
+      const { error: updateError } = await supabase
+        .from('devices')
+        .update({ device_hash: newDeviceHash.trim() })
+        .eq('user_id', user.id)
 
       if (updateError) {
         throw new Error(updateError.message)
@@ -521,10 +573,18 @@ export default function DashboardContent({}: DashboardContentProps) {
               <h3 className="text-lg md:text-xl font-semibold text-white mb-2">✅ 現在のプラン</h3>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-xl md:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
-                  🚀 {userData.plan?.display_name || 'PRO'}
+                  {userData.plan?.name === 'starter' ? '📱' :
+                   userData.plan?.name === 'pro' ? '🚀' :
+                   userData.plan?.name === 'max' ? '👑' : '🎯'} {userData.plan?.display_name || 'PRO'}
                 </span>
-                <Badge variant="success" className="bg-green-500/20 text-green-300 border-green-400/30">
-                  アクティブ
+                <Badge
+                  variant={userData.isSubscriptionActive ? "success" : "warning"}
+                  className={userData.isSubscriptionActive ?
+                    "bg-green-500/20 text-green-300 border-green-400/30" :
+                    "bg-yellow-500/20 text-yellow-300 border-yellow-400/30"
+                  }
+                >
+                  {userData.isSubscriptionActive ? 'アクティブ' : '体験中'}
                 </Badge>
               </div>
             </div>
@@ -539,8 +599,10 @@ export default function DashboardContent({}: DashboardContentProps) {
             </div>
 
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
-              <div className="text-sm text-white/70 mb-1">料金プラン</div>
-              <div className="text-white font-medium">月額制</div>
+              <div className="text-sm text-white/70 mb-1">料金</div>
+              <div className="text-white font-medium">
+                {userData.plan?.price ? `¥${userData.plan.price.toLocaleString()}/月` : '月額制'}
+              </div>
             </div>
 
             <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm md:col-span-2 lg:col-span-1">
@@ -579,7 +641,10 @@ export default function DashboardContent({}: DashboardContentProps) {
     <div className="space-y-4 md:space-y-6">
       <div className="bg-gradient-to-br from-purple-800/30 via-violet-800/20 to-indigo-800/30 backdrop-blur-xl border border-purple-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-purple-500/10">
         <h2 className="text-lg md:text-xl font-semibold text-white mb-4">📈 利用統計</h2>
-        <div className="text-center py-8">
+        {/* Plan Features Display */}
+        <PlanFeatures plan={userData?.plan} isActive={userData?.isSubscriptionActive} />
+
+        <div className="text-center py-8 mt-6">
           <div className="text-4xl mb-4">📊</div>
           <p className="text-white/70 text-sm md:text-base mb-4">
             利用統計機能は現在開発中です

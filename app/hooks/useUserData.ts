@@ -46,6 +46,11 @@ export function useUserData() {
       setLoading(true);
       setError(null);
 
+      // Prevent multiple simultaneous calls
+      if (loading) {
+        return;
+      }
+
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -112,25 +117,58 @@ export function useUserData() {
         }
       }
 
-      // Get plan information if device exists
+      // Get plan information from subscription (use fallback approach to avoid DB errors)
       let plan = null;
-      if (device) {
-        // Simplified plan info for now - use default SMARTGRAM plan
+      if (device && subscription) {
+        // Use fallback plan mapping since plans table might not exist
+        const planMap = {
+          'starter': { name: 'starter', display_name: 'STARTER', price: 2980 },
+          'pro': { name: 'pro', display_name: 'PRO', price: 8800 },
+          'max': { name: 'max', display_name: 'MAX', price: 15000 },
+          'smartgram_monthly_2980': { name: 'starter', display_name: 'STARTER', price: 2980 },
+          'smartgram_monthly_8800': { name: 'pro', display_name: 'PRO', price: 8800 },
+          'smartgram_monthly_15000': { name: 'max', display_name: 'MAX', price: 15000 }
+        };
+
+        const fallbackPlan = planMap[subscription.plan_id] || planMap['starter'];
         plan = {
-          id: 'smartgram-basic',
-          name: 'smartgram',
-          display_name: 'STARTER',
-          price: 2980,
+          id: subscription.plan_id,
+          name: fallbackPlan.name,
+          display_name: fallbackPlan.display_name,
+          price: fallbackPlan.price,
           billing_cycle: 'monthly',
           features: {
             timeline: true,
-            dm: true,
-            story: true,
-            follow: true
+            follow: true,
+            hashtaglike: fallbackPlan.name !== 'starter',
+            activelike: fallbackPlan.name === 'pro' || fallbackPlan.name === 'max',
+            dm: fallbackPlan.name === 'max'
           },
           limitations: {
-            daily_actions: 1000,
-            concurrent_sessions: 1
+            daily_actions: fallbackPlan.name === 'starter' ? 1000 :
+                          fallbackPlan.name === 'pro' ? 5000 : -1,
+            concurrent_sessions: fallbackPlan.name === 'starter' ? 1 :
+                               fallbackPlan.name === 'pro' ? 2 : 5
+          }
+        };
+
+        console.log('Plan information loaded:', plan);
+      } else if (device && !subscription) {
+        // Device exists but no active subscription - show trial plan
+        plan = {
+          id: 'trial',
+          name: 'trial',
+          display_name: '無料体験',
+          price: 0,
+          billing_cycle: 'trial',
+          features: {
+            timeline: true,
+            follow: true,
+            hashtaglike: true
+          },
+          limitations: {
+            daily_actions: 100,
+            trial_days: 7
           }
         };
       }
@@ -147,15 +185,34 @@ export function useUserData() {
 
     } catch (err) {
       console.error('ユーザーデータの取得エラー:', err);
-      setError(err instanceof Error ? err.message : 'データの取得に失敗しました');
+      // Don't set error for plan-related failures, use fallback instead
+      const errorMessage = err instanceof Error ? err.message : 'データの取得に失敗しました';
+      if (!errorMessage.includes('プラン') && !errorMessage.includes('plans')) {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependencies to prevent infinite re-renders
 
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    // Only call once on mount
+    let mounted = true;
+
+    const loadData = async () => {
+      if (mounted) {
+        await fetchUserData();
+      }
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to prevent re-runs
 
   const refetch = useCallback(() => {
     fetchUserData();
