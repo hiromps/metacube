@@ -235,7 +235,7 @@ function LoginForm() {
                 >
                   {loading || (!!deviceHash && !autoLoginAttempted)
                     ? (!!deviceHash && !autoLoginAttempted ? 'デバイス認証中...' : 'ログイン中...')
-                    : '🚀 SMARTGRAMを開始'
+                    : 'ログイン'
                   }
                 </Button>
               </form>

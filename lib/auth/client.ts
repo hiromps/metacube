@@ -158,6 +158,8 @@ export async function signUp(email: string, password: string, deviceHash: string
 
 export async function signInWithGoogle() {
   console.log('🔑 Googleログイン開始')
+  console.log('🔗 リダイレクト先:', `${window.location.origin}/dashboard`)
+  console.log('🌐 現在のURL:', window.location.href)
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -168,6 +170,11 @@ export async function signInWithGoogle() {
 
   if (error) {
     console.error('❌ Googleログインエラー:', error)
+    console.error('❌ エラー詳細:', {
+      message: error.message,
+      status: error.status,
+      statusCode: error.statusCode
+    })
     throw error
   }
 
