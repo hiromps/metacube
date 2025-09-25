@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
  * This should match the Lua implementation
  */
 export function generateDeviceHash(deviceId: string, model: string = 'iPhone'): string {
-  const data = `${deviceId}:${model}:socialtouch`
+  const data = `${deviceId}:${model}:smartgram`
   return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16)
 }
 
