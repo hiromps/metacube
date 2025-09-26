@@ -1,6 +1,0 @@
-// Supabase configuration fallback
-export const supabaseConfig = {
-  url: "https://bsujceqmhvpltedjkvum.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzdWpjZXFtaHZwbHRlZGprdnVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODU1MDYsImV4cCI6MjA3Mzg2MTUwNn0._TrKjXMAQQWNmS2aIEV6oA7RMXJISSWaVMUQBESPnbQ",
-  serviceRoleKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzdWpjZXFtaHZwbHRlZGprdnVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI4NTUwNiwiZXhwIjoyMDczODYxNTA2fQ.24rZzpq0fO-TZyCrdsgqtLrQ6HzfLZf-adqyoO8i3pg"
-}

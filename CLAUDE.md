@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-このファイルは、Claude Code（claude.ai/code）がこのリポジトリで作業する際のガイダンスを提供します。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 開発コマンド
 
@@ -8,25 +8,29 @@
 # 開発
 npm run dev          # 開発サーバーを起動（localhost:3000）
 npm run build        # 本番用ビルド（/outへの静的エクスポート）
+npm run start        # 本番サーバー起動（Cloudflareデプロイでは未使用）
 npm run lint         # ESLintを実行
 
 # デプロイメント
 git push origin main # Cloudflare Pagesへ自動デプロイ
 ```
 
-## 重要なアーキテクチャ: Cloudflare Pages + Functions
+## 重要なアーキテクチャ: Cloudflare Pages + Functions ハイブリッド
 
 **重要**: これは標準的なNext.jsデプロイメントではありません。ハイブリッドアーキテクチャを使用しています：
 
 1. **フロントエンド**: Next.js 15.5.2 with `output: 'export'`（`/out`への静的HTML）
 2. **API**: Cloudflare Functions（`functions/api/[[path]].ts`内）- Next.js APIルートではない
 3. **ルーティング**: すべてのAPIリクエストはキャッチオールルートで処理、個別ファイルではない
+4. **データベース**: Supabase PostgreSQL with Row Level Security (RLS)
+5. **認証**: Supabase Auth + カスタムセッションストレージ
+6. **決済**: デュアルシステム - Stripe（メイン）+ PayPal（レガシー）
 
 ### 主要な設定ファイル
 - `next.config.mjs`: 静的生成のため`output: 'export'`が必須
 - `wrangler.toml`: `pages_build_output_dir = "out"`を設定（`.next`ではない）
 - `public/_redirects`: SPAルーティングを処理（ページはindex.htmlにフォールバック）
-- `functions/api/[[path]].ts`: 単一のキャッチオールAPIハンドラー
+- `functions/api/[[path]].ts`: 単一のキャッチオールAPIハンドラー（全エンドポイント）
 
 ## API実装パターン
 
@@ -40,11 +44,20 @@ export async function onRequestPOST(context: EventContext) {
 
   // 適切なハンドラーへルーティング
   if (path === 'license/verify') {
-    return handleLicenseVerify(context.request);
+    return handleLicenseVerify(context.request, env);
+  } else if (path === 'dashboard/cancel') {
+    return handleSubscriptionCancel(request, env);
   }
   // ... その他のルート
 }
 ```
+
+### APIルート構造
+- `functions/api/[[path]].ts` - メインルーター
+- `functions/api/dashboard-handlers.ts` - ユーザーダッシュボード操作
+- `functions/api/stripe-handlers.ts` - Stripe決済処理
+- `functions/api/download-package.ts` - ファイルダウンロード操作
+- ハンドラー関数はメインルーターからインポートして呼び出す
 
 ## Cloudflare Workersの制限と解決策
 
@@ -136,17 +149,38 @@ if (rememberMe) {
 1. **Stripe**（メイン）: Webhookハンドリング付きPayment Links
 2. **PayPal**（レガシー）: IPNを使用したSubscription API
 
-### Stripe Webhook処理
+### Stripe統合
 ```typescript
 // functions/api/stripe-handlers.ts
-// 重要: WebhookハンドラーでデバイスのPlan_idを更新
+// サブスクリプション用Payment Links（直接Checkout Sessionではない）
+// Webhookハンドラーでデバイスのplan_idを更新
 await supabase.from('devices')
   .update({
     plan_id: planId,
     status: 'active'
   })
   .eq('user_id', userId);
+
+// Stripe API経由でサブスクリプション解約
+const cancelResponse = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
+});
 ```
+
+### サブスクリプション解約システム
+**エンドポイント**: `/api/dashboard/cancel`
+
+解約システムは統合的な操作を実行：
+1. データベースのサブスクリプション状態を'cancelled'に更新
+2. Stripe APIを呼び出して外部サブスクリプションを解約
+3. デバイスをトライアルプランと期限切れ状態にリセット
+4. 詳細な解約結果を返却
+
+フロントエンドは完全なStripe統合のため、Supabase RPCの代わりにこれを使用。
 
 ## よくある開発タスク
 

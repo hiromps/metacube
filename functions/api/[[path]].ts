@@ -9,7 +9,6 @@ import {
 import { handleDownloadPackage } from './download-package'
 import { handleCheckPackage } from './check-package'
 import { handleAdminDevices } from './admin-devices'
-import { debugDevices } from './debug-devices'
 import {
   handleStripeCreateCheckoutSession,
   handleStripeWebhook,
@@ -170,17 +169,6 @@ export async function onRequest(context: any) {
     return handleStripeSyncSubscription(request, env);
   } else if (path === 'stripe/customer-portal') {
     return handleStripeCustomerPortal(request, env);
-  } else if (path === 'debug/devices') {
-    // Debug endpoint to check device data in database
-    const result = await debugDevices(env);
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  }
 
   // 404 for unknown API routes
   console.log('❌ API endpoint not found - Path:', path, 'Available routes: license/verify, device/register, etc.');
@@ -196,7 +184,7 @@ export async function onRequest(context: any) {
         'user/status', 'paypal/success', 'paypal/cancel', 'paypal/webhook',
         'plans/list', 'plans/upgrade', 'plans/downgrade',
         'usage/check', 'usage/increment', 'feature/check',
-        'download/package', 'check/package', 'debug/devices', 'health',
+        'download/package', 'check/package', 'health',
         'admin/upload-package', 'admin/users-list', 'user-packages/status', 'user-packages/download/{id}'
       ],
       debug_info: {
