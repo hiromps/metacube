@@ -169,6 +169,7 @@ export async function onRequest(context: any) {
     return handleStripeSyncSubscription(request, env);
   } else if (path === 'stripe/customer-portal') {
     return handleStripeCustomerPortal(request, env);
+  }
 
   // 404 for unknown API routes
   console.log('❌ API endpoint not found - Path:', path, 'Available routes: license/verify, device/register, etc.');
