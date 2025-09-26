@@ -43,15 +43,8 @@ BEGIN
         RAISE EXCEPTION 'Device not found or inactive: %', device_hash_param;
     END IF;
 
-    -- Get template info
-    SELECT * INTO template_record
-    FROM ate_templates
-    WHERE name = template_name_param
-    AND is_active = true;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Template not found: %', template_name_param;
-    END IF;
+    -- Skip template validation for now (ate_templates doesn't exist yet)
+    -- This will be handled in a future migration
 
     -- Map legacy plan names to new names
     mapped_plan_name := CASE
@@ -62,17 +55,42 @@ BEGIN
         ELSE COALESCE(device_record.plan_id, 'starter')
     END;
 
-    SELECT * INTO plan_record
-    FROM plans
-    WHERE name = mapped_plan_name
-    AND is_active = true;
+    -- Check if plans table has is_active column
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'plans'
+        AND column_name = 'is_active'
+    ) THEN
+        SELECT * INTO plan_record
+        FROM plans
+        WHERE name = mapped_plan_name
+        AND is_active = true;
+    ELSE
+        SELECT * INTO plan_record
+        FROM plans
+        WHERE name = mapped_plan_name;
+    END IF;
 
     IF NOT FOUND THEN
         -- Try starter as fallback
-        SELECT * INTO plan_record
-        FROM plans
-        WHERE name = 'starter'
-        AND is_active = true;
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'plans'
+            AND column_name = 'is_active'
+        ) THEN
+            SELECT * INTO plan_record
+            FROM plans
+            WHERE name = 'starter'
+            AND is_active = true;
+        ELSE
+            SELECT * INTO plan_record
+            FROM plans
+            WHERE name = 'starter';
+        END IF;
 
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Plan not found: % (mapped to: %)', device_record.plan_id, mapped_plan_name;

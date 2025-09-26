@@ -406,3 +406,99 @@ const handleDownloadPackage = async (packageId: string) => {
 - **アップロード失敗**: admin_keyが正しく設定されているか確認（デフォルト: 'smartgram-admin-2024'）
 - **ダウンロード問題**: 適切なbase64からバイナリへの変換を確認
 - **CORSエラー**: すべてのレスポンスに`'Access-Control-Allow-Origin': '*'`を含める必要がある
+
+## Supabaseデータベースエラーの解決方法
+
+### よく発生するカラムエラーとその解決策
+
+#### 1. `column "is_active" does not exist`
+**原因**: テーブルに`is_active`カラムが存在しない、またはRLSポリシーが存在しないカラムを参照している
+**解決方法**:
+```sql
+-- 必要なテーブルにis_activeカラムを追加
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE user_packages ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+```
+
+#### 2. `column "display_name" does not exist`
+**原因**: `plans`テーブルに`display_name`カラムが存在しない
+**解決方法**:
+```sql
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS display_name TEXT;
+-- デフォルト値を設定
+UPDATE plans SET display_name = CASE
+  WHEN name = 'trial' THEN 'トライアル'
+  WHEN name = 'starter' THEN 'スターター'
+  WHEN name = 'pro' THEN 'プロ'
+  WHEN name = 'max' THEN 'マックス'
+END WHERE display_name IS NULL;
+```
+
+#### 3. `column "current_period_end" does not exist`
+**原因**: `subscriptions`テーブルにStripe互換のカラムが存在しない
+**解決方法**:
+```sql
+ALTER TABLE subscriptions
+ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false;
+```
+
+#### 4. `column "category" does not exist`
+**原因**: `guides`テーブルに`category`カラムが存在しない
+**解決方法**:
+```sql
+ALTER TABLE guides
+ADD COLUMN IF NOT EXISTS category TEXT,
+ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE,
+ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
+```
+
+#### 5. `array_agg is an aggregate function`
+**原因**: 集計関数が不適切に使用されている、またはGROUP BY句が不足している
+**解決方法**:
+- ビューを再作成して適切なGROUP BY句を含める
+- STRING_AGGを使用する際は必ずGROUP BYと共に使用する
+
+#### 6. RLSポリシーの重複エラー
+**原因**: 同名のポリシーが既に存在する
+**解決方法**:
+```sql
+-- すべての既存ポリシーを削除してから再作成
+DROP POLICY IF EXISTS "policy_name" ON table_name;
+-- または動的に削除
+DO $$
+DECLARE
+  policy_record RECORD;
+BEGIN
+  FOR policy_record IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'guides'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON guides', policy_record.policyname);
+  END LOOP;
+END $$;
+```
+
+### ATE関連テーブルの削除
+不要なATE（AutoTouch Enterprise）関連のテーブルと関数を削除：
+```sql
+-- 関数を削除
+DROP FUNCTION IF EXISTS queue_ate_generation CASCADE;
+-- テーブルを削除
+DROP TABLE IF EXISTS download_history CASCADE;
+DROP TABLE IF EXISTS file_generation_queue CASCADE;
+DROP TABLE IF EXISTS ate_files CASCADE;
+DROP TABLE IF EXISTS ate_templates CASCADE;
+```
+
+### マイグレーションエラーの対処法
+1. **既存のトリガーエラー**: `IF NOT EXISTS`を使用するか、既存のものを先に削除
+2. **カラムの型変更**: 一時カラムを作成してデータを移行してから削除
+3. **外部キー制約**: `CASCADE`オプションを使用して依存関係を処理
+
+### デバッグのヒント
+- Supabase DashboardのLogsでエラーの詳細を確認
+- 各SQLを個別に実行してエラーの発生箇所を特定
+- `information_schema`を使用してテーブル構造を確認
