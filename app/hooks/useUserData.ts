@@ -198,38 +198,60 @@ export function useUserData() {
           }
         } catch (error) {
           console.error('プラン情報の取得でエラー:', error);
-          // エラー時はデフォルトのスターター
+          // エラー時はプラン不明として扱う
           plan = {
-            id: 'starter',
-            name: 'starter',
-            display_name: 'STARTER',
-            price: 2980,
-            billing_cycle: 'monthly',
-            features: { 'timeline.lua': true, 'hashtaglike.lua': true },
-            limitations: { support: 'LINEサポート30日間', trial_days: 3 }
+            id: 'unknown',
+            name: 'unknown',
+            display_name: 'プラン不明',
+            price: 0,
+            billing_cycle: 'unknown',
+            features: { 'timeline.lua': false, 'hashtaglike.lua': false, 'follow.lua': false, 'unfollow.lua': false, 'activelike.lua': false },
+            limitations: { message: 'プラン情報の取得に失敗しました' }
           };
         }
 
         console.log('Plan information loaded:', plan);
       } else if (device && !subscription) {
-        // Device exists but no active subscription - show trial plan
-        plan = {
-          id: 'trial',
-          name: 'trial',
-          display_name: '無料体験',
-          price: 0,
-          billing_cycle: 'trial',
-          features: {
-            'timeline.lua': true,  // タイムライン自動いいね
-            'hashtaglike.lua': true, // ハッシュタグいいね
-            'follow.lua': false,
-            'unfollow.lua': false,
-            'activelike.lua': false
-          },
-          limitations: {
-            trial_days: 3  // 3日間体験
-          }
-        };
+        // デバイスは存在するがアクティブなサブスクリプションがない場合
+        if (device.status === 'trial') {
+          // トライアル中
+          plan = {
+            id: 'trial',
+            name: 'trial',
+            display_name: '無料体験',
+            price: 0,
+            billing_cycle: 'trial',
+            features: {
+              'timeline.lua': true,  // タイムライン自動いいね
+              'hashtaglike.lua': true, // ハッシュタグいいね
+              'follow.lua': false,
+              'unfollow.lua': false,
+              'activelike.lua': false
+            },
+            limitations: {
+              trial_days: 3  // 3日間体験
+            }
+          };
+        } else {
+          // デバイス登録済みだが契約待ち
+          plan = {
+            id: 'waiting',
+            name: 'waiting',
+            display_name: '契約待ち',
+            price: 0,
+            billing_cycle: 'none',
+            features: {
+              'timeline.lua': false,
+              'hashtaglike.lua': false,
+              'follow.lua': false,
+              'unfollow.lua': false,
+              'activelike.lua': false
+            },
+            limitations: {
+              message: '有料プランをご契約ください'
+            }
+          };
+        }
       }
 
       const finalUserData = {

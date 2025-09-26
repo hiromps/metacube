@@ -463,8 +463,15 @@ async function handleLicenseVerify(request: Request, env: any) {
       licenseType = 'TRIAL';
     } else if (planInfo?.plan_name) {
       licenseType = planInfo.plan_name.toUpperCase();
-    } else if (device.status === 'active' || hasActiveSubscription) {
-      licenseType = 'STARTER'; // Default fallback
+    } else if (hasActiveSubscription && device.plan_id) {
+      // アクティブなサブスクリプションがあり、プランIDが設定されている場合
+      licenseType = device.plan_id.toUpperCase();
+    } else if (device.status === 'registered' && !hasActiveSubscription) {
+      // デバイス登録済みだが、サブスクリプションなしの場合
+      licenseType = 'WAITING_FOR_SUBSCRIPTION';
+    } else if (device.status === 'active' && !planInfo?.plan_name) {
+      // activeだがプラン情報がない場合（データ不整合）
+      licenseType = 'UNKNOWN_PLAN';
     }
 
     // Create script access object with plan-based restrictions
@@ -524,9 +531,9 @@ async function handleLicenseVerify(request: Request, env: any) {
           break;
 
         default:
-          // デフォルト（STARTER扱い）
+          // 契約待ちや不明な状態の場合はアクセス不可
           scriptAccess = {
-            timeline_lua: true,
+            timeline_lua: false,
             follow_lua: false,
             unfollow_lua: false,
             hashtaglike_lua: false,
