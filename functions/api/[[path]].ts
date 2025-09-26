@@ -2496,13 +2496,38 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
       })
     }
 
-    const supabase = getSupabaseClient(env);
+    let supabase;
+    try {
+      supabase = getSupabaseClient(env);
+      console.log('Supabase client created successfully');
+    } catch (clientError: any) {
+      console.error('Failed to create Supabase client:', clientError);
+      return new Response(JSON.stringify({
+        error: 'データベース接続エラー',
+        details: clientError.message
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
 
     // ユーザーが存在するか確認
+    console.log('Checking user existence for ID:', uploadData.user_id);
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(uploadData.user_id)
     if (userError || !userData.user) {
-      console.error('User not found:', userError);
-      return new Response(JSON.stringify({ error: 'ユーザーが見つかりません' }), {
+      console.error('User not found:', {
+        userId: uploadData.user_id,
+        error: userError,
+        errorMessage: userError?.message,
+        errorCode: userError?.code
+      });
+      return new Response(JSON.stringify({
+        error: 'ユーザーが見つかりません',
+        details: userError?.message || 'User lookup failed'
+      }), {
         status: 404,
         headers: {
           'Content-Type': 'application/json',
@@ -2510,6 +2535,7 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
         }
       })
     }
+    console.log('User found:', userData.user.email);
 
     // 既存のパッケージを無効化（新しいバージョンのため）
     const { error: updateError } = await supabase
@@ -2597,7 +2623,13 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
     })
 
   } catch (error: any) {
-    console.error('Upload package error:', error)
+    console.error('Upload package error:', {
+      error,
+      message: error?.message,
+      stack: error?.stack,
+      type: typeof error,
+      stringified: String(error)
+    });
     return new Response(JSON.stringify({
       error: 'アップロードに失敗しました',
       details: error instanceof Error ? error.message : String(error)

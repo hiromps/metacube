@@ -181,7 +181,25 @@ export default function AdminPage() {
         }),
       });
 
+      console.log('Upload response status:', response.status);
+      console.log('Upload response headers:', response.headers);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed with status:', response.status);
+        console.error('Error response:', errorText);
+
+        try {
+          const errorJson = JSON.parse(errorText);
+          setMessage(`❌ Upload Error: ${errorJson.error}${errorJson.details ? ` - ${errorJson.details}` : ''}`);
+        } catch {
+          setMessage(`❌ Upload Error (${response.status}): ${errorText}`);
+        }
+        return;
+      }
+
       const result = await response.json();
+      console.log('Upload result:', result);
 
       if (result.success) {
         setMessage(`✅ Package uploaded successfully! Package ID: ${result.package_id}, Version: ${result.version}`);
@@ -194,9 +212,10 @@ export default function AdminPage() {
         const fileInput = document.getElementById('packageFile') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
       } else {
-        setMessage(`❌ Upload Error: ${result.error}`);
+        setMessage(`❌ Upload Error: ${result.error}${result.details ? ` - ${result.details}` : ''}`);
       }
     } catch (error) {
+      console.error('Admin upload error:', error);
       setMessage(`❌ Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploadLoading(false);
