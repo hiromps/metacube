@@ -1,60 +1,60 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+このファイルは、Claude Code（claude.ai/code）がこのリポジトリで作業する際のガイダンスを提供します。
 
-## Development Commands
+## 開発コマンド
 
 ```bash
-# Development
-npm run dev          # Start development server at localhost:3000
-npm run build        # Build for production (static export to /out)
-npm run lint         # Run ESLint
+# 開発
+npm run dev          # 開発サーバーを起動（localhost:3000）
+npm run build        # 本番用ビルド（/outへの静的エクスポート）
+npm run lint         # ESLintを実行
 
-# Deployment
-git push origin main # Auto-deploys to Cloudflare Pages
+# デプロイメント
+git push origin main # Cloudflare Pagesへ自動デプロイ
 ```
 
-## Critical Architecture: Cloudflare Pages + Functions
+## 重要なアーキテクチャ: Cloudflare Pages + Functions
 
-**IMPORTANT**: This is NOT a standard Next.js deployment. It uses a hybrid architecture:
+**重要**: これは標準的なNext.jsデプロイメントではありません。ハイブリッドアーキテクチャを使用しています：
 
-1. **Frontend**: Next.js 15.5.2 with `output: 'export'` (static HTML in `/out`)
-2. **API**: Cloudflare Functions in `functions/api/[[path]].ts` (NOT Next.js API routes)
-3. **Routing**: All API requests handled by catch-all route, NOT individual files
+1. **フロントエンド**: Next.js 15.5.2 with `output: 'export'`（`/out`への静的HTML）
+2. **API**: Cloudflare Functions（`functions/api/[[path]].ts`内）- Next.js APIルートではない
+3. **ルーティング**: すべてのAPIリクエストはキャッチオールルートで処理、個別ファイルではない
 
-### Key Configuration Files
-- `next.config.mjs`: MUST have `output: 'export'` for static generation
-- `wrangler.toml`: Sets `pages_build_output_dir = "out"` (NOT `.next`)
-- `public/_redirects`: Handles SPA routing (pages fallback to index.html)
-- `functions/api/[[path]].ts`: Single catch-all API handler
+### 主要な設定ファイル
+- `next.config.mjs`: 静的生成のため`output: 'export'`が必須
+- `wrangler.toml`: `pages_build_output_dir = "out"`を設定（`.next`ではない）
+- `public/_redirects`: SPAルーティングを処理（ページはindex.htmlにフォールバック）
+- `functions/api/[[path]].ts`: 単一のキャッチオールAPIハンドラー
 
-## API Implementation Pattern
+## API実装パターン
 
-**NEVER create files in `app/api/` - use Cloudflare Functions only**
+**絶対に`app/api/`にファイルを作成しない - Cloudflare Functionsのみを使用**
 
 ```typescript
-// functions/api/[[path]].ts - All API requests go through here
+// functions/api/[[path]].ts - すべてのAPIリクエストはここを通る
 export async function onRequestPOST(context: EventContext) {
   const url = new URL(context.request.url);
   const path = url.pathname.replace('/api/', '').replace(/\/$/, '');
 
-  // Route to appropriate handler
+  // 適切なハンドラーへルーティング
   if (path === 'license/verify') {
     return handleLicenseVerify(context.request);
   }
-  // ... other routes
+  // ... その他のルート
 }
 ```
 
-## Cloudflare Workers Limitations & Solutions
+## Cloudflare Workersの制限と解決策
 
-### Buffer API Not Available
+### Buffer APIが利用不可
 
 ```typescript
-// ❌ FAILS in Workers
+// ❌ Workersでは失敗
 const buffer = Buffer.from(data, 'base64');
 
-// ✅ Use Web APIs instead
+// ✅ Web APIを代わりに使用
 const binaryString = atob(data);
 const bytes = new Uint8Array(binaryString.length);
 for (let i = 0; i < binaryString.length; i++) {
@@ -62,50 +62,50 @@ for (let i = 0; i < binaryString.length; i++) {
 }
 ```
 
-### Supabase Promise Handling
+### SupabaseのPromise処理
 
 ```typescript
-// ❌ TypeScript error in Workers
+// ❌ WorkersでTypeScriptエラー
 supabase.from('table').insert(data)
   .then(result => {})
   .catch(error => {});
 
-// ✅ Wrap in Promise.resolve()
+// ✅ Promise.resolve()でラップ
 Promise.resolve(supabase.from('table').insert(data))
   .then(result => {})
   .catch(error => {});
 ```
 
-### UUID Validation Required
+### UUID検証が必須
 ```typescript
-// Always validate UUIDs before database queries
+// データベースクエリ前に常にUUIDを検証
 function isValidUUID(uuid: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 }
 
 if (!isValidUUID(id)) {
-  return new Response(JSON.stringify({ error: 'Invalid ID format' }), {
+  return new Response(JSON.stringify({ error: 'IDフォーマットが無効' }), {
     status: 400
   });
 }
 ```
 
-## Database Schema
+## データベーススキーマ
 
-### Core Tables
-- `users`: Supabase Auth managed
-- `devices`: Device registrations with trial tracking
-- `subscriptions`: Active subscriptions (PayPal/Stripe)
-- `user_packages`: User-uploaded AutoTouch packages
-- `plans`: Subscription plans with features
+### コアテーブル
+- `users`: Supabase Authが管理
+- `devices`: デバイス登録とトライアル追跡
+- `subscriptions`: アクティブなサブスクリプション（PayPal/Stripe）
+- `user_packages`: ユーザー用AutoTouchパッケージ
+- `plans`: サブスクリプションプランと機能
 
-### Plan Structure
+### プラン構造
 ```typescript
-// Plan names in database (lowercase)
+// データベース内のプラン名（小文字）
 'starter' | 'pro' | 'max' | 'trial'
 
-// Plan features mapping
+// プラン機能のマッピング
 const planFeatures = {
   'starter': ['timeline.lua', 'hashtaglike.lua'],
   'pro': ['timeline.lua', 'hashtaglike.lua', 'follow.lua', 'unfollow.lua'],
@@ -113,33 +113,33 @@ const planFeatures = {
 };
 ```
 
-## Authentication & Session Management
+## 認証とセッション管理
 
-### Remember Me Implementation
+### Remember Me機能の実装
 ```typescript
-// Uses custom session storage logic in lib/auth/client.ts
+// lib/auth/client.tsのカスタムセッションストレージロジック
 if (rememberMe) {
-  localStorage.setItem('supabase.auth.token', session);  // Persistent
+  localStorage.setItem('supabase.auth.token', session);  // 永続的
 } else {
-  sessionStorage.setItem('supabase.auth.token', session); // Temporary
+  sessionStorage.setItem('supabase.auth.token', session); // 一時的
 }
 ```
 
-### Common Auth Issues
-- New user registration: Use `supabase.auth.signUp()` NOT `signInWithPassword()`
-- Session persistence: Check both localStorage and sessionStorage
-- Email confirmation: Handle `'Email not confirmed'` error with clear messaging
+### よくある認証の問題
+- 新規ユーザー登録: `signInWithPassword()`ではなく`supabase.auth.signUp()`を使用
+- セッションの永続化: localStorageとsessionStorage両方をチェック
+- メール確認: `'Email not confirmed'`エラーを明確なメッセージで処理
 
-## Payment Integration
+## 決済統合
 
-### Dual Payment System
-1. **Stripe** (Primary): Payment Links with webhook handling
-2. **PayPal** (Legacy): Subscription API with IPN
+### デュアル決済システム
+1. **Stripe**（メイン）: Webhookハンドリング付きPayment Links
+2. **PayPal**（レガシー）: IPNを使用したSubscription API
 
-### Stripe Webhook Processing
+### Stripe Webhook処理
 ```typescript
 // functions/api/stripe-handlers.ts
-// Critical: Update device.plan_id in webhook handler
+// 重要: WebhookハンドラーでデバイスのPlan_idを更新
 await supabase.from('devices')
   .update({
     plan_id: planId,
@@ -148,16 +148,16 @@ await supabase.from('devices')
   .eq('user_id', userId);
 ```
 
-## Common Development Tasks
+## よくある開発タスク
 
-### Fix Dashboard Auto-Reload Issues
-Check useEffect dependencies in:
-- `app/components/DashboardContent.tsx`: Remove `refetch` from dependencies
-- `app/hooks/useUserData.ts`: Stabilize refetch callback with empty deps
+### ダッシュボードの自動リロード問題の修正
+useEffectの依存関係をチェック：
+- `app/components/DashboardContent.tsx`: 依存関係から`refetch`を削除
+- `app/hooks/useUserData.ts`: 空の依存関係でrefetchコールバックを安定化
 
-### Handle File Downloads
+### ファイルダウンロードの処理
 ```typescript
-// Convert base64 to binary for download (Workers-compatible)
+// ダウンロード用にbase64をバイナリに変換（Workers互換）
 const binaryString = atob(packageData.file_content);
 const bytes = new Uint8Array(binaryString.length);
 for (let i = 0; i < binaryString.length; i++) {
@@ -171,26 +171,26 @@ return new Response(bytes, {
 });
 ```
 
-### Debug API Routes
-1. Check `functions/api/[[path]].ts` routing logic
-2. Verify path normalization (remove trailing slashes)
-3. Test locally with `npm run dev` (Functions work in dev)
-4. Use browser DevTools Network tab to inspect requests
+### APIルートのデバッグ
+1. `functions/api/[[path]].ts`のルーティングロジックを確認
+2. パスの正規化を確認（末尾のスラッシュを削除）
+3. `npm run dev`でローカルテスト（開発環境でFunctionsが動作）
+4. ブラウザDevToolsのNetworkタブでリクエストを検査
 
-## Deployment Checklist
+## デプロイチェックリスト
 
-Before pushing to production:
-- [ ] `next.config.mjs` has `output: 'export'`
-- [ ] No files in `app/api/` directory
-- [ ] All APIs in `functions/api/[[path]].ts`
-- [ ] UUID validation for all database queries
-- [ ] No Node.js-specific APIs (Buffer, fs, path)
-- [ ] Trailing slashes handled in API routes
-- [ ] Error responses include proper status codes
+本番環境へプッシュする前に：
+- [ ] `next.config.mjs`に`output: 'export'`がある
+- [ ] `app/api/`ディレクトリにファイルがない
+- [ ] すべてのAPIが`functions/api/[[path]].ts`内にある
+- [ ] すべてのデータベースクエリにUUID検証がある
+- [ ] Node.js固有のAPIを使用していない（Buffer、fs、path）
+- [ ] APIルートで末尾スラッシュが処理されている
+- [ ] エラーレスポンスに適切なステータスコードが含まれている
 
-## Environment Variables
+## 環境変数
 
-Required in Cloudflare Pages dashboard:
+Cloudflare Pagesダッシュボードで必須：
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -198,40 +198,40 @@ SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
-NEXT_PUBLIC_SITE_URL (defaults to https://smartgram.jp)
+NEXT_PUBLIC_SITE_URL（デフォルト: https://smartgram.jp）
 ```
 
-## Testing
+## テスト
 
-### API Testing
-Use built-in test page: `https://smartgram.jp/api-test.html`
+### APIテスト
+組み込みテストページを使用: `https://smartgram.jp/api-test.html`
 
-### Local Development
+### ローカル開発
 ```bash
-npm run dev  # Functions work locally with Cloudflare Pages dev server
+npm run dev  # Cloudflare Pages開発サーバーでFunctionsがローカル動作
 ```
 
-### Common Test Scenarios
-- Device registration with trial period
-- Stripe Payment Link completion
-- File upload/download for packages
-- Plan feature access control
+### 一般的なテストシナリオ
+- トライアル期間でのデバイス登録
+- Stripe Payment Linkの完了
+- パッケージのファイルアップロード/ダウンロード
+- プラン機能のアクセス制御
 
-## Package Upload/Download Implementation
+## パッケージアップロード/ダウンロード実装
 
-### Admin Package Upload System
+### 管理者パッケージアップロードシステム
 
-Successfully implemented a package upload system for admin to upload AutoTouch packages for specific users.
+特定ユーザー向けにAutoTouchパッケージをアップロードできる管理者用システムを実装しました。
 
-#### Database Schema
+#### データベーススキーマ
 ```sql
--- user_packages table stores admin-uploaded packages
+-- user_packagesテーブルは管理者がアップロードしたパッケージを保存
 CREATE TABLE user_packages (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id),
   device_hash TEXT NOT NULL,
   file_name TEXT NOT NULL,
-  file_content TEXT NOT NULL, -- base64 encoded
+  file_content TEXT NOT NULL, -- base64エンコード済み
   file_size INTEGER NOT NULL,
   uploaded_by TEXT DEFAULT 'admin',
   notes TEXT,
@@ -241,34 +241,34 @@ CREATE TABLE user_packages (
 );
 ```
 
-#### Backend Implementation (Cloudflare Functions)
+#### バックエンド実装（Cloudflare Functions）
 
-**Route Handler in `functions/api/[[path]].ts`:**
+**`functions/api/[[path]].ts`のルートハンドラー:**
 ```typescript
-// Add route mapping
+// ルートマッピングを追加
 else if (path === 'admin/upload-package') {
   return handleAdminUploadPackageInternal(request, env);
 }
 
-// Upload handler with proper error handling
+// 適切なエラーハンドリングを持つアップロードハンドラー
 async function handleAdminUploadPackageInternal(request: Request, env: any) {
-  // Critical: Environment variables must be passed correctly
+  // 重要: 環境変数が正しく渡される必要がある
   const supabase = getSupabaseClient(env);
 
-  // Validate admin key
+  // 管理者キーの検証
   if (uploadData.admin_key !== 'smartgram-admin-2024') {
-    return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
+    return new Response(JSON.stringify({ error: '無効な管理者キー' }), {
       status: 401
     });
   }
 
-  // Deactivate old packages before inserting new
+  // 新しいパッケージを挿入する前に古いパッケージを無効化
   await supabase.from('user_packages')
     .update({ is_active: false })
     .eq('user_id', uploadData.user_id)
     .eq('device_hash', uploadData.device_hash);
 
-  // Insert new package
+  // 新しいパッケージを挿入
   const { data, error } = await supabase.from('user_packages')
     .insert({
       user_id: uploadData.user_id,
@@ -282,12 +282,12 @@ async function handleAdminUploadPackageInternal(request: Request, env: any) {
 }
 ```
 
-#### Frontend Implementation
+#### フロントエンド実装
 
-**Admin Upload Form (`app/admin/page.tsx`):**
+**管理者アップロードフォーム（`app/admin/page.tsx`）:**
 ```typescript
 const handlePackageUpload = async () => {
-  // Convert file to base64
+  // ファイルをbase64に変換
   const fileContent = await new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -301,7 +301,7 @@ const handlePackageUpload = async () => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      admin_key: 'smartgram-admin-2024', // Set as default
+      admin_key: 'smartgram-admin-2024', // デフォルトとして設定
       user_id: uploadUserId,
       device_hash: uploadDeviceHash,
       file_name: uploadFile.name,
@@ -312,26 +312,26 @@ const handlePackageUpload = async () => {
 };
 ```
 
-### User Package Download System
+### ユーザーパッケージダウンロードシステム
 
-**Backend Download Handler:**
+**バックエンドダウンロードハンドラー:**
 ```typescript
 async function handleUserPackageDownload(request: Request, env: any, packageId: string) {
-  // Fetch package from database
+  // データベースからパッケージを取得
   const { data: packageData } = await supabase
     .from('user_packages')
     .select('*')
     .eq('id', packageId)
     .single();
 
-  // Convert base64 to binary (Cloudflare Workers compatible)
+  // base64をバイナリに変換（Cloudflare Workers互換）
   const binaryString = atob(packageData.file_content);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  // Return as downloadable file
+  // ダウンロード可能なファイルとして返す
   return new Response(bytes, {
     headers: {
       'Content-Type': 'application/zip',
@@ -341,7 +341,7 @@ async function handleUserPackageDownload(request: Request, env: any, packageId: 
 }
 ```
 
-**Frontend Download UI (`app/components/DashboardContent.tsx`):**
+**フロントエンドダウンロードUI（`app/components/DashboardContent.tsx`）:**
 ```typescript
 const handleDownloadPackage = async (packageId: string) => {
   const response = await fetch(`/api/user-packages/download/${packageId}`, {
@@ -358,17 +358,17 @@ const handleDownloadPackage = async (packageId: string) => {
 };
 ```
 
-### Key Implementation Details
+### 主要な実装詳細
 
-1. **Base64 Encoding**: Files are converted to base64 on frontend before upload
-2. **Binary Conversion**: Use `atob()` and `Uint8Array` for Cloudflare Workers compatibility (no Buffer API)
-3. **Admin Authentication**: Simple key-based auth with `smartgram-admin-2024`
-4. **Package Versioning**: Auto-generate version string with timestamp
-5. **Active Package Management**: Only one active package per user/device combination
+1. **Base64エンコーディング**: アップロード前にフロントエンドでファイルをbase64に変換
+2. **バイナリ変換**: Cloudflare Workers互換性のため`atob()`と`Uint8Array`を使用（Buffer APIなし）
+3. **管理者認証**: `smartgram-admin-2024`でシンプルなキーベース認証
+4. **パッケージのバージョン管理**: タイムスタンプでバージョン文字列を自動生成
+5. **アクティブパッケージ管理**: ユーザー/デバイスの組み合わせごとに1つのアクティブパッケージのみ
 
-### Troubleshooting Tips
+### トラブルシューティングのヒント
 
-- **500 Errors**: Check environment variables are passed to handlers
-- **Upload Failures**: Verify admin_key is set correctly (default: 'smartgram-admin-2024')
-- **Download Issues**: Ensure proper base64 to binary conversion
-- **CORS Errors**: All responses must include `'Access-Control-Allow-Origin': '*'`
+- **500エラー**: ハンドラーに環境変数が渡されているか確認
+- **アップロード失敗**: admin_keyが正しく設定されているか確認（デフォルト: 'smartgram-admin-2024'）
+- **ダウンロード問題**: 適切なbase64からバイナリへの変換を確認
+- **CORSエラー**: すべてのレスポンスに`'Access-Control-Allow-Origin': '*'`を含める必要がある
