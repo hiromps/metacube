@@ -43,6 +43,12 @@ export async function onRequestPOST(context: any) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(supabase, event.data.object);
         break;
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(supabase, event.data.object);
+        break;
+      case 'charge.succeeded':
+        await handleChargeSucceeded(supabase, event.data.object);
+        break;
       case 'customer.subscription.created':
         await handleSubscriptionCreated(supabase, event.data.object);
         break;
@@ -196,5 +202,53 @@ async function handlePaymentFailed(supabase: any, invoice: any) {
 
   if (error) {
     console.error('Failed to update subscription after payment failure:', error);
+  }
+}
+
+async function handlePaymentIntentSucceeded(supabase: any, paymentIntent: any) {
+  console.log('Processing payment_intent.succeeded:', paymentIntent.id);
+
+  // Payment Linkでの決済成功を記録
+  const customerEmail = paymentIntent.receipt_email || paymentIntent.charges?.data?.[0]?.billing_details?.email;
+
+  if (customerEmail) {
+    // ユーザーのデバイス情報を更新（必要に応じて）
+    console.log('Payment succeeded for customer:', customerEmail);
+
+    // メタデータから情報を取得
+    const metadata = paymentIntent.metadata || {};
+    if (metadata.user_id && metadata.device_id && metadata.plan_id) {
+      const { error } = await supabase
+        .from('devices')
+        .update({
+          plan_id: metadata.plan_id,
+          stripe_customer_id: paymentIntent.customer,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', metadata.device_id);
+
+      if (error) {
+        console.error('Failed to update device after payment intent success:', error);
+      }
+    }
+  }
+}
+
+async function handleChargeSucceeded(supabase: any, charge: any) {
+  console.log('Processing charge.succeeded:', charge.id);
+
+  // 決済成功の詳細情報を記録
+  const customerEmail = charge.billing_details?.email || charge.receipt_email;
+  const amount = charge.amount;
+  const currency = charge.currency;
+
+  console.log(`Charge succeeded: ${amount/100} ${currency.toUpperCase()} from ${customerEmail}`);
+
+  // メタデータから情報を取得して処理
+  const metadata = charge.metadata || {};
+  if (metadata.user_id && metadata.device_id) {
+    // 決済履歴を記録（必要に応じて）
+    console.log('Charge recorded for device:', metadata.device_id);
   }
 }

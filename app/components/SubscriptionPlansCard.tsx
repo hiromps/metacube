@@ -37,7 +37,7 @@ const plans: Plan[] = [
       'いつでもキャンセル可能'
     ],
     stripePriceId: 'price_starter_monthly',
-    paymentLink: 'https://buy.stripe.com/test_28E28rbP2eTE7a63IC33W01' // STARTERのPayment Link
+    paymentLink: 'https://buy.stripe.com/28E28rbP2eTE7a63IC33W01' // STARTERのPayment Link
   },
   {
     id: 'pro',
@@ -59,8 +59,8 @@ const plans: Plan[] = [
     popular: true,
     stripePriceId: 'price_pro_monthly',
     yearlyStripePriceId: 'price_pro_yearly',
-    paymentLink: 'https://buy.stripe.com/test_aFa5kD06kaDo7a64MG33W02', // PRO月額のPayment Link
-    yearlyPaymentLink: 'https://buy.stripe.com/test_pro_yearly_placeholder' // PRO年額のPayment Link (仮)
+    paymentLink: 'https://buy.stripe.com/aFa5kD06kaDo7a64MG33W02', // PRO月額のPayment Link
+    yearlyPaymentLink: 'https://buy.stripe.com/eVq28rdXaeTE1PM2Ey33W03' // PRO年額のPayment Link
   },
   {
     id: 'max',
@@ -79,7 +79,7 @@ const plans: Plan[] = [
       'いつでもキャンセル可能'
     ],
     stripePriceId: 'price_max_monthly',
-    paymentLink: 'https://buy.stripe.com/test_6oU5kD5qEbHs51Ybb433W04' // MAXのPayment Link
+    paymentLink: 'https://buy.stripe.com/6oU5kD5qEbHs51Ybb433W04' // MAXのPayment Link
   }
 ]
 
@@ -150,7 +150,13 @@ export default function SubscriptionPlansCard({ onSelectPlan }: SubscriptionPlan
       localStorage.setItem('selected_plan_id', planId)
 
       // Payment Linkに直接リダイレクト（年額・月額対応）
-      const paymentUrl = isYearly && plan.yearlyPaymentLink ? plan.yearlyPaymentLink : plan.paymentLink
+      let paymentUrl = isYearly && plan.yearlyPaymentLink ? plan.yearlyPaymentLink : plan.paymentLink
+
+      // ユーザーのメールアドレスを事前入力（認証されている場合）
+      if (session?.user?.email) {
+        paymentUrl += `?prefilled_email=${encodeURIComponent(session.user.email)}`
+      }
+
       window.location.href = paymentUrl
 
     } catch (error: any) {

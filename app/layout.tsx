@@ -88,10 +88,21 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="SMARTGRAM" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        {/* Google Analytics */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-1TT9J2ZLG9"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-1TT9J2ZLG9');
+            `,
+          }}
+        />
         <script src="https://js.stripe.com/v3/" async></script>
       </head>
       <body className={inter.className}>
-        <GoogleAnalytics />
         {children}
       </body>
     </html>
