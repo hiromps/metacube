@@ -1660,16 +1660,16 @@ export default function DashboardContent({}: DashboardContentProps) {
           <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
             <h3 className="font-medium text-white mb-2">📞 お問い合わせ</h3>
             <p className="text-sm text-white/70 mb-3">
-              技術的な問題やご質問がございましたら、以下からお気軽にお問い合わせください。
+              技術的な問題やご質問がございましたら、LINEからお気軽にお問い合わせください。
             </p>
             <div className="text-center">
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-blue-500/20 border-blue-400/30 text-blue-300 hover:bg-blue-500/30 hover:border-blue-400/50 w-full sm:w-auto"
-                onClick={() => window.open('mailto:support@smartgram.jp', '_blank')}
+                className="bg-green-500/20 border-green-400/30 text-green-300 hover:bg-green-500/30 hover:border-green-400/50 w-full sm:w-auto"
+                onClick={() => window.open('https://lin.ee/mm0ELLF', '_blank')}
               >
-                📧 サポートに連絡
+                💬 LINEでサポートに連絡
               </Button>
             </div>
           </div>
