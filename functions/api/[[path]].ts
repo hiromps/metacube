@@ -8,6 +8,7 @@ import {
 } from './multiplan-handlers'
 import { handleDownloadPackage } from './download-package'
 import { handleCheckPackage } from './check-package'
+import { handleAdminDevices } from './admin-devices'
 import { debugDevices } from './debug-devices'
 import {
   handleStripeCreateCheckoutSession,
@@ -42,10 +43,22 @@ function getSupabaseClient(env: any) {
   })
 }
 
+// GET request handler
+export async function onRequestGet(context: any) {
+  return onRequest(context);
+}
+
+// POST request handler
+export async function onRequestPost(context: any) {
+  return onRequest(context);
+}
+
 // Catch-all API route handler for Cloudflare Pages Functions
 export async function onRequest(context: any) {
   const { request, params, env } = context;
-  const path = params.path ? params.path.join('/') : '';
+  // Normalize path by removing trailing slashes
+  const rawPath = params.path ? params.path.join('/') : '';
+  const path = rawPath.replace(/\/$/, '');
 
   console.log('🚀 API Request received - Path:', path, 'URL:', request.url, 'Method:', request.method);
   console.log('🔍 Full params:', params);
@@ -121,15 +134,18 @@ export async function onRequest(context: any) {
     return handleDownloadPackage(request, env);
   } else if (path === 'check/package') {
     return handleCheckPackage(request, env);
-  } else if (path === 'admin/upload-package' || path === 'admin/upload-package/') {
+  } else if (path === 'admin/devices') {
+    console.log('Routing to admin devices handler');
+    return handleAdminDevices(request, env);
+  } else if (path === 'admin/upload-package') {
     console.log('Routing to admin upload package handler');
     return handleAdminUploadPackageInternal(request, env);
-  } else if (path === 'user-packages/status' || path === 'user-packages/status/' || path.startsWith('user-packages/status?')) {
+  } else if (path === 'user-packages/status' || path.startsWith('user-packages/status?')) {
     return handleUserPackageStatus(request, env);
   } else if (path.startsWith('user-packages/download/')) {
     const packageId = path.split('/')[2];
     return handleUserPackageDownload(request, env, packageId);
-  } else if (path === 'admin/users-list' || path === 'admin/users-list/') {
+  } else if (path === 'admin/users' || path === 'admin/users/' || path === 'admin/users-list' || path === 'admin/users-list/') {
     return handleAdminUsersList(request, env);
   } else if (path === 'guides/list' || path === 'guides/list/') {
     return handleGuidesList(request, env);
@@ -2674,7 +2690,7 @@ async function handleUserPackageStatus(request: Request, env: any): Promise<Resp
   }
 }
 
-// Admin: Get users list with email information
+// Admin: Get ALL users list (including those without devices/subscriptions)
 async function handleAdminUsersList(request: Request, env: any): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -2698,12 +2714,10 @@ async function handleAdminUsersList(request: Request, env: any): Promise<Respons
   }
 
   try {
-    const url = new URL(request.url);
-    const adminKey = url.searchParams.get('admin_key');
-
-    // Simple admin authentication
-    if (adminKey !== 'smartgram-admin-2024') {
-      return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
+    // Check authorization header for admin access
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
@@ -2714,71 +2728,58 @@ async function handleAdminUsersList(request: Request, env: any): Promise<Respons
 
     const supabase = getSupabaseClient(env);
 
-    // Get devices with basic info
-    const { data: devices, error: devicesError } = await supabase
-      .from('devices')
-      .select(`
-        id,
-        user_id,
-        device_hash,
-        status,
-        created_at
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (devicesError) {
-      console.error('Failed to fetch devices:', devicesError);
-      return new Response(JSON.stringify({
-        error: 'Failed to fetch devices',
-        details: devicesError.message
-      }), {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
+    // Try to get all users using Admin API
+    let allUsers = [];
+    try {
+      // Get all users (paginated - max 1000 users for now)
+      const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000
       });
-    }
 
-    if (!devices || devices.length === 0) {
-      return new Response(JSON.stringify({
-        success: true,
-        users: []
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
-    }
+      if (!usersError && users) {
+        allUsers = users.map(user => ({
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at
+        }));
+        console.log('✅ Admin API: Found users:', allUsers.length);
+      } else {
+        console.warn('⚠️ Admin API failed, falling back to devices table');
+        throw new Error('Admin API not available');
+      }
+    } catch (adminError) {
+      console.warn('Admin API error, using fallback:', adminError);
 
-    // Get user emails using admin API
-    const enrichedDevices = [];
-    for (const device of devices) {
-      try {
-        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(device.user_id);
-        enrichedDevices.push({
-          ...device,
-          users: {
-            email: userData?.user?.email || 'unknown@example.com'
+      // Fallback: Get unique users from devices table
+      const { data: devices, error: devicesError } = await supabase
+        .from('devices')
+        .select('user_id, created_at')
+        .order('created_at', { ascending: false });
+
+      if (devicesError) {
+        throw devicesError;
+      }
+
+      // Create unique user list from devices
+      const userMap = new Map();
+      if (devices) {
+        devices.forEach(device => {
+          if (!userMap.has(device.user_id)) {
+            userMap.set(device.user_id, {
+              id: device.user_id,
+              email: null,
+              created_at: device.created_at
+            });
           }
         });
-      } catch (userError) {
-        console.warn('Failed to get user for device:', device.id, userError);
-        enrichedDevices.push({
-          ...device,
-          users: {
-            email: 'unknown@example.com'
-          }
-        });
+        allUsers = Array.from(userMap.values());
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      users: enrichedDevices
+      users: allUsers
     }), {
       status: 200,
       headers: {

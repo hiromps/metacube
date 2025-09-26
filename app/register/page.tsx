@@ -62,11 +62,30 @@ function RegisterForm() {
       })
 
       if (authError) {
+        console.error('Registration auth error:', authError)
+
         // Check if user already exists
         if (authError.message.includes('already registered')) {
           throw new Error('このメールアドレスは既に登録されています。ログインページからログインしてください。')
         }
-        throw new Error(`登録に失敗しました: ${authError.message}`)
+
+        // Handle email validation errors with helpful messages
+        if (authError.code === 'email_address_invalid') {
+          throw new Error('このメールアドレスは使用できません。別のメールアドレスをお試しください。\n\nヒント: Gmail、Yahoo、Outlookなどの一般的なプロバイダーをご利用ください。')
+        }
+
+        // Handle rate limiting
+        if (authError.code === 'too_many_requests') {
+          throw new Error('しばらく時間をおいてから再度お試しください。')
+        }
+
+        // Handle weak password
+        if (authError.message.includes('Password')) {
+          throw new Error('パスワードが要件を満たしていません。英数字を含む8文字以上のパスワードを設定してください。')
+        }
+
+        // Generic error with more helpful context
+        throw new Error(`登録に失敗しました。\n\n詳細: ${authError.message}\n\n別のメールアドレスをお試しいただくか、サポートまでお問い合わせください。`)
       }
 
       if (!authData.user) {
@@ -197,7 +216,7 @@ function RegisterForm() {
               )}
 
               {error && (
-                <div className="mb-4 p-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg text-sm">
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg text-sm whitespace-pre-line">
                   {error}
                 </div>
               )}
@@ -217,6 +236,9 @@ function RegisterForm() {
                     required
                     disabled={loading}
                   />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Gmail、Yahoo、Outlookなどのメールアドレスをご利用ください
+                  </p>
                 </div>
 
                 <div>

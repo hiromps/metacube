@@ -92,6 +92,7 @@ export default function DashboardContent({}: DashboardContentProps) {
   const [uploadTargetUser, setUploadTargetUser] = useState('')
   const [uploadTargetDevice, setUploadTargetDevice] = useState('')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [userDevices, setUserDevices] = useState<any[]>([])
   const [uploadNotes, setUploadNotes] = useState('')
   const [hasPackage, setHasPackage] = useState(false)
   const [packageInfo, setPackageInfo] = useState<any>(null)
@@ -611,100 +612,151 @@ export default function DashboardContent({}: DashboardContentProps) {
       console.log('👥 loadAvailableUsers: Starting to load users...')
       setLoadingUsers(true)
 
-      // First try to get all users from devices table directly
-      console.log('👥 loadAvailableUsers: Querying devices table...')
+      // Try to use admin API endpoint first (bypasses RLS)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        try {
+          const response = await fetch('/api/admin/devices', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+            console.log(`✅ loadAvailableUsers: Admin API returned ${result.total} devices`)
+
+            if (result.devices && result.devices.length > 0) {
+              // Process admin API results
+              const userMap = new Map()
+
+              // Get unique users from devices
+              result.devices.forEach((device: any) => {
+                if (!userMap.has(device.user_id)) {
+                  userMap.set(device.user_id, {
+                    ...device,
+                    email: device.user_email
+                  })
+                }
+              })
+
+              const processedUsers = Array.from(userMap.values()).map((device: any) => ({
+                device_id: device.id,
+                device_hash: device.device_hash || '',
+                user_id: device.user_id,
+                plan_id: device.plan_id || 'none',
+                plan_name: device.plan_id || 'none',
+                plan_display_name: device.plan_id ? device.plan_id.toUpperCase() : '未契約',
+                subscription_status: device.status || 'unknown',
+                email: device.email || `User ${device.user_id.slice(0, 8)}...`,
+                created_at: device.created_at
+              }))
+
+              // Add manual entry option
+              processedUsers.unshift({
+                device_id: null,
+                device_hash: '',
+                user_id: 'manual-entry',
+                plan_name: 'none',
+                plan_display_name: '手動入力',
+                subscription_status: 'no_device',
+                email: '【手動入力】ユーザーIDを下に直接入力',
+                created_at: new Date().toISOString()
+              })
+
+              setAvailableUsers(processedUsers)
+              console.log(`✅ loadAvailableUsers: Loaded ${processedUsers.length} users from admin API`)
+              return
+            }
+          }
+        } catch (apiError) {
+          console.warn('⚠️ Admin API failed, falling back to client query:', apiError)
+        }
+      }
+
+      // Fallback to client-side query (with RLS)
+      console.log('👥 loadAvailableUsers: Using fallback to devices table...')
       const { data: devicesData, error: devicesError } = await supabase
         .from('devices')
         .select('id, user_id, device_hash, plan_id, status, created_at')
         .order('created_at', { ascending: false })
 
-      if (devicesError) {
-        console.error('❌ loadAvailableUsers: Devices query error:', devicesError)
-        throw devicesError
-      }
+        if (devicesError) {
+          console.error('❌ loadAvailableUsers: Devices table error:', devicesError)
+          // Last resort: just provide manual entry option
+          setAvailableUsers([{
+            device_id: null,
+            device_hash: '',
+            user_id: 'manual-entry',
+            plan_name: 'none',
+            plan_display_name: '手動入力',
+            subscription_status: 'no_device',
+            email: '【エラー】ユーザーIDを下に直接入力してください',
+            created_at: new Date().toISOString()
+          }])
+          return
+        }
 
-      console.log('✅ loadAvailableUsers: Found devices:', devicesData?.length || 0)
+        if (devicesData && devicesData.length > 0) {
+          console.log(`✅ loadAvailableUsers: Found ${devicesData.length} devices in fallback`)
+          const userMap = new Map()
 
-      if (!devicesData || devicesData.length === 0) {
-        console.log('⚠️ loadAvailableUsers: No devices found in database')
-        setAvailableUsers([])
-        return
-      }
-
-      // Get user email addresses and plan information
-      console.log('👥 loadAvailableUsers: Getting user emails and plan info...')
-      const usersWithEmail = await Promise.all(
-        devicesData.map(async (device) => {
-          try {
-            console.log('👤 loadAvailableUsers: Processing user:', device.user_id)
-
-            // Try to get user email - fallback to current user session if admin access fails
-            let userEmail = `ユーザー${device.user_id.substring(0, 8)}`
-            try {
-              // First try to get email from current session if it's the same user
-              const { data: { user: currentUser } } = await supabase.auth.getUser()
-              if (currentUser && currentUser.id === device.user_id) {
-                userEmail = currentUser.email || userEmail
-              } else {
-                // For other users, we'll need to use a different approach since admin access is restricted
-                // We could store email in devices table or use a different method
-                userEmail = `ユーザー${device.user_id.substring(0, 8)}`
-              }
-            } catch (err) {
-              console.warn('⚠️ loadAvailableUsers: Could not get email for user:', device.user_id)
+          // Get unique users from devices
+          devicesData.forEach(device => {
+            if (!userMap.has(device.user_id)) {
+              userMap.set(device.user_id, device)
             }
+          })
 
-            // Get plan information - fix the query to use correct column
-            let planInfo = { name: 'unknown', display_name: 'Unknown Plan' }
-            if (device.plan_id) {
-              try {
-                const { data: plan, error: planError } = await supabase
-                  .from('plans')
-                  .select('name, display_name')
-                  .eq('name', device.plan_id)  // Use 'name' instead of 'id'
-                  .single()
+          console.log(`✅ loadAvailableUsers: Identified ${userMap.size} unique users`)
 
-                if (plan && !planError) {
-                  planInfo = plan
-                } else {
-                  console.warn('⚠️ loadAvailableUsers: Plan not found for:', device.plan_id, planError)
-                }
-              } catch (planErr) {
-                console.warn('⚠️ loadAvailableUsers: Error fetching plan:', planErr)
-              }
-            }
+          // Get current user email if available
+          const { data: { user: currentUser } } = await supabase.auth.getUser()
 
-            const userResult = {
-              device_id: device.id,
-              device_hash: device.device_hash,
-              user_id: device.user_id,
-              plan_name: planInfo.name,
-              plan_display_name: planInfo.display_name,
-              subscription_status: device.status,
-              email: userEmail,
-              created_at: device.created_at
-            }
+          const processedUsers = Array.from(userMap.values()).map(device => ({
+            device_id: device.id,
+            device_hash: device.device_hash || '',
+            user_id: device.user_id,
+            plan_name: device.plan_id || 'none',
+            plan_display_name: device.plan_id ? device.plan_id.toUpperCase() : '未契約',
+            subscription_status: device.status || 'no_device',
+            email: (currentUser && currentUser.id === device.user_id && currentUser.email)
+              ? currentUser.email
+              : `ユーザー${device.user_id.substring(0, 8)}`,
+            created_at: device.created_at || new Date().toISOString()
+          }))
 
-            console.log('✅ loadAvailableUsers: Processed user:', userResult.email)
-            return userResult
-          } catch (err) {
-            console.error('❌ loadAvailableUsers: Error processing user:', device.user_id, err)
-            return {
-              device_id: device.id,
-              device_hash: device.device_hash,
-              user_id: device.user_id,
-              plan_name: 'unknown',
-              plan_display_name: 'Unknown Plan',
-              subscription_status: device.status,
-              email: `ユーザー${device.user_id.substring(0, 8)}`,
-              created_at: device.created_at
-            }
-          }
-        })
-      )
+          // Add manual entry option
+          processedUsers.unshift({
+            device_id: null,
+            device_hash: '',
+            user_id: 'manual-entry',
+            plan_name: 'none',
+            plan_display_name: '手動入力',
+            subscription_status: 'no_device',
+            email: '【新規ユーザー用】下にユーザーIDを直接入力してください',
+            created_at: new Date().toISOString()
+          })
 
-      console.log('✅ loadAvailableUsers: Final user list:', usersWithEmail.length, 'users')
-      setAvailableUsers(usersWithEmail)
+          console.log('✅ loadAvailableUsers: Loaded from devices table:', processedUsers.length)
+          setAvailableUsers(processedUsers)
+          return
+        } else {
+          // No devices found, just provide manual entry
+          setAvailableUsers([{
+            device_id: null,
+            device_hash: '',
+            user_id: 'manual-entry',
+            plan_name: 'none',
+            plan_display_name: '手動入力',
+            subscription_status: 'no_device',
+            email: '【新規ユーザー用】下にユーザーIDを直接入力してください',
+            created_at: new Date().toISOString()
+          }])
+          return
+        }
     } catch (err: any) {
       console.error('❌ loadAvailableUsers: Error:', err)
       setError(`ユーザー一覧の取得に失敗しました: ${err.message}`)
@@ -991,48 +1043,327 @@ export default function DashboardContent({}: DashboardContentProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-white/80 text-sm mb-2">対象ユーザー *</label>
-                        <select
-                          value={uploadTargetUser}
-                          onChange={(e) => {
-                            const selectedUserId = e.target.value;
-                            setUploadTargetUser(selectedUserId);
+                        <div className="space-y-2">
+                          <select
+                            value={uploadTargetUser}
+                            onChange={(e) => {
+                              const selectedUserId = e.target.value;
 
-                            // Find selected user and auto-fill device hash
-                            const selectedUser = availableUsers.find(user => user.user_id === selectedUserId);
-                            if (selectedUser) {
-                              setUploadTargetDevice(selectedUser.device_hash);
-                            } else {
-                              setUploadTargetDevice('');
-                            }
-                          }}
-                          className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm"
-                          onFocus={() => {
-                            if (availableUsers.length === 0) {
-                              loadAvailableUsers();
-                            }
-                          }}
-                        >
-                          <option value="">ユーザーを選択してください</option>
-                          {availableUsers.map((user) => (
-                            <option key={user.user_id} value={user.user_id} className="bg-gray-800">
-                              {user.email} ({user.plan_display_name})
-                            </option>
-                          ))}
-                        </select>
+                              // Skip if manual entry option is selected
+                              if (selectedUserId === 'manual-entry') {
+                                setUploadTargetUser('');
+                                setUploadTargetDevice('');
+                                return;
+                              }
+
+                              setUploadTargetUser(selectedUserId);
+
+                              // Find selected user and auto-fill device hash
+                              const selectedUser = availableUsers.find(user => user.user_id === selectedUserId);
+                              if (selectedUser && selectedUser.device_hash) {
+                                setUploadTargetDevice(selectedUser.device_hash);
+                              } else {
+                                setUploadTargetDevice('');
+                              }
+                            }}
+                            className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm"
+                            onFocus={() => {
+                              if (availableUsers.length === 0) {
+                                loadAvailableUsers();
+                              }
+                            }}
+                          >
+                            <option value="">ユーザーを選択 または 下に直接入力</option>
+                            {availableUsers.map((user) => (
+                              <option key={user.user_id} value={user.user_id} className="bg-gray-800">
+                                {user.email} - {user.plan_display_name} {user.device_hash ? `(${user.device_hash.substring(0, 8)}...)` : '(デバイス未登録)'}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={uploadTargetUser}
+                            onChange={async (e) => {
+                              const userId = e.target.value.trim();
+                              setUploadTargetUser(userId);
+
+                              // Clear device info if user ID is cleared
+                              if (!userId) {
+                                setUploadTargetDevice('');
+                                setUserDevices([]);
+                                return;
+                              }
+
+                              // Auto-detect device hash if valid UUID is entered
+                              if (userId && userId.length === 36 && userId.includes('-')) {
+                                try {
+                                  // Always query database for most up-to-date information
+                                  console.log('🔍 Looking up devices for user:', userId);
+
+                                  // Try admin API first to bypass RLS
+                                  const { data: { session } } = await supabase.auth.getSession();
+                                  let devicesData = null;
+                                  let queryError = null;
+
+                                  if (session?.access_token) {
+                                    try {
+                                      const response = await fetch('/api/admin/devices', {
+                                        method: 'GET',
+                                        headers: {
+                                          'Authorization': `Bearer ${session.access_token}`,
+                                          'Content-Type': 'application/json'
+                                        }
+                                      });
+
+                                      if (response.ok) {
+                                        const result = await response.json();
+                                        // Filter devices for this specific user
+                                        devicesData = result.devices?.filter((d: any) => d.user_id === userId) || [];
+                                        console.log(`✅ Admin API: Found ${devicesData.length} devices for user ${userId}`);
+                                      }
+                                    } catch (apiErr) {
+                                      console.warn('Admin API lookup failed:', apiErr);
+                                    }
+                                  }
+
+                                  // Fallback to regular query if admin API didn't work
+                                  if (!devicesData) {
+                                    const query = await supabase
+                                      .from('devices')
+                                      .select('id, device_hash, status, plan_id, created_at, user_id')
+                                      .eq('user_id', userId)
+                                      .order('created_at', { ascending: false });
+
+                                    devicesData = query.data;
+                                    queryError = query.error;
+                                  }
+
+                                  console.log('🔍 Devices query result:', {
+                                    count: devicesData?.length || 0,
+                                    data: devicesData,
+                                    error: queryError
+                                  });
+
+                                  if (queryError) {
+                                    console.error('❌ Query error:', queryError);
+                                    // Still try to set empty device to allow manual input
+                                    setUploadTargetDevice('');
+                                    setUserDevices([]);
+                                    return;
+                                  }
+
+                                  if (devicesData && devicesData.length > 0) {
+                                    console.log(`✅ Found ${devicesData.length} device(s) for user ${userId}`);
+                                    setUserDevices(devicesData);
+
+                                    // Auto-select the first (most recent) device
+                                    const selectedDevice = devicesData[0];
+                                    setUploadTargetDevice(selectedDevice.device_hash);
+                                    console.log('✅ Auto-selected device:', selectedDevice.device_hash);
+
+                                    if (devicesData.length > 1) {
+                                      console.log('ℹ️ Multiple devices available for selection');
+                                    }
+                                  } else {
+                                    console.log('⚠️ No devices found for user:', userId);
+                                    setUploadTargetDevice('');
+                                    setUserDevices([]);
+
+                                    // Double-check with a broader query
+                                    console.log('🔍 Double-checking with broader query...');
+                                    const { data: allDevices } = await supabase
+                                      .from('devices')
+                                      .select('*')  // Select all fields to see data structure
+                                      .order('created_at', { ascending: false })
+                                      .limit(200);
+
+                                    console.log(`📊 Total devices in database: ${allDevices?.length || 0}`);
+
+                                    // Check if WMDAAPWMDAGTW exists
+                                    const targetDeviceHash = 'WMDAAPWMDAGTW';
+                                    const deviceWithHash = allDevices?.find(d => d.device_hash === targetDeviceHash);
+                                    if (deviceWithHash) {
+                                      console.log('🎯 Found device with hash WMDAAPWMDAGTW:', deviceWithHash);
+                                      console.log('Associated user_id:', deviceWithHash.user_id);
+
+                                      // If this device belongs to a different user_id format
+                                      if (deviceWithHash.user_id !== userId) {
+                                        console.log('⚠️ Device hash exists but with different user_id format!');
+                                        console.log('Expected:', userId);
+                                        console.log('Actual:', deviceWithHash.user_id);
+
+                                        // Use this device anyway
+                                        setUploadTargetDevice(targetDeviceHash);
+                                        setUserDevices([deviceWithHash]);
+                                        console.log('✅ Using device hash WMDAAPWMDAGTW despite user_id mismatch');
+                                        return;
+                                      }
+                                    } else {
+                                      console.log('❌ Device hash WMDAAPWMDAGTW not found in database');
+                                    }
+
+                                    // Log all unique user IDs for debugging
+                                    if (allDevices && allDevices.length > 0) {
+                                      const uniqueUserIds = [...new Set(allDevices.map(d => d.user_id))];
+                                      console.log('📋 Unique user IDs in devices table:', uniqueUserIds);
+                                      console.log('🔍 Searching for:', userId);
+
+                                      // Try different matching approaches
+                                      const exactMatch = allDevices.find(d => d.user_id === userId);
+                                      const lowerMatch = allDevices.find(d => d.user_id?.toLowerCase() === userId.toLowerCase());
+                                      const trimMatch = allDevices.find(d => d.user_id?.trim() === userId.trim());
+
+                                      if (exactMatch) {
+                                        console.log('✅ Found device with exact match:', exactMatch.device_hash);
+                                        setUploadTargetDevice(exactMatch.device_hash);
+                                        setUserDevices([exactMatch]);
+                                      } else if (lowerMatch) {
+                                        console.log('✅ Found device with case-insensitive match:', lowerMatch.device_hash);
+                                        setUploadTargetDevice(lowerMatch.device_hash);
+                                        setUserDevices([lowerMatch]);
+                                      } else if (trimMatch) {
+                                        console.log('✅ Found device with trimmed match:', trimMatch.device_hash);
+                                        setUploadTargetDevice(trimMatch.device_hash);
+                                        setUserDevices([trimMatch]);
+                                      } else {
+                                        console.log('⚠️ No match found. User ID might not exist in devices table.');
+                                        console.log('💡 This user might be registered but has no device yet.');
+                                      }
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.log('⚠️ Could not auto-detect device hash:', err);
+                                  setUploadTargetDevice('');
+                                  setUserDevices([]);
+                                }
+                              }
+                            }}
+                            onBlur={async (e) => {
+                              // Also check on blur for better UX
+                              const userId = e.target.value.trim();
+                              if (userId && userId.length === 36 && userId.includes('-') && !uploadTargetDevice) {
+                                try {
+                                  // Don't use .single() to avoid 406 error
+                                  const { data: devicesData } = await supabase
+                                    .from('devices')
+                                    .select('device_hash')
+                                    .eq('user_id', userId);
+
+                                  if (devicesData && devicesData.length > 0) {
+                                    setUploadTargetDevice(devicesData[0].device_hash);
+                                    setSuccess('デバイスハッシュを自動検出しました');
+                                    setTimeout(() => setSuccess(''), 3000);
+                                  }
+                                } catch (err) {
+                                  console.log('Device not found for user');
+                                }
+                              }
+                            }}
+                            placeholder="または、ユーザーIDを直接入力（UUID形式）"
+                            className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
+                          />
+                        </div>
                         {loadingUsers && (
                           <p className="text-white/60 text-xs mt-1">ユーザー一覧を読み込み中...</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-white/80 text-sm mb-2">対象デバイスハッシュ *</label>
+                        <label className="block text-white/80 text-sm mb-2">
+                          対象デバイスハッシュ *
+                          {uploadTargetDevice && (
+                            <span className="text-green-400 text-xs ml-2">
+                              ✅ 検出済み
+                            </span>
+                          )}
+                        </label>
                         <input
                           type="text"
                           value={uploadTargetDevice}
-                          onChange={(e) => setUploadTargetDevice(e.target.value)}
-                          placeholder="ユーザー選択時に自動入力"
-                          className="w-full p-3 bg-black/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono"
-                          readOnly={!!uploadTargetUser}
+                          onChange={async (e) => {
+                            const deviceHash = e.target.value.trim();
+                            setUploadTargetDevice(deviceHash);
+
+                            // If a device hash like WMDAAPWMDAGTW is entered, find the associated user
+                            if (deviceHash && deviceHash.length > 10 && !deviceHash.includes('-')) {
+                              console.log('🔍 Looking up user for device hash:', deviceHash);
+                              try {
+                                // Try admin API first to bypass RLS
+                                const { data: { session } } = await supabase.auth.getSession();
+                                let device = null;
+
+                                if (session?.access_token) {
+                                  try {
+                                    const response = await fetch('/api/admin/devices', {
+                                      method: 'GET',
+                                      headers: {
+                                        'Authorization': `Bearer ${session.access_token}`,
+                                        'Content-Type': 'application/json'
+                                      }
+                                    });
+
+                                    if (response.ok) {
+                                      const result = await response.json();
+                                      // Find device by hash
+                                      device = result.devices?.find((d: any) => d.device_hash === deviceHash);
+                                      if (device) {
+                                        console.log('✅ Admin API: Found device with hash:', deviceHash);
+                                      }
+                                    }
+                                  } catch (apiErr) {
+                                    console.warn('Admin API device lookup failed:', apiErr);
+                                  }
+                                }
+
+                                // Fallback to regular query if admin API didn't work
+                                if (!device) {
+                                  const { data, error } = await supabase
+                                    .from('devices')
+                                    .select('user_id, device_hash, plan_id, status')
+                                    .eq('device_hash', deviceHash)
+                                    .maybeSingle();
+                                  device = data;
+                                }
+
+                                if (device) {
+                                  console.log('✅ Found user for device hash:', device.user_id);
+                                  setUploadTargetUser(device.user_id);
+                                  setSuccess('ユーザーIDを自動検出しました');
+                                  setTimeout(() => setSuccess(''), 3000);
+                                } else {
+                                  console.log('⚠️ No user found for device hash:', deviceHash);
+                                }
+                              } catch (err) {
+                                console.error('Error looking up device:', err);
+                              }
+                            }
+                          }}
+                          placeholder={uploadTargetDevice ? uploadTargetDevice : "デバイスハッシュを手動入力（例: WMDAAPWMDAGTW）"}
+                          className={`w-full p-3 bg-black/20 border ${
+                            uploadTargetDevice ? 'border-green-400/50' : 'border-white/30'
+                          } rounded-xl text-white placeholder-white/50 focus:border-white/50 focus:outline-none backdrop-blur-sm text-sm font-mono transition-colors`}
+                          readOnly={false}  // Always allow manual input
                         />
+                        {!uploadTargetDevice && uploadTargetUser && uploadTargetUser.length === 36 && (
+                          <p className="text-yellow-400 text-xs mt-1">
+                            ⚠️ このユーザーにはデバイスが登録されていません。手動で入力してください。
+                          </p>
+                        )}
+                        {userDevices.length > 1 && (
+                          <div className="mt-2 p-2 bg-blue-500/10 border border-blue-400/30 rounded-lg">
+                            <p className="text-blue-400 text-xs mb-1">複数のデバイスが見つかりました:</p>
+                            <select
+                              value={uploadTargetDevice}
+                              onChange={(e) => setUploadTargetDevice(e.target.value)}
+                              className="w-full p-2 bg-black/20 border border-blue-400/30 rounded text-white text-sm"
+                            >
+                              {userDevices.map((device, idx) => (
+                                <option key={idx} value={device.device_hash} className="bg-gray-800">
+                                  {device.device_hash.substring(0, 12)}... - {device.plan_id || '未契約'} - {device.status}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

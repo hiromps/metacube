@@ -78,7 +78,7 @@ export function useUserData() {
         .from('devices')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (deviceError && deviceError.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Device fetch error:', deviceError);
@@ -96,7 +96,7 @@ export function useUserData() {
           .eq('device_id', device.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (subError && subError.code !== 'PGRST116') {
           console.warn('サブスクリプション情報の取得に失敗:', subError);
@@ -145,28 +145,33 @@ export function useUserData() {
             .select('*')
             .eq('id', mappedPlanId)
             .eq('is_active', true)
-            .single();
+            .maybeSingle();
 
-          if (planData && !planError) {
+          if (planData) {
             // Convert database plan to our interface format
+            // Note: database has 'name' as display name, not 'display_name' column
             plan = {
               id: planData.id,
               name: planData.id,  // Use id as name for consistency
-              display_name: planData.name, // Database 'name' field is display name
+              display_name: planData.name || planData.id.toUpperCase(), // Use 'name' field or uppercase ID
               price: planData.price_jpy,
               billing_cycle: 'monthly',
-              features: planData.features ? planData.features.reduce((acc: Record<string, boolean>, feature: string) => {
-                acc[feature] = true;
-                return acc;
-              }, {}) : {},
+              features: Array.isArray(planData.features)
+                ? planData.features.reduce((acc: Record<string, boolean>, feature: string) => {
+                    acc[feature] = true;
+                    return acc;
+                  }, {})
+                : {},
               limitations: {
                 support: planData.priority_support ? '24時間電話サポート' : 'LINEサポート30日間',
                 trial_days: 3,
                 max_automation_hours: planData.max_automation_hours
               }
             };
+          } else if (planError) {
+            console.warn('プラン情報の取得でエラー:', planError);
           } else {
-            console.warn('プラン情報の取得に失敗:', planError);
+            console.warn(`プランID '${mappedPlanId}' がデータベースに見つかりません`);
             // Fallback to basic plan structure
             const fallbackPlans = {
               'starter': { name: 'STARTER', price: 2980, features: ['timeline.lua', 'hashtaglike.lua'] },
