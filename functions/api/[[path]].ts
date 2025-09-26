@@ -21,6 +21,13 @@ import {
   handleSubscriptionCancel,
   handlePlanUpdate
 } from './dashboard-handlers'
+import {
+  handleGuidesListInternal,
+  handleGuideCreateInternal,
+  handleGuideUpdateInternal,
+  handleGuideDeleteInternal,
+  handleGuideReorderInternal
+} from './guide-handlers'
 
 // Initialize Supabase client for Cloudflare Functions
 function getSupabaseClient(env: any) {
@@ -147,20 +154,17 @@ export async function onRequest(context: any) {
   } else if (path === 'admin/users' || path === 'admin/users/' || path === 'admin/users-list' || path === 'admin/users-list/') {
     return handleAdminUsersList(request, env);
   } else if (path === 'guides/list' || path === 'guides/list/') {
-    return handleGuidesList(request, env);
-  } else if (path.startsWith('guides/')) {
-    const guideSlug = path.split('/')[1];
-    return handleGuidesGet(request, env, guideSlug);
-  } else if (path === 'admin/guides/list' || path === 'admin/guides/list/') {
-    return handleAdminGuidesList(request, env);
+    return handleGuidesListInternal(request, env);
   } else if (path === 'admin/guides/create' || path === 'admin/guides/create/') {
-    return handleAdminGuidesCreate(request, env);
+    return handleGuideCreateInternal(request, env);
   } else if (path.startsWith('admin/guides/update/')) {
     const guideId = path.split('/')[3];
-    return handleAdminGuidesUpdate(request, env, guideId);
+    return handleGuideUpdateInternal(request, env, guideId);
   } else if (path.startsWith('admin/guides/delete/')) {
     const guideId = path.split('/')[3];
-    return handleAdminGuidesDelete(request, env, guideId);
+    return handleGuideDeleteInternal(request, env, guideId);
+  } else if (path === 'admin/guides/reorder' || path === 'admin/guides/reorder/') {
+    return handleGuideReorderInternal(request, env);
   } else if (path === 'stripe/create-checkout-session') {
     return handleStripeCreateCheckoutSession(request, env);
   } else if (path === 'stripe/webhook') {

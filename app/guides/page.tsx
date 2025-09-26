@@ -13,12 +13,13 @@ import { LoadingScreen } from '@/app/components/LoadingScreen'
 interface Guide {
   id: string
   title: string
-  slug: string
-  description: string
-  content: string
-  requires_access: boolean
-  sort_order: number
-  is_published: boolean
+  description?: string
+  youtube_url?: string
+  video_id?: string
+  content?: string
+  category: string
+  order_index: number
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -27,7 +28,7 @@ export default function GuidesPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [access, setAccess] = useState<ContentAccess | null>(null)
-  const [selectedGuide, setSelectedGuide] = useState<string>('')
+  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null)
   const [error, setError] = useState('')
   const [guides, setGuides] = useState<Guide[]>([])
   const [guidesLoading, setGuidesLoading] = useState(true)
@@ -59,14 +60,14 @@ export default function GuidesPage() {
 
       const result = await response.json()
 
-      if (result.success) {
+      if (result.guides) {
         setGuides(result.guides || [])
         // Set first guide as default if available
         if (result.guides && result.guides.length > 0 && !selectedGuide) {
-          setSelectedGuide(result.guides[0].slug)
+          setSelectedGuide(result.guides[0])
         }
       } else {
-        setError('ガイドの読み込みに失敗しました: ' + (result.error || 'Unknown error'))
+        setError('ガイドの読み込みに失敗しました')
       }
     } catch (error: any) {
       // Handle JSON parse errors specifically
@@ -108,7 +109,7 @@ export default function GuidesPage() {
 
       // Set default guide
       if (!selectedGuide && guides.length > 0) {
-        setSelectedGuide(guides[0].slug)
+        setSelectedGuide(guides[0])
       }
 
     } catch (error: any) {
@@ -127,50 +128,25 @@ export default function GuidesPage() {
 
   useEffect(() => {
     checkAccess()
-    // Temporarily disable guides fetching to fix loading issues
-    // fetchGuides()
-    setGuidesLoading(false)
-  }, [checkAccess])
+    fetchGuides()
+  }, [])
 
   const getGuideAccess = (guide: Guide): boolean => {
-    if (!guide.requires_access) return true
-    // Allow access for any registered user (not just paid users)
-    return access?.status !== UserStatus.VISITOR
+    // All guides are accessible if they are active
+    return guide.is_active
   }
 
-  const getSelectedContent = (): string => {
-    const guide = guides.find(g => g.slug === selectedGuide)
-    if (!guide) return ''
+  const getSelectedContent = (): { content: string, youtubeId?: string } => {
+    if (!selectedGuide) return { content: '' }
 
-    if (!getGuideAccess(guide)) {
-      return `
-# 🔒 アクセス制限
-
-このコンテンツは**契約ユーザー限定**です。
-
----
-
-## 📈 現在のステータス
-
-**${access?.statusDescription || '未ログイン'}**
-
----
-
-## ✅ アクセス可能になる条件
-
-1. **契約を開始** - 7日間のセットアップ期間を取得
-2. **体験期間をアクティベート** - 3日間の無料体験
-3. **有料会員にアップグレード** - 全機能を利用可能
-
----
-
-## 🎯 今すぐアクセスを取得
-
-[🚀 契約を開始する](/register)
-      `
+    if (!getGuideAccess(selectedGuide)) {
+      return { content: '# 🔒 このガイドは現在非公開です' }
     }
 
-    return guide.content
+    return {
+      content: selectedGuide.content || '',
+      youtubeId: selectedGuide.video_id
+    }
   }
 
   if (loading || guidesLoading) {
@@ -267,24 +243,26 @@ export default function GuidesPage() {
                   return (
                     <button
                       key={guide.id}
-                      onClick={() => setSelectedGuide(guide.slug)}
+                      onClick={() => setSelectedGuide(guide)}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                        selectedGuide === guide.slug
+                        selectedGuide?.id === guide.id
                           ? 'bg-blue-500/20 border-l-4 border-blue-400'
                           : 'hover:bg-white/10'
                       } ${!hasAccess ? 'opacity-50' : ''}`}
-                      disabled={!hasAccess && guide.requires_access}
+                      disabled={!hasAccess}
                     >
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-white text-sm">
                             {guide.title}
                           </p>
-                          <p className="text-xs text-white/60 mt-1">
-                            {guide.description}
-                          </p>
+                          {guide.description && (
+                            <p className="text-xs text-white/60 mt-1">
+                              {guide.description}
+                            </p>
+                          )}
                         </div>
-                        {guide.requires_access && !hasAccess && (
+                        {!hasAccess && (
                           <span className="text-xs">🔒</span>
                         )}
                       </div>
@@ -312,41 +290,69 @@ export default function GuidesPage() {
                     </div>
                   </div>
                 )}
-                <div
-                  className="markdown-content max-w-none"
-                  style={{color: '#ffffff'}}
-                  dangerouslySetInnerHTML={{
-                    __html: getSelectedContent()
-                      .replace(/\n/g, '<br>')
-                      .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/30 pb-2">$1</h1>')
-                      .replace(/^## (.*?)$/gm, '<h2 class="text-xl md:text-2xl font-semibold mb-3 mt-6 text-white">$1</h2>')
-                      .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-white">$1</h3>')
-                      .replace(/\`\`\`([\s\S]*?)\`\`\`/g, '<pre class="bg-black/40 border border-white/30 p-4 rounded-lg overflow-x-auto backdrop-blur-sm my-4"><code class="text-white text-sm">$1</code></pre>')
-                      .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/30 px-2 py-1 rounded text-blue-200 text-sm border border-blue-400/40">$1</code>')
-                      .replace(/^(\d+)\. (.*)$/gm, '<div class="my-1"><span class="text-blue-400 font-medium">$1.</span> <span class="text-white">$2</span></div>')
-                      .replace(/^- (.*)$/gm, '<div class="my-1 ml-4"><span class="text-blue-400 mr-2">•</span><span class="text-white">$1</span></div>')
-                      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
-                      .replace(/^([^#\-\d\`\<\*].*)$/gm, '<div class="text-white leading-relaxed my-2">$1</div>')
-                  }}
-                />
+                {(() => {
+                  const { content, youtubeId } = getSelectedContent();
+                  return (
+                    <>
+                      {selectedGuide && (
+                        <div className="mb-6">
+                          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                            {selectedGuide.title}
+                          </h1>
+                          {selectedGuide.description && (
+                            <p className="text-gray-300">{selectedGuide.description}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {youtubeId && (
+                        <div className="mb-6">
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-black/40 border border-white/30">
+                            <iframe
+                              src={`https://www.youtube.com/embed/${youtubeId}`}
+                              title="YouTube video player"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                              className="absolute inset-0 w-full h-full"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div
+                        className="markdown-content max-w-none"
+                        style={{color: '#ffffff'}}
+                        dangerouslySetInnerHTML={{
+                          __html: content
+                            .replace(/\n/g, '<br>')
+                            .replace(/^# (.*?)$/gm, '<h1 class="text-2xl md:text-3xl font-bold mb-4 text-white border-b border-white/30 pb-2">$1</h1>')
+                            .replace(/^## (.*?)$/gm, '<h2 class="text-xl md:text-2xl font-semibold mb-3 mt-6 text-white">$1</h2>')
+                            .replace(/^### (.*?)$/gm, '<h3 class="text-lg md:text-xl font-medium mb-2 mt-4 text-white">$1</h3>')
+                            .replace(/\`\`\`([\s\S]*?)\`\`\`/g, '<pre class="bg-black/40 border border-white/30 p-4 rounded-lg overflow-x-auto backdrop-blur-sm my-4"><code class="text-white text-sm">$1</code></pre>')
+                            .replace(/\`([^\`]+)\`/g, '<code class="bg-blue-500/30 px-2 py-1 rounded text-blue-200 text-sm border border-blue-400/40">$1</code>')
+                            .replace(/^(\d+)\. (.*)$/gm, '<div class="my-1"><span class="text-blue-400 font-medium">$1.</span> <span class="text-white">$2</span></div>')
+                            .replace(/^- (.*)$/gm, '<div class="my-1 ml-4"><span class="text-blue-400 mr-2">•</span><span class="text-white">$1</span></div>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+                            .replace(/^([^#\-\d\`\<\*].*)$/gm, '<div class="text-white leading-relaxed my-2">$1</div>')
+                        }}
+                      />
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
-            {/* CTA for locked content */}
-            {selectedGuide && guides.find(g => g.slug === selectedGuide)?.requires_access && access?.status === UserStatus.VISITOR && (
-              <div className="mt-6 bg-gradient-to-br from-blue-800/30 via-purple-800/20 to-indigo-800/30 backdrop-blur-xl border border-blue-400/30 rounded-2xl p-6 md:p-8 shadow-lg shadow-blue-500/10">
-                <div className="text-center">
-                  <h3 className="text-xl md:text-2xl font-bold text-white mb-4">
-                    完全版にアクセス
-                  </h3>
-                  <p className="text-gray-300 mb-6">
-                    契約を開始して、全てのガイドとツールにアクセスしましょう
+            {/* YouTube guide available notice */}
+            {selectedGuide?.youtube_url && (
+              <div className="mt-6 bg-gradient-to-br from-red-800/30 via-pink-800/20 to-red-800/30 backdrop-blur-xl border border-red-400/30 rounded-2xl p-4 shadow-lg shadow-red-500/10">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <p className="text-white text-sm">
+                    このガイドには動画解説が含まれています
                   </p>
-                  <Link href="/register">
-                    <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-medium border border-white/20 shadow-xl">
-                      今すぐ始める（7日間セットアップ + 3日間体験）
-                    </button>
-                  </Link>
                 </div>
               </div>
             )}
