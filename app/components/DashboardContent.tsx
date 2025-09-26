@@ -18,7 +18,7 @@ import PlanFeatures from '@/app/components/PlanFeatures'
 import { useSearchParams } from 'next/navigation'
 
 // Dashboard sections
-type DashboardSection = 'overview' | 'device' | 'subscription' | 'usage' | 'settings' | 'help'
+type DashboardSection = 'overview' | 'device' | 'subscription' | 'usage' | 'settings' | 'help' | 'guides'
 
 interface SidebarItem {
   id: DashboardSection
@@ -51,6 +51,12 @@ const sidebarItems: SidebarItem[] = [
     label: '利用統計',
     icon: '📈',
     description: 'ツールの使用状況と実績'
+  },
+  {
+    id: 'guides',
+    label: '使い方ガイド',
+    icon: '📚',
+    description: 'チュートリアルと操作説明'
   },
   {
     id: 'settings',
@@ -812,6 +818,8 @@ export default function DashboardContent({}: DashboardContentProps) {
         return renderSubscriptionSection()
       case 'usage':
         return renderUsageSection()
+      case 'guides':
+        return renderGuidesSection()
       case 'settings':
         return renderSettingsSection()
       case 'help':
@@ -1624,6 +1632,73 @@ export default function DashboardContent({}: DashboardContentProps) {
                 セキュリティ設定は現在開発中です
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderGuidesSection = () => (
+    <div className="space-y-4 md:space-y-6">
+      <div className="bg-gradient-to-br from-indigo-800/30 via-blue-800/20 to-purple-800/30 backdrop-blur-xl border border-indigo-400/30 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg shadow-indigo-500/10">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-4">📚 使い方ガイド</h2>
+
+        <div className="space-y-4">
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-3">📖 利用可能なガイド</h3>
+            <div className="space-y-3">
+              <Link href="/guides" className="block">
+                <div className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 transition-all cursor-pointer">
+                  <h4 className="font-medium text-white mb-1">🎯 SMARTGRAMの使い方</h4>
+                  <p className="text-white/70 text-sm">基本的な操作方法から高度な機能まで詳しく解説</p>
+                </div>
+              </Link>
+
+              <Link href="/guides/timeline" className="block">
+                <div className="p-4 bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-400/30 rounded-xl hover:from-green-500/30 hover:to-teal-500/30 transition-all cursor-pointer">
+                  <h4 className="font-medium text-white mb-1">📱 タイムライン自動いいね</h4>
+                  <p className="text-white/70 text-sm">タイムラインの投稿に自動でいいねする方法</p>
+                </div>
+              </Link>
+
+              <Link href="/guides/hashtag" className="block">
+                <div className="p-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-xl hover:from-purple-500/30 hover:to-pink-500/30 transition-all cursor-pointer">
+                  <h4 className="font-medium text-white mb-1">#️⃣ ハッシュタグ自動いいね</h4>
+                  <p className="text-white/70 text-sm">特定のハッシュタグの投稿に自動でいいね</p>
+                </div>
+              </Link>
+
+              <Link href="/guides/follow" className="block">
+                <div className="p-4 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-400/30 rounded-xl hover:from-orange-500/30 hover:to-amber-500/30 transition-all cursor-pointer">
+                  <h4 className="font-medium text-white mb-1">👥 自動フォロー</h4>
+                  <p className="text-white/70 text-sm">ターゲットユーザーを自動でフォローする設定</p>
+                </div>
+              </Link>
+
+              <Link href="/guides/unfollow" className="block">
+                <div className="p-4 bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-400/30 rounded-xl hover:from-red-500/30 hover:to-pink-500/30 transition-all cursor-pointer">
+                  <h4 className="font-medium text-white mb-1">🚫 自動アンフォロー</h4>
+                  <p className="text-white/70 text-sm">フォローバックされていないユーザーを自動で解除</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-white/10 border border-white/20 p-4 rounded-xl backdrop-blur-sm">
+            <h3 className="font-medium text-white mb-2">💡 ヒント</h3>
+            <div className="space-y-2 text-sm text-white/70">
+              <p>• 各ガイドには動画チュートリアルが含まれています</p>
+              <p>• プランによって利用できる機能が異なります</p>
+              <p>• 不明な点はサポートまでお問い合わせください</p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link href="/guides">
+              <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 shadow-xl border border-white/20" size="lg">
+                📚 すべてのガイドを見る
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

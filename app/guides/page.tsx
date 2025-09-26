@@ -32,6 +32,8 @@ export default function GuidesPage() {
   const [error, setError] = useState('')
   const [guides, setGuides] = useState<Guide[]>([])
   const [guidesLoading, setGuidesLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [selectedGuideIndex, setSelectedGuideIndex] = useState(0)
 
   // Fetch guides from database
   const fetchGuides = useCallback(async () => {
@@ -65,6 +67,7 @@ export default function GuidesPage() {
         // Set first guide as default if available
         if (result.guides && result.guides.length > 0 && !selectedGuide) {
           setSelectedGuide(result.guides[0])
+          setSelectedGuideIndex(0)
         }
       } else {
         setError('ガイドの読み込みに失敗しました')
@@ -110,6 +113,7 @@ export default function GuidesPage() {
       // Set default guide
       if (!selectedGuide && guides.length > 0) {
         setSelectedGuide(guides[0])
+        setSelectedGuideIndex(0)
       }
 
     } catch (error: any) {
@@ -149,6 +153,34 @@ export default function GuidesPage() {
     }
   }
 
+  // Navigate to previous/next guide
+  const navigateGuide = (direction: 'prev' | 'next') => {
+    if (guides.length === 0) return
+
+    let newIndex = selectedGuideIndex
+    if (direction === 'prev') {
+      newIndex = Math.max(0, selectedGuideIndex - 1)
+    } else {
+      newIndex = Math.min(guides.length - 1, selectedGuideIndex + 1)
+    }
+
+    if (newIndex !== selectedGuideIndex) {
+      setSelectedGuideIndex(newIndex)
+      setSelectedGuide(guides[newIndex])
+      setMobileMenuOpen(false)
+      // Scroll to top on mobile
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const handleGuideSelect = (guide: Guide, index: number) => {
+    setSelectedGuide(guide)
+    setSelectedGuideIndex(index)
+    setMobileMenuOpen(false)
+    // Scroll to top on mobile
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (loading || guidesLoading) {
     return <LoadingScreen message="ガイドを読み込み中..." />
   }
@@ -167,15 +199,25 @@ export default function GuidesPage() {
                 </span>
               </div>
             </Link>
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3">
+              {/* Mobile guide menu button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden px-3 py-2 text-sm bg-violet-500/20 border border-violet-400/30 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-all backdrop-blur-sm flex items-center gap-2"
+              >
+                <span>📚</span>
+                <span className="hidden sm:inline">ガイド</span>
+                <span className="text-xs">{mobileMenuOpen ? '×' : '☰'}</span>
+              </button>
               <Link href="/dashboard">
-                <button className="px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all backdrop-blur-sm">
-                  📊 ダッシュボード
+                <button className="px-3 md:px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all backdrop-blur-sm">
+                  <span className="hidden sm:inline">📊 ダッシュボード</span>
+                  <span className="sm:hidden">📊</span>
                 </button>
               </Link>
               {access?.status === UserStatus.VISITOR && (
                 <Link href="/login">
-                  <button className="px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all border border-white/20">
+                  <button className="px-3 md:px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all border border-white/20">
                     ログイン
                   </button>
                 </Link>
@@ -184,6 +226,48 @@ export default function GuidesPage() {
           </div>
         </div>
       </nav>
+
+      {/* Mobile Guide Selection Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+          <div className="absolute top-16 left-0 right-0 bg-gradient-to-br from-violet-900/95 via-purple-900/95 to-fuchsia-900/95 backdrop-blur-xl border-b border-violet-400/30 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="container mx-auto px-4 py-4 max-h-[70vh] overflow-y-auto">
+              <h3 className="text-white font-semibold mb-3 text-sm">ガイド一覧</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {guides.map((guide, index) => {
+                  const hasAccess = getGuideAccess(guide)
+                  return (
+                    <button
+                      key={guide.id}
+                      onClick={() => handleGuideSelect(guide, index)}
+                      className={`text-left p-3 rounded-lg transition-all ${
+                        selectedGuide?.id === guide.id
+                          ? 'bg-blue-500/30 border border-blue-400/50'
+                          : 'bg-white/10 hover:bg-white/20 border border-white/20'
+                      } ${!hasAccess ? 'opacity-50' : ''}`}
+                      disabled={!hasAccess}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-white text-sm">
+                            {index + 1}. {guide.title}
+                          </p>
+                          {guide.description && (
+                            <p className="text-xs text-white/60 mt-1">
+                              {guide.description}
+                            </p>
+                          )}
+                        </div>
+                        {!hasAccess && <span className="text-xs">🔒</span>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-900/40 via-purple-900/30 to-indigo-900/40 backdrop-blur-xl py-8 sm:py-12">
@@ -226,8 +310,8 @@ export default function GuidesPage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
+          {/* Sidebar - Hidden on mobile */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-gradient-to-br from-violet-800/30 via-purple-800/20 to-fuchsia-800/30 backdrop-blur-xl border border-violet-400/30 rounded-2xl sticky top-24 shadow-lg shadow-violet-500/10">
               <div className="p-4 border-b border-violet-400/30">
                 <h2 className="font-semibold text-white">ガイド一覧</h2>
@@ -243,7 +327,7 @@ export default function GuidesPage() {
                   return (
                     <button
                       key={guide.id}
-                      onClick={() => setSelectedGuide(guide)}
+                      onClick={() => handleGuideSelect(guide, guides.indexOf(guide))}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
                         selectedGuide?.id === guide.id
                           ? 'bg-blue-500/20 border-l-4 border-blue-400'
@@ -275,6 +359,45 @@ export default function GuidesPage() {
 
           {/* Content */}
           <div className="lg:col-span-3">
+            {/* Mobile navigation arrows */}
+            <div className="lg:hidden sticky top-16 z-30 bg-gradient-to-r from-indigo-900/95 via-purple-900/95 to-pink-900/95 backdrop-blur-xl border-b border-white/20 p-3 mb-4 -mt-8 rounded-b-2xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => navigateGuide('prev')}
+                  disabled={selectedGuideIndex === 0}
+                  className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1 text-sm ${
+                    selectedGuideIndex === 0
+                      ? 'bg-gray-800/30 text-gray-500 cursor-not-allowed'
+                      : 'bg-white/10 text-white hover:bg-white/20 active:scale-95'
+                  }`}
+                >
+                  <span>←</span>
+                  <span className="hidden xs:inline">前へ</span>
+                </button>
+
+                <div className="flex-1 text-center px-2">
+                  <p className="text-white text-xs font-medium truncate">
+                    {selectedGuide?.title || 'ガイド'}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    {selectedGuideIndex + 1} / {guides.length}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => navigateGuide('next')}
+                  disabled={selectedGuideIndex === guides.length - 1}
+                  className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1 text-sm ${
+                    selectedGuideIndex === guides.length - 1
+                      ? 'bg-gray-800/30 text-gray-500 cursor-not-allowed'
+                      : 'bg-white/10 text-white hover:bg-white/20 active:scale-95'
+                  }`}
+                >
+                  <span className="hidden xs:inline">次へ</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
             <div className="bg-gradient-to-br from-slate-800/30 via-gray-800/20 to-slate-800/30 backdrop-blur-xl border border-slate-400/30 rounded-2xl shadow-lg shadow-slate-500/10">
               <div className="p-6 md:p-8">
                 {guides.length === 0 && !guidesLoading && (
@@ -340,6 +463,46 @@ export default function GuidesPage() {
                     </>
                   );
                 })()}
+              </div>
+            </div>
+
+            {/* Mobile Bottom Navigation */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-gray-900/95 to-transparent backdrop-blur-xl border-t border-white/20 p-4 z-30">
+              <div className="container mx-auto">
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => navigateGuide('prev')}
+                    disabled={selectedGuideIndex === 0}
+                    className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-medium ${
+                      selectedGuideIndex === 0
+                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white hover:from-blue-500/30 hover:to-purple-500/30 border border-white/20 active:scale-95'
+                    }`}
+                  >
+                    <span>←</span>
+                    <span>前のガイド</span>
+                  </button>
+
+                  <button
+                    onClick={() => setMobileMenuOpen(true)}
+                    className="px-4 py-3 bg-violet-500/20 border border-violet-400/30 text-violet-300 rounded-xl hover:bg-violet-500/30 transition-all"
+                  >
+                    <span>📚</span>
+                  </button>
+
+                  <button
+                    onClick={() => navigateGuide('next')}
+                    disabled={selectedGuideIndex === guides.length - 1}
+                    className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-medium ${
+                      selectedGuideIndex === guides.length - 1
+                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white hover:from-purple-500/30 hover:to-pink-500/30 border border-white/20 active:scale-95'
+                    }`}
+                  >
+                    <span>次のガイド</span>
+                    <span>→</span>
+                  </button>
+                </div>
               </div>
             </div>
 
