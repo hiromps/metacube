@@ -2412,6 +2412,11 @@ function generateVersionString(): string {
 
 async function handleAdminUploadPackageInternal(request: Request, env?: any): Promise<Response> {
   console.log('handleAdminUploadPackageInternal called');
+  console.log('Environment variables check:', {
+    hasEnv: !!env,
+    hasSupabaseUrl: !!env?.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseKey: !!env?.SUPABASE_SERVICE_ROLE_KEY
+  });
 
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -2461,6 +2466,25 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
       })
     }
 
+    // Check if env is properly passed
+    if (!env || !env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Environment configuration missing:', {
+        hasEnv: !!env,
+        hasUrl: !!env?.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!env?.SUPABASE_SERVICE_ROLE_KEY
+      });
+      return new Response(JSON.stringify({
+        error: 'サーバー設定エラーが発生しました',
+        details: 'Environment configuration is missing'
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+
     const supabase = getSupabaseClient(env);
 
     // ユーザーが存在するか確認
@@ -2477,31 +2501,48 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
     }
 
     // 既存のパッケージを無効化（新しいバージョンのため）
-    await supabase
+    const { error: updateError } = await supabase
       .from('user_packages')
       .update({ is_active: false })
       .eq('user_id', uploadData.user_id)
       .eq('device_hash', uploadData.device_hash)
 
+    if (updateError) {
+      console.log('Note: No existing packages to deactivate or update failed:', updateError.message);
+    }
+
     // 新しいパッケージを保存
+    const insertData = {
+      user_id: uploadData.user_id,
+      device_hash: uploadData.device_hash,
+      file_name: uploadData.file_name,
+      file_content: uploadData.file_content,
+      file_size: uploadData.file_size,
+      uploaded_by: 'admin',
+      notes: uploadData.notes || '管理者によりアップロード',
+      version: generateVersionString(),
+      is_active: true
+    };
+
+    console.log('Attempting to insert package with data:', {
+      ...insertData,
+      file_content: `[${insertData.file_content.length} characters]`
+    });
+
     const { data: packageData, error: packageError } = await supabase
       .from('user_packages')
-      .insert({
-        user_id: uploadData.user_id,
-        device_hash: uploadData.device_hash,
-        file_name: uploadData.file_name,
-        file_content: uploadData.file_content,
-        file_size: uploadData.file_size,
-        uploaded_by: 'admin',
-        notes: uploadData.notes || '管理者によりアップロード',
-        version: generateVersionString(),
-        is_active: true
-      })
+      .insert(insertData)
       .select()
       .single()
 
     if (packageError) {
-      console.error('Package insert error:', packageError)
+      console.error('Package insert error:', {
+        error: packageError,
+        code: packageError.code,
+        message: packageError.message,
+        details: packageError.details,
+        hint: packageError.hint
+      })
 
       // Handle table not exists error
       if (packageError.message?.includes('does not exist') || packageError.code === 'PGRST116' || packageError.code === '42P01') {
