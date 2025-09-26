@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, Edit, Trash2, Plus, Save, X, Youtube, FileText, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
 
 interface Guide {
   id: string;
@@ -210,14 +211,48 @@ export default function AdminGuidesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">ガイド管理</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+      {/* Navigation */}
+      <nav className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/">
+              <div className="flex items-center space-x-1 md:space-x-2">
+                <span className="text-lg md:text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SMART</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GRAM</span>
+                </span>
+              </div>
+            </Link>
+            <div className="flex gap-3">
+              <Link href="/admin">
+                <button className="px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  管理TOP
+                </button>
+              </Link>
+              <Link href="/admin/user-management">
+                <button className="px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  ユーザー管理
+                </button>
+              </Link>
+              <Link href="/dashboard">
+                <button className="px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all">
+                  ダッシュボード
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8 text-white">ガイド管理</h1>
 
       {message && (
-        <div className={`mb-4 p-4 rounded-md ${
+        <div className={`mb-4 p-4 rounded-lg backdrop-blur-sm ${
           message.includes('失敗') || message.includes('エラー')
-            ? 'bg-red-100 text-red-700'
-            : 'bg-green-100 text-green-700'
+            ? 'bg-red-500/20 border border-red-400/30 text-red-300'
+            : 'bg-green-500/20 border border-green-400/30 text-green-300'
         }`}>
           {message}
         </div>
@@ -237,7 +272,7 @@ export default function AdminGuidesPage() {
               is_active: true
             });
           }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all flex items-center gap-2 border border-white/20"
         >
           <Plus className="w-5 h-5" />
           新しいガイドを追加
@@ -245,33 +280,33 @@ export default function AdminGuidesPage() {
       </div>
 
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="bg-gradient-to-br from-slate-800/50 via-gray-800/30 to-slate-800/50 backdrop-blur-xl border border-slate-400/30 p-6 rounded-2xl shadow-lg shadow-slate-500/10 mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-white">
             {editingGuide ? 'ガイドを編集' : '新しいガイドを作成'}
           </h2>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  タイトル <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  タイトル <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   カテゴリー
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   {categories.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -280,49 +315,49 @@ export default function AdminGuidesPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   説明
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="ガイドの簡単な説明"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   YouTube URL
                 </label>
                 <div className="flex items-center gap-2">
-                  <Youtube className="w-5 h-5 text-red-600" />
+                  <Youtube className="w-5 h-5 text-red-400" />
                   <input
                     type="url"
                     value={formData.youtube_url}
                     onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="https://www.youtube.com/watch?v=..."
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   YouTube動画のURLを入力すると、ガイドページに埋め込み表示されます
                 </p>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   コンテンツ（マークダウン形式）
                 </label>
                 <textarea
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={10}
                   placeholder="# 見出し&#10;&#10;テキスト内容...&#10;&#10;- リスト項目1&#10;- リスト項目2"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   マークダウン形式で記述できます（# 見出し、**太字**、- リストなど）
                 </p>
               </div>
@@ -335,7 +370,7 @@ export default function AdminGuidesPage() {
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">公開する</span>
+                  <span className="text-sm font-medium text-gray-300">公開する</span>
                 </label>
               </div>
             </div>
@@ -344,7 +379,7 @@ export default function AdminGuidesPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:from-gray-500 disabled:to-gray-600 transition-all flex items-center gap-2 border border-white/20"
               >
                 <Save className="w-4 h-4" />
                 {editingGuide ? '更新' : '作成'}
@@ -355,7 +390,7 @@ export default function AdminGuidesPage() {
                   setShowForm(false);
                   setEditingGuide(null);
                 }}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors flex items-center gap-2"
+                className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20"
               >
                 <X className="w-4 h-4" />
                 キャンセル
@@ -365,31 +400,31 @@ export default function AdminGuidesPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-800/50 via-gray-800/30 to-slate-800/50 backdrop-blur-xl border border-slate-400/30 rounded-2xl shadow-lg shadow-slate-500/10 overflow-hidden">
         <table className="min-w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-black/30 border-b border-white/10">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 順序
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 タイトル
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 カテゴリー
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 動画
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 状態
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 操作
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-white/10">
             {guides.map((guide, index) => (
               <tr key={guide.id} className={!guide.is_active ? 'opacity-50' : ''}>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -397,38 +432,38 @@ export default function AdminGuidesPage() {
                     <button
                       onClick={() => handleReorder(index, 'up')}
                       disabled={index === 0}
-                      className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                      className="p-1 hover:bg-white/10 rounded disabled:opacity-30 text-white"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleReorder(index, 'down')}
                       disabled={index === guides.length - 1}
-                      className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                      className="p-1 hover:bg-white/10 rounded disabled:opacity-30 text-white"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
-                    <span className="ml-2 text-sm text-gray-600">{guide.order_index}</span>
+                    <span className="ml-2 text-sm text-gray-400">{guide.order_index}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{guide.title}</div>
+                    <div className="text-sm font-medium text-white">{guide.title}</div>
                     {guide.description && (
-                      <div className="text-sm text-gray-500">{guide.description}</div>
+                      <div className="text-sm text-gray-400">{guide.description}</div>
                     )}
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                  <span className="px-2 py-1 text-xs rounded-full bg-white/10 text-gray-300 border border-white/20">
                     {categories.find(c => c.value === guide.category)?.label || guide.category}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   {guide.youtube_url ? (
-                    <Youtube className="w-5 h-5 text-red-600" />
+                    <Youtube className="w-5 h-5 text-red-400" />
                   ) : (
-                    <FileText className="w-5 h-5 text-gray-400" />
+                    <FileText className="w-5 h-5 text-gray-500" />
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -438,13 +473,13 @@ export default function AdminGuidesPage() {
                   >
                     {guide.is_active ? (
                       <>
-                        <Eye className="w-4 h-4 text-green-600" />
-                        <span className="text-green-600">公開中</span>
+                        <Eye className="w-4 h-4 text-green-400" />
+                        <span className="text-green-400">公開中</span>
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-400">非公開</span>
+                        <EyeOff className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-500">非公開</span>
                       </>
                     )}
                   </button>
@@ -453,13 +488,13 @@ export default function AdminGuidesPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(guide)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-400 hover:text-blue-300 transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(guide.id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-400 hover:text-red-300 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -471,10 +506,11 @@ export default function AdminGuidesPage() {
         </table>
 
         {guides.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-400">
             まだガイドが登録されていません
           </div>
         )}
+      </div>
       </div>
     </div>
   );
