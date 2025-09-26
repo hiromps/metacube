@@ -2441,10 +2441,21 @@ async function handleAdminUploadPackageInternal(request: Request, env?: any): Pr
 
   try {
     const uploadData: UploadPackageRequest & { admin_key?: string } = await request.json()
-    console.log('Upload data received:', { user_id: uploadData.user_id, device_hash: uploadData.device_hash, file_name: uploadData.file_name });
+    console.log('Upload data received:', {
+      user_id: uploadData.user_id,
+      device_hash: uploadData.device_hash,
+      file_name: uploadData.file_name,
+      has_admin_key: !!uploadData.admin_key,
+      admin_key_length: uploadData.admin_key?.length || 0
+    });
 
     // Simple admin authentication
     if (uploadData.admin_key !== 'smartgram-admin-2024') {
+      console.error('Admin key validation failed:', {
+        received: uploadData.admin_key,
+        expected: 'smartgram-admin-2024',
+        match: uploadData.admin_key === 'smartgram-admin-2024'
+      });
       return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
         status: 401,
         headers: {

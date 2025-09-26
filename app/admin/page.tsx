@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 
 export default function AdminPage() {
-  const [adminKey, setAdminKey] = useState('');
+  const [adminKey, setAdminKey] = useState('smartgram-admin-2024');
   const [userId, setUserId] = useState('');
   const [newDeviceHash, setNewDeviceHash] = useState('FFMZ3GTSJC6J');
   const [message, setMessage] = useState('');
