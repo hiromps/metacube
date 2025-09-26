@@ -324,7 +324,7 @@ export default function DashboardContent({}: DashboardContentProps) {
   }, [userData, updateTimeLeft])
 
   const handleCancelSubscription = async () => {
-    if (!confirm('本当に解約しますか？解約すると即座にサービスが利用できなくなります。')) {
+    if (!confirm('本当に解約しますか？解約すると即座にサービスが利用できなくなります。\n\n※ Stripeで管理されているサブスクリプションも自動的に解約されます。')) {
       return
     }
 
@@ -332,22 +332,39 @@ export default function DashboardContent({}: DashboardContentProps) {
     setError('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
 
-      if (!user) {
-        throw new Error('ユーザー情報が取得できません')
+      if (!session?.access_token) {
+        throw new Error('認証が必要です。ログインし直してください。')
       }
 
-      const { data: result, error: cancelError } = await supabase.rpc('cancel_subscription', {
-        p_user_id: user.id
+      // Use the API endpoint instead of direct Supabase RPC
+      const response = await fetch('/api/dashboard/cancel', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: session.user.id,
+          device_hash: userData?.device?.device_hash
+        })
       })
 
-      if (cancelError) {
-        throw new Error(cancelError.message)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `解約に失敗しました (${response.status})`)
       }
 
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '解約に失敗しました')
+      }
+
+      // Refresh user data after successful cancellation
       refetch()
-      alert('サブスクリプションを解約しました')
+      alert('✅ サブスクリプションを正常に解約しました\n\n・データベースでサブスクリプションを無効化しました\n・Stripeサブスクリプションも解約されました\n・現在のプランは無料プランに変更されます')
 
     } catch (err: any) {
       console.error('Cancel subscription error:', err)

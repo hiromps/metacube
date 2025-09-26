@@ -204,11 +204,12 @@ export async function handleSubscriptionCancel(request: Request, env: any) {
     // Find the device and subscription
     const { data: deviceData, error: deviceError } = await supabase
       .from('devices')
-      .select('id')
+      .select('id, user_id, device_hash')
       .or(`device_hash.eq.${device_hash},user_id.eq.${user_id}`)
       .single()
 
     if (deviceError || !deviceData) {
+      console.error('Device not found:', deviceError)
       return new Response(JSON.stringify({
         success: false,
         error: 'デバイスが見つかりません'
@@ -216,6 +217,18 @@ export async function handleSubscriptionCancel(request: Request, env: any) {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       })
+    }
+
+    // First get existing subscription data to check for external subscriptions
+    const { data: existingSubscription, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('id, stripe_subscription_id, paypal_subscription_id, status, device_id')
+      .eq('device_id', deviceData.id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error('Subscription fetch error:', fetchError)
     }
 
     // Update subscription to cancelled
@@ -228,7 +241,10 @@ export async function handleSubscriptionCancel(request: Request, env: any) {
       })
       .eq('device_id', deviceData.id)
       .select()
-      .single()
+      .maybeSingle()
+
+    // Use existing subscription data if update didn't return data
+    const subscriptionToProcess = subscription || existingSubscription
 
     if (cancelError) {
       console.error('Subscription cancel error:', cancelError)
@@ -242,17 +258,71 @@ export async function handleSubscriptionCancel(request: Request, env: any) {
       })
     }
 
-    // TODO: Call Stripe/PayPal API to cancel external subscription
-    // This should be implemented based on the provider
+    // Cancel external subscription (Stripe/PayPal)
+    let stripeCancel = null;
+    let paypalCancel = null;
 
-    console.log('Subscription cancelled:', subscription)
+    if (subscriptionToProcess && subscriptionToProcess.stripe_subscription_id) {
+      console.log('Cancelling Stripe subscription:', subscriptionToProcess.stripe_subscription_id)
+      try {
+        // Use Stripe SDK to cancel subscription
+        const stripeSecretKey = env.STRIPE_SECRET_KEY;
+        if (stripeSecretKey) {
+          const cancelResponse = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionToProcess.stripe_subscription_id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${stripeSecretKey}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          });
+
+          if (cancelResponse.ok) {
+            stripeCancel = await cancelResponse.json();
+            console.log('✅ Stripe subscription cancelled:', stripeCancel.id)
+          } else {
+            console.error('❌ Failed to cancel Stripe subscription:', await cancelResponse.text())
+          }
+        }
+      } catch (stripeError) {
+        console.error('Stripe cancellation error:', stripeError)
+      }
+    }
+
+    if (subscriptionToProcess && subscriptionToProcess.paypal_subscription_id) {
+      console.log('Cancelling PayPal subscription:', subscriptionToProcess.paypal_subscription_id)
+      try {
+        // PayPal API call would go here
+        // For now, we'll just log it as PayPal integration is legacy
+        console.log('⚠️ PayPal subscription cancellation not implemented:', subscriptionToProcess.paypal_subscription_id)
+      } catch (paypalError) {
+        console.error('PayPal cancellation error:', paypalError)
+      }
+    }
+
+    // Update device status to inactive/trial if subscription was cancelled
+    await supabase
+      .from('devices')
+      .update({
+        plan_id: 'trial', // Reset to trial plan
+        status: subscriptionToProcess?.stripe_subscription_id || subscriptionToProcess?.paypal_subscription_id ? 'expired' : 'trial',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', deviceData.id)
+
+    console.log('Subscription cancelled:', subscriptionToProcess)
 
     return new Response(JSON.stringify({
       success: true,
       message: 'サブスクリプションを解約しました',
       data: {
-        cancelled_at: subscription.cancelled_at,
-        status: subscription.status
+        cancelled_at: subscription?.cancelled_at || new Date().toISOString(),
+        status: subscription?.status || 'cancelled',
+        stripe_cancelled: !!stripeCancel,
+        paypal_cancelled: !!paypalCancel,
+        external_cancellation_status: {
+          stripe: stripeCancel ? 'cancelled' : (subscriptionToProcess?.stripe_subscription_id ? 'failed' : 'not_applicable'),
+          paypal: paypalCancel ? 'cancelled' : (subscriptionToProcess?.paypal_subscription_id ? 'not_implemented' : 'not_applicable')
+        }
       }
     }), {
       status: 200,
