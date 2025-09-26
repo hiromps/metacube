@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -89,7 +90,10 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <script src="https://js.stripe.com/v3/" async></script>
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <GoogleAnalytics />
+        {children}
+      </body>
     </html>
   );
 }
