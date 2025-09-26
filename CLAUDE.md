@@ -216,3 +216,159 @@ npm run dev  # Functions work locally with Cloudflare Pages dev server
 - Stripe Payment Link completion
 - File upload/download for packages
 - Plan feature access control
+
+## Package Upload/Download Implementation
+
+### Admin Package Upload System
+
+Successfully implemented a package upload system for admin to upload AutoTouch packages for specific users.
+
+#### Database Schema
+```sql
+-- user_packages table stores admin-uploaded packages
+CREATE TABLE user_packages (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  device_hash TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_content TEXT NOT NULL, -- base64 encoded
+  file_size INTEGER NOT NULL,
+  uploaded_by TEXT DEFAULT 'admin',
+  notes TEXT,
+  version TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+#### Backend Implementation (Cloudflare Functions)
+
+**Route Handler in `functions/api/[[path]].ts`:**
+```typescript
+// Add route mapping
+else if (path === 'admin/upload-package') {
+  return handleAdminUploadPackageInternal(request, env);
+}
+
+// Upload handler with proper error handling
+async function handleAdminUploadPackageInternal(request: Request, env: any) {
+  // Critical: Environment variables must be passed correctly
+  const supabase = getSupabaseClient(env);
+
+  // Validate admin key
+  if (uploadData.admin_key !== 'smartgram-admin-2024') {
+    return new Response(JSON.stringify({ error: 'Invalid admin key' }), {
+      status: 401
+    });
+  }
+
+  // Deactivate old packages before inserting new
+  await supabase.from('user_packages')
+    .update({ is_active: false })
+    .eq('user_id', uploadData.user_id)
+    .eq('device_hash', uploadData.device_hash);
+
+  // Insert new package
+  const { data, error } = await supabase.from('user_packages')
+    .insert({
+      user_id: uploadData.user_id,
+      device_hash: uploadData.device_hash,
+      file_name: uploadData.file_name,
+      file_content: uploadData.file_content, // base64
+      file_size: uploadData.file_size,
+      version: generateVersionString(),
+      is_active: true
+    });
+}
+```
+
+#### Frontend Implementation
+
+**Admin Upload Form (`app/admin/page.tsx`):**
+```typescript
+const handlePackageUpload = async () => {
+  // Convert file to base64
+  const fileContent = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result?.toString().split(',')[1];
+      resolve(base64);
+    };
+    reader.readAsDataURL(uploadFile);
+  });
+
+  const response = await fetch('/api/admin/upload-package', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      admin_key: 'smartgram-admin-2024', // Set as default
+      user_id: uploadUserId,
+      device_hash: uploadDeviceHash,
+      file_name: uploadFile.name,
+      file_content: fileContent,
+      file_size: uploadFile.size
+    })
+  });
+};
+```
+
+### User Package Download System
+
+**Backend Download Handler:**
+```typescript
+async function handleUserPackageDownload(request: Request, env: any, packageId: string) {
+  // Fetch package from database
+  const { data: packageData } = await supabase
+    .from('user_packages')
+    .select('*')
+    .eq('id', packageId)
+    .single();
+
+  // Convert base64 to binary (Cloudflare Workers compatible)
+  const binaryString = atob(packageData.file_content);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Return as downloadable file
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${packageData.file_name}"`
+    }
+  });
+}
+```
+
+**Frontend Download UI (`app/components/DashboardContent.tsx`):**
+```typescript
+const handleDownloadPackage = async (packageId: string) => {
+  const response = await fetch(`/api/user-packages/download/${packageId}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+```
+
+### Key Implementation Details
+
+1. **Base64 Encoding**: Files are converted to base64 on frontend before upload
+2. **Binary Conversion**: Use `atob()` and `Uint8Array` for Cloudflare Workers compatibility (no Buffer API)
+3. **Admin Authentication**: Simple key-based auth with `smartgram-admin-2024`
+4. **Package Versioning**: Auto-generate version string with timestamp
+5. **Active Package Management**: Only one active package per user/device combination
+
+### Troubleshooting Tips
+
+- **500 Errors**: Check environment variables are passed to handlers
+- **Upload Failures**: Verify admin_key is set correctly (default: 'smartgram-admin-2024')
+- **Download Issues**: Ensure proper base64 to binary conversion
+- **CORS Errors**: All responses must include `'Access-Control-Allow-Origin': '*'`
