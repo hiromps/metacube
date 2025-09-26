@@ -659,6 +659,7 @@ export default function DashboardContent({}: DashboardContentProps) {
                 device_id: null,
                 device_hash: '',
                 user_id: 'manual-entry',
+                plan_id: null,
                 plan_name: 'none',
                 plan_display_name: '手動入力',
                 subscription_status: 'no_device',
@@ -1251,8 +1252,7 @@ export default function DashboardContent({}: DashboardContentProps) {
 
                                   if (devicesData && devicesData.length > 0) {
                                     setUploadTargetDevice(devicesData[0].device_hash);
-                                    setSuccess('デバイスハッシュを自動検出しました');
-                                    setTimeout(() => setSuccess(''), 3000);
+                                    console.log('✅ デバイスハッシュを自動検出しました');
                                   }
                                 } catch (err) {
                                   console.log('Device not found for user');
@@ -1327,8 +1327,7 @@ export default function DashboardContent({}: DashboardContentProps) {
                                 if (device) {
                                   console.log('✅ Found user for device hash:', device.user_id);
                                   setUploadTargetUser(device.user_id);
-                                  setSuccess('ユーザーIDを自動検出しました');
-                                  setTimeout(() => setSuccess(''), 3000);
+                                  console.log('✅ ユーザーIDを自動検出しました');
                                 } else {
                                   console.log('⚠️ No user found for device hash:', deviceHash);
                                 }
